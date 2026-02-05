@@ -17,10 +17,12 @@ from trader.core.engine import TradingEngine
 from trader.core.portfolio import Portfolio
 from trader.core.safety import SafetyCheck, SafetyLimits
 from trader.data.ledger import TradeLedger
+from trader.oms.store import save_order
 from trader.rules.models import Rule, RuleAction, RuleCondition
 from trader.rules.loader import load_rules, save_rule, delete_rule, enable_rule
 from trader.utils.config import Config, Environment, load_config
 from trader.utils.logging import get_logger, setup_logging
+from trader.oms.store import load_orders
 
 console = Console()
 
@@ -215,6 +217,22 @@ def buy(ctx: click.Context, symbol: str, qty: int, limit: float | None) -> None:
             limit_price = None
             console.print(f"[yellow]Placing MARKET BUY: {qty} {symbol}[/yellow]")
 
+        # Safety checks
+        ledger = TradeLedger()
+        checker = SafetyCheck(broker, ledger)
+
+        # Determine price for validation: use limit price for limit orders, otherwise use mid quote
+        if limit:
+            check_price = Decimal(str(limit))
+        else:
+            q = broker.get_quote(symbol)
+            check_price = (q.bid + q.ask) / 2
+
+        allowed, reason = checker.check_order(symbol, int(qty), check_price, is_buy=True)
+        if not allowed:
+            console.print(f"[red]Order blocked by safety checks: {reason}[/red]")
+            return
+
         order = broker.place_order(
             symbol=symbol,
             qty=Decimal(str(qty)),
@@ -222,6 +240,12 @@ def buy(ctx: click.Context, symbol: str, qty: int, limit: float | None) -> None:
             order_type=order_type,
             limit_price=limit_price,
         )
+
+        try:
+            save_order(order)
+        except Exception:
+            # Don't block the CLI if persistence fails; log and continue
+            ctx.obj["logger"].exception("Failed to persist order")
 
         logger.info(f"BUY {qty} {symbol} | Order ID: {order.id} | Status: {order.status.value}")
 
@@ -272,6 +296,22 @@ def sell(ctx: click.Context, symbol: str, qty: int, limit: float | None) -> None
             limit_price = None
             console.print(f"[yellow]Placing MARKET SELL: {qty} {symbol}[/yellow]")
 
+        # Safety checks
+        ledger = TradeLedger()
+        checker = SafetyCheck(broker, ledger)
+
+        # Determine price for validation
+        if limit:
+            check_price = Decimal(str(limit))
+        else:
+            q = broker.get_quote(symbol)
+            check_price = (q.bid + q.ask) / 2
+
+        allowed, reason = checker.check_order(symbol, int(qty), check_price, is_buy=False)
+        if not allowed:
+            console.print(f"[red]Order blocked by safety checks: {reason}[/red]")
+            return
+
         order = broker.place_order(
             symbol=symbol,
             qty=Decimal(str(qty)),
@@ -279,6 +319,11 @@ def sell(ctx: click.Context, symbol: str, qty: int, limit: float | None) -> None
             order_type=order_type,
             limit_price=limit_price,
         )
+
+        try:
+            save_order(order)
+        except Exception:
+            ctx.obj["logger"].exception("Failed to persist order")
 
         logger.info(f"SELL {qty} {symbol} | Order ID: {order.id} | Status: {order.status.value}")
 
@@ -342,6 +387,40 @@ def orders(ctx: click.Context) -> None:
 
         console.print(table)
 
+        # Also show locally persisted pending orders and reserved buying power
+        try:
+            persisted = load_orders()
+        except Exception:
+            persisted = []
+
+        if persisted:
+            p_table = Table(title="Pending Orders (local)")
+            p_table.add_column("ID", style="dim")
+            p_table.add_column("Symbol", style="cyan")
+            p_table.add_column("Side")
+            p_table.add_column("Qty", justify="right")
+            p_table.add_column("Limit", justify="right")
+            p_table.add_column("Status")
+
+            reserved_buy_value = Decimal("0")
+            for po in persisted:
+                limit_str = f"${po.limit_price:,.2f}" if po.limit_price else "-"
+                p_table.add_row(po.id or "-", po.symbol, po.side.value.upper(), str(po.qty), limit_str, po.status.value.upper())
+
+                # consider pending buys as reserved value
+                if po.side.value == "buy" and po.status.value in ("new", "submitted"):
+                    if po.limit_price is not None:
+                        reserved_buy_value += po.limit_price * po.qty
+                    else:
+                        try:
+                            q = broker.get_quote(po.symbol)
+                            mid = (q.bid + q.ask) / 2
+                        except Exception:
+                            mid = Decimal("0")
+                        reserved_buy_value += mid * po.qty
+
+            console.print(p_table)
+            console.print(f"\nReserved Buying Power (pending buys): [yellow]${reserved_buy_value:,.2f}[/yellow]\n")
     except Exception as e:
         console.print(f"[red]Error fetching orders: {e}[/red]")
 
