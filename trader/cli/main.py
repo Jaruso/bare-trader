@@ -441,7 +441,13 @@ def rules_add(
         trader rules add sell TSLA 300 --qty 5 --above
     """
     rule_action = RuleAction.BUY if action == "buy" else RuleAction.SELL
-    condition = RuleCondition.ABOVE if above else RuleCondition.BELOW
+    # Default behavior: buys trigger when price <= target (BELOW),
+    # sells trigger when price >= target (ABOVE). The `--above` flag
+    # can be provided to override the default.
+    if above:
+        condition = RuleCondition.ABOVE
+    else:
+        condition = RuleCondition.BELOW if action == "buy" else RuleCondition.ABOVE
 
     rule = Rule(
         symbol=symbol.upper(),

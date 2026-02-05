@@ -33,7 +33,7 @@ It supports paper trading and live trading modes, provides a Git-style CLI inter
 
 ```bash
 git clone <repo-url>
-cd autotrader
+cd auto-trader
 poetry install
 ```
 
@@ -50,12 +50,25 @@ poetry run trader status
 Using pipx (recommended):
 
 ```bash
-pipx install .
+# If you previously installed a different `trader` package with pipx, uninstall it first
+pipx uninstall trader || true
+pipx install --editable .
 ```
 
 Verify:
 
 ```bash
+trader status
+```
+
+If you see import errors like `ModuleNotFoundError: No module named 'trader.data'`, it's likely a different installed `trader` is being used. You can run the local code directly or install editable mode:
+
+```bash
+# Run directly from the workspace (no global install required)
+python -m trader.cli.main status
+
+# Or install the local package in editable mode
+python -m pip install -e .
 trader status
 ```
 
@@ -125,16 +138,16 @@ trader start --env prod --confirm
 
 ### Manage Rules
 
-Add long position:
+Add buy rule (trigger when price is at or below target):
 
 ```bash
-trader add long AAPL 170 --qty 10
+trader rules add buy AAPL 170 --qty 10
 ```
 
-Add short position:
+Add sell rule (trigger when price is at or above target — this is the default for `sell`):
 
 ```bash
-trader add short TSLA 220 --qty 5
+trader rules add sell TSLA 220 --qty 5
 ```
 
 List rules:
@@ -147,6 +160,13 @@ Remove rule:
 
 ```bash
 trader rules remove <id>
+```
+
+Enable / disable rule:
+
+```bash
+trader rules enable <id>
+trader rules disable <id>
 ```
 
 ---
@@ -171,14 +191,14 @@ trader stop
 ## 🗂 Project Structure
 
 ```
-autotrader/
-├── trader/
-│   ├── api/         # Broker integrations
-│   ├── cli/         # CLI interface
-│   ├── core/        # Trading engine
-│   ├── rules/       # Rule system
-│   ├── data/        # Storage
-│   └── utils/       # Helpers
+auto-trader/
+├── trader/         # Python package providing the `trader` CLI
+│   ├── api/        # Broker integrations
+│   ├── cli/        # CLI interface
+│   ├── core/       # Trading engine
+│   ├── rules/      # Rule system
+│   ├── data/       # Storage
+│   └── utils/      # Helpers
 ├── tests/
 ├── config/
 ├── pyproject.toml
