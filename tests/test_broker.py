@@ -21,11 +21,13 @@ def test_account_model() -> None:
         cash=Decimal("10000.00"),
         buying_power=Decimal("20000.00"),
         equity=Decimal("15000.00"),
+        portfolio_value=Decimal("15000.00"),
         currency="USD",
     )
     assert account.cash == Decimal("10000.00")
     assert account.buying_power == Decimal("20000.00")
     assert account.equity == Decimal("15000.00")
+    assert account.portfolio_value == Decimal("15000.00")
     assert account.currency == "USD"
 
 

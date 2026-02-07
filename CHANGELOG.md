@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.0] - 2026-02-07
+
+### Added
+
+- `trader portfolio` command: Full portfolio overview showing account summary, positions, and open orders
+- `trader orders` command: View open orders with `--all` flag for complete history
+- Enhanced account data: portfolio value, day's P/L, day trade count, PDT status
+- Service-based configuration with hardcoded URLs per broker (Alpaca paper/prod)
+
+### Changed
+
+- Simplified configuration: Separate env vars for paper (`ALPACA_API_KEY`) and prod (`ALPACA_PROD_API_KEY`)
+- Replaced `--env paper/prod` with simpler `--prod` flag
+- Production now uses interactive (Y/n) confirmation instead of `--confirm` flag
+- `trader balance` now shows full account summary with day's change and unrealized P/L
+- `trader status` now displays service name (alpaca)
+- Strategy default quantity changed to 1 (was config-based)
+- Strategy entry options simplified: `--limit`/`-L` replaces `--entry-type` and `--entry-price`
+
+### Removed
+
+- Legacy rules system (`trader rules` commands, `trader/rules/` module)
+- `trader backtest` command (will be reimplemented for strategies)
+- `--confirm` flag (replaced with interactive confirmation)
+- `TRADER_ENV`, `BROKER`, `BASE_URL`, `ENABLE_PROD` environment variables
+- Separate `.env.paper` and `.env.prod` files (now just `.env`)
+
 ## [0.1.1] - 2026-02-05
 
 ### Changed

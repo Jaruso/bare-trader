@@ -85,7 +85,13 @@ def save_order(order_obj: object, config_dir: Optional[Path] = None) -> None:
     # Replace existing by id if found
     replaced = False
     for i, o in enumerate(orders):
-        if o.id and o.id == local.id:
+        # Replace when IDs match, or when external IDs match (broker vs local mapping)
+        if (
+            (o.id and local.id and o.id == local.id)
+            or (o.external_id and local.external_id and o.external_id == local.external_id)
+            or (o.external_id and local.id and o.external_id == local.id)
+            or (o.id and local.external_id and o.id == local.external_id)
+        ):
             orders[i] = local
             replaced = True
             break

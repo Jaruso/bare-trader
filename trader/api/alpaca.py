@@ -14,6 +14,7 @@ from alpaca.trading.requests import (
     MarketOrderRequest,
     StopLimitOrderRequest,
     StopOrderRequest,
+    TrailingStopOrderRequest,
 )
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockLatestQuoteRequest
@@ -59,7 +60,13 @@ class AlpacaBroker(Broker):
             cash=Decimal(str(account.cash)),
             buying_power=Decimal(str(account.buying_power)),
             equity=Decimal(str(account.equity)),
+            portfolio_value=Decimal(str(account.portfolio_value or account.equity)),
             currency=account.currency or "USD",
+            daytrade_count=int(account.daytrade_count or 0),
+            day_trading_buying_power=Decimal(str(account.daytrading_buying_power)) if account.daytrading_buying_power else None,
+            last_equity=Decimal(str(account.last_equity)) if account.last_equity else None,
+            status=str(account.status) if account.status else "ACTIVE",
+            pattern_day_trader=bool(account.pattern_day_trader),
         )
 
     def get_positions(self) -> list[Position]:
@@ -97,6 +104,7 @@ class AlpacaBroker(Broker):
         order_type: OrderType = OrderType.MARKET,
         limit_price: Optional[Decimal] = None,
         stop_price: Optional[Decimal] = None,
+        trail_percent: Optional[Decimal] = None,
     ) -> Order:
         """Place a trade order."""
         alpaca_side = (
@@ -140,6 +148,16 @@ class AlpacaBroker(Broker):
                 time_in_force=TimeInForce.DAY,
                 limit_price=float(limit_price),
                 stop_price=float(stop_price),
+            )
+        elif order_type == OrderType.TRAILING_STOP:
+            if trail_percent is None:
+                raise ValueError("Trail percent required for trailing stop orders")
+            request = TrailingStopOrderRequest(
+                symbol=symbol,
+                qty=float(qty),
+                side=alpaca_side,
+                time_in_force=TimeInForce.GTC,  # Trailing stops typically use GTC
+                trail_percent=float(trail_percent),
             )
         else:
             raise ValueError(f"Unsupported order type: {order_type}")
@@ -220,6 +238,7 @@ class AlpacaBroker(Broker):
             AlpacaOrderType.LIMIT: OrderType.LIMIT,
             AlpacaOrderType.STOP: OrderType.STOP,
             AlpacaOrderType.STOP_LIMIT: OrderType.STOP_LIMIT,
+            AlpacaOrderType.TRAILING_STOP: OrderType.TRAILING_STOP,
         }
         return mapping.get(order_type, OrderType.MARKET)
 
