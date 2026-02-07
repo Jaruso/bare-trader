@@ -21,6 +21,7 @@ class OrderType(Enum):
     LIMIT = "limit"
     STOP = "stop"
     STOP_LIMIT = "stop_limit"
+    TRAILING_STOP = "trailing_stop"
 
 
 class OrderStatus(Enum):
@@ -43,7 +44,16 @@ class Account:
     cash: Decimal
     buying_power: Decimal
     equity: Decimal
+    portfolio_value: Decimal
     currency: str = "USD"
+    # Day trading info
+    daytrade_count: int = 0
+    day_trading_buying_power: Optional[Decimal] = None
+    # P/L
+    last_equity: Optional[Decimal] = None  # Previous day's equity
+    # Account status
+    status: str = "ACTIVE"
+    pattern_day_trader: bool = False
 
 
 @dataclass
@@ -73,6 +83,7 @@ class Order:
     filled_avg_price: Optional[Decimal] = None
     limit_price: Optional[Decimal] = None
     stop_price: Optional[Decimal] = None
+    trail_percent: Optional[Decimal] = None  # For trailing stop orders
     created_at: Optional[str] = None
 
 
@@ -144,6 +155,7 @@ class Broker(ABC):
         order_type: OrderType = OrderType.MARKET,
         limit_price: Optional[Decimal] = None,
         stop_price: Optional[Decimal] = None,
+        trail_percent: Optional[Decimal] = None,
     ) -> Order:
         """Place a trade order.
 
@@ -154,6 +166,7 @@ class Broker(ABC):
             order_type: Market, limit, etc.
             limit_price: Limit price for limit orders.
             stop_price: Stop price for stop orders.
+            trail_percent: Trail percentage for trailing stop orders.
 
         Returns:
             Created order.

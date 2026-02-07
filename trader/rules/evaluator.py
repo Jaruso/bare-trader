@@ -8,6 +8,7 @@ from trader.api.broker import Broker, OrderSide, OrderType
 from trader.rules.models import Rule, RuleAction
 from trader.rules.loader import load_rules, mark_triggered
 from trader.utils.logging import get_logger
+from trader.oms.store import save_order
 
 
 @dataclass
@@ -102,6 +103,12 @@ class RuleEvaluator:
                 side=signal.side,
                 order_type=OrderType.MARKET,
             )
+
+            # Persist order to local OMS store
+            try:
+                save_order(order)
+            except Exception:
+                self.logger.exception("Failed to persist order")
 
             # Mark rule as triggered to prevent re-execution
             mark_triggered(rule.id)

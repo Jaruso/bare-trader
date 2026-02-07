@@ -5,6 +5,7 @@ from rich.console import Console
 from rich.table import Table
 
 from decimal import Decimal
+from typing import Optional
 
 from datetime import datetime
 from pathlib import Path
@@ -12,17 +13,13 @@ from pathlib import Path
 from trader import __version__
 from trader.api.alpaca import AlpacaBroker
 from trader.api.broker import Broker, OrderSide, OrderStatus, OrderType
-from trader.core.backtest import Backtester
-from trader.core.engine import TradingEngine
+from trader.core.engine import TradingEngine, EngineAlreadyRunningError, get_lock_file_path
 from trader.core.portfolio import Portfolio
 from trader.core.safety import SafetyCheck, SafetyLimits
 from trader.data.ledger import TradeLedger
-from trader.oms.store import save_order
-from trader.rules.models import Rule, RuleAction, RuleCondition
-from trader.rules.loader import load_rules, save_rule, delete_rule, enable_rule
+from trader.oms.store import save_order, load_orders
 from trader.utils.config import Config, Environment, load_config
 from trader.utils.logging import get_logger, setup_logging
-from trader.oms.store import load_orders
 
 console = Console()
 
@@ -38,17 +35,12 @@ def get_broker(config: Config) -> Broker:
 
 @click.group()
 @click.version_option(version=__version__, prog_name="trader")
-@click.option(
-    "--env",
-    type=click.Choice(["paper", "prod"]),
-    default="paper",
-    help="Trading environment",
-)
+@click.option("--prod", is_flag=True, help="Use production environment (default: paper)")
 @click.pass_context
-def cli(ctx: click.Context, env: str) -> None:
+def cli(ctx: click.Context, prod: bool) -> None:
     """AutoTrader - CLI-based automated trading system."""
     ctx.ensure_object(dict)
-    config = load_config(env)
+    config = load_config(prod=prod)
     ctx.obj["config"] = config
 
     # Set up logging
@@ -59,7 +51,9 @@ def cli(ctx: click.Context, env: str) -> None:
 @cli.command()
 @click.pass_context
 def status(ctx: click.Context) -> None:
-    """Show current system status."""
+    """Show current system status including engine state."""
+    import os
+
     config = ctx.obj["config"]
 
     table = Table(title="AutoTrader Status")
@@ -69,17 +63,37 @@ def status(ctx: click.Context) -> None:
     # Environment info
     env_style = "yellow" if config.env == Environment.PAPER else "red bold"
     table.add_row("Environment", f"[{env_style}]{config.env.value.upper()}[/{env_style}]")
-    table.add_row("Broker", config.broker)
+    table.add_row("Service", config.service.value)
     table.add_row("Base URL", config.base_url)
 
     # API key status
     key_status = "Configured" if config.alpaca_api_key else "[red]Not Set[/red]"
     table.add_row("API Key", key_status)
 
-    # Production safety
-    if config.env == Environment.PROD:
-        prod_status = "[red]ENABLED[/red]" if config.enable_prod else "[green]DISABLED[/green]"
-        table.add_row("Production Trading", prod_status)
+    # Engine status
+    lock_path = get_lock_file_path()
+    engine_running = False
+    engine_pid = None
+
+    if lock_path.exists():
+        try:
+            with open(lock_path) as f:
+                pid_str = f.read().strip()
+                if pid_str:
+                    pid = int(pid_str)
+                    try:
+                        os.kill(pid, 0)  # Check if process exists
+                        engine_running = True
+                        engine_pid = pid
+                    except ProcessLookupError:
+                        pass  # Stale lock file
+        except (ValueError, FileNotFoundError):
+            pass
+
+    if engine_running:
+        table.add_row("Engine", f"[green]RUNNING[/green] (PID {engine_pid})")
+    else:
+        table.add_row("Engine", "[yellow]NOT RUNNING[/yellow]")
 
     console.print(table)
 
@@ -87,30 +101,55 @@ def status(ctx: click.Context) -> None:
 @cli.command()
 @click.pass_context
 def balance(ctx: click.Context) -> None:
-    """Show account balance."""
+    """Show account balance and portfolio summary."""
     config = ctx.obj["config"]
 
     if not config.alpaca_api_key:
         console.print("[red]Error: Alpaca API key not configured[/red]")
-        console.print("Set ALPACA_API_KEY and ALPACA_SECRET_KEY in .env.paper")
+        console.print("Set ALPACA_API_KEY and ALPACA_SECRET_KEY in .env")
         return
 
     try:
         broker = get_broker(config)
         account = broker.get_account()
+        positions_list = broker.get_positions()
         market_open = broker.is_market_open()
 
-        table = Table(title="Account Balance")
+        # Account table
+        table = Table(title="Account Summary")
         table.add_column("Metric", style="cyan")
         table.add_column("Value", style="green", justify="right")
 
+        table.add_row("Portfolio Value", f"${account.portfolio_value:,.2f}")
+        table.add_row("Equity", f"${account.equity:,.2f}")
         table.add_row("Cash", f"${account.cash:,.2f}")
         table.add_row("Buying Power", f"${account.buying_power:,.2f}")
-        table.add_row("Equity", f"${account.equity:,.2f}")
-        table.add_row("Currency", account.currency)
 
+        # Day's change
+        if account.last_equity:
+            day_change = account.equity - account.last_equity
+            day_change_pct = (day_change / account.last_equity) * 100 if account.last_equity else 0
+            change_style = "green" if day_change >= 0 else "red"
+            sign = "+" if day_change >= 0 else ""
+            table.add_row(
+                "Day's Change",
+                f"[{change_style}]{sign}${day_change:,.2f} ({sign}{day_change_pct:.2f}%)[/{change_style}]"
+            )
+
+        # Positions summary
+        if positions_list:
+            total_unrealized = sum(p.unrealized_pl for p in positions_list)
+            pl_style = "green" if total_unrealized >= 0 else "red"
+            sign = "+" if total_unrealized >= 0 else ""
+            table.add_row("Unrealized P/L", f"[{pl_style}]{sign}${total_unrealized:,.2f}[/{pl_style}]")
+            table.add_row("Open Positions", str(len(positions_list)))
+
+        table.add_row("", "")  # Spacer
         market_status = "[green]OPEN[/green]" if market_open else "[yellow]CLOSED[/yellow]"
         table.add_row("Market", market_status)
+        table.add_row("Day Trades (5d)", str(account.daytrade_count))
+        if account.pattern_day_trader:
+            table.add_row("PDT Status", "[red]FLAGGED[/red]")
 
         console.print(table)
     except Exception as e:
@@ -162,6 +201,209 @@ def positions(ctx: click.Context) -> None:
 
 
 @cli.command()
+@click.option("--all", "show_all", is_flag=True, help="Show all orders (including filled/canceled)")
+@click.pass_context
+def orders(ctx: click.Context, show_all: bool) -> None:
+    """Show open orders."""
+    config = ctx.obj["config"]
+
+    if not config.alpaca_api_key:
+        console.print("[red]Error: Alpaca API key not configured[/red]")
+        return
+
+    try:
+        broker = get_broker(config)
+        orders_list = broker.get_orders()
+
+        if not show_all:
+            # Filter to only open/pending orders
+            open_statuses = {OrderStatus.NEW, OrderStatus.PENDING, OrderStatus.ACCEPTED, OrderStatus.PARTIALLY_FILLED}
+            orders_list = [o for o in orders_list if o.status in open_statuses]
+
+        if not orders_list:
+            console.print("[yellow]No open orders[/yellow]")
+            return
+
+        table = Table(title="Orders" if show_all else "Open Orders")
+        table.add_column("ID", style="dim", max_width=8)
+        table.add_column("Symbol", style="cyan")
+        table.add_column("Side", justify="center")
+        table.add_column("Type", justify="center")
+        table.add_column("Qty", justify="right")
+        table.add_column("Filled", justify="right")
+        table.add_column("Price", justify="right")
+        table.add_column("Status", justify="center")
+
+        for order in orders_list:
+            side_style = "green" if order.side == OrderSide.BUY else "red"
+            side_text = f"[{side_style}]{order.side.value.upper()}[/{side_style}]"
+
+            # Format price based on order type
+            if order.order_type == OrderType.MARKET:
+                price_text = "MARKET"
+            elif order.order_type == OrderType.LIMIT and order.limit_price:
+                price_text = f"${order.limit_price:,.2f}"
+            elif order.order_type == OrderType.STOP and order.stop_price:
+                price_text = f"${order.stop_price:,.2f}"
+            elif order.order_type == OrderType.TRAILING_STOP and order.trail_percent:
+                price_text = f"{order.trail_percent}%"
+            else:
+                price_text = "-"
+
+            # Status styling
+            status_styles = {
+                OrderStatus.FILLED: "green",
+                OrderStatus.CANCELED: "dim",
+                OrderStatus.REJECTED: "red",
+                OrderStatus.PARTIALLY_FILLED: "yellow",
+            }
+            status_style = status_styles.get(order.status, "white")
+            status_text = f"[{status_style}]{order.status.value.upper()}[/{status_style}]"
+
+            table.add_row(
+                order.id[:8],
+                order.symbol,
+                side_text,
+                order.order_type.value.upper(),
+                str(order.qty),
+                str(order.filled_qty),
+                price_text,
+                status_text,
+            )
+
+        console.print(table)
+    except Exception as e:
+        console.print(f"[red]Error fetching orders: {e}[/red]")
+
+
+@cli.command()
+@click.pass_context
+def portfolio(ctx: click.Context) -> None:
+    """Show full portfolio overview (balance + positions + orders)."""
+    config = ctx.obj["config"]
+
+    if not config.alpaca_api_key:
+        console.print("[red]Error: Alpaca API key not configured[/red]")
+        return
+
+    try:
+        broker = get_broker(config)
+        account = broker.get_account()
+        positions_list = broker.get_positions()
+        orders_list = broker.get_orders()
+        market_open = broker.is_market_open()
+
+        # Filter to open orders
+        open_statuses = {OrderStatus.NEW, OrderStatus.PENDING, OrderStatus.ACCEPTED, OrderStatus.PARTIALLY_FILLED}
+        open_orders = [o for o in orders_list if o.status in open_statuses]
+
+        # === Account Summary ===
+        console.print()
+        market_status = "[green]● OPEN[/green]" if market_open else "[yellow]● CLOSED[/yellow]"
+        console.print(f"[bold]Account Overview[/bold]  {market_status}")
+        console.print()
+
+        # Main metrics in a compact format
+        console.print(f"  Portfolio Value:  [bold]${account.portfolio_value:,.2f}[/bold]")
+        console.print(f"  Cash:             ${account.cash:,.2f}")
+        console.print(f"  Buying Power:     ${account.buying_power:,.2f}")
+
+        # Day's change
+        if account.last_equity:
+            day_change = account.equity - account.last_equity
+            day_change_pct = (day_change / account.last_equity) * 100 if account.last_equity else 0
+            change_style = "green" if day_change >= 0 else "red"
+            sign = "+" if day_change >= 0 else ""
+            console.print(f"  Day's Change:     [{change_style}]{sign}${day_change:,.2f} ({sign}{day_change_pct:.2f}%)[/{change_style}]")
+
+        console.print()
+
+        # === Positions ===
+        if positions_list:
+            console.print(f"[bold]Positions ({len(positions_list)})[/bold]")
+            console.print()
+
+            table = Table(show_header=True, header_style="bold", box=None, padding=(0, 2))
+            table.add_column("Symbol", style="cyan")
+            table.add_column("Qty", justify="right")
+            table.add_column("Price", justify="right")
+            table.add_column("Value", justify="right")
+            table.add_column("P/L", justify="right")
+            table.add_column("%", justify="right")
+
+            total_value = sum(p.market_value for p in positions_list)
+            total_pl = sum(p.unrealized_pl for p in positions_list)
+
+            for pos in positions_list:
+                pl_style = "green" if pos.unrealized_pl >= 0 else "red"
+                sign = "+" if pos.unrealized_pl >= 0 else ""
+                table.add_row(
+                    pos.symbol,
+                    str(int(pos.qty)),
+                    f"${pos.current_price:,.2f}",
+                    f"${pos.market_value:,.2f}",
+                    f"[{pl_style}]{sign}${pos.unrealized_pl:,.2f}[/{pl_style}]",
+                    f"[{pl_style}]{sign}{pos.unrealized_pl_pct * 100:.1f}%[/{pl_style}]",
+                )
+
+            console.print(table)
+            console.print()
+
+            # Totals
+            pl_style = "green" if total_pl >= 0 else "red"
+            sign = "+" if total_pl >= 0 else ""
+            console.print(f"  Total Value: ${total_value:,.2f}  |  Unrealized P/L: [{pl_style}]{sign}${total_pl:,.2f}[/{pl_style}]")
+            console.print()
+        else:
+            console.print("[dim]No open positions[/dim]")
+            console.print()
+
+        # === Open Orders ===
+        if open_orders:
+            console.print(f"[bold]Open Orders ({len(open_orders)})[/bold]")
+            console.print()
+
+            table = Table(show_header=True, header_style="bold", box=None, padding=(0, 2))
+            table.add_column("Symbol", style="cyan")
+            table.add_column("Side")
+            table.add_column("Type")
+            table.add_column("Qty", justify="right")
+            table.add_column("Price", justify="right")
+            table.add_column("Status")
+
+            for order in open_orders:
+                side_style = "green" if order.side == OrderSide.BUY else "red"
+                side_text = f"[{side_style}]{order.side.value.upper()}[/{side_style}]"
+
+                if order.order_type == OrderType.MARKET:
+                    price_text = "MKT"
+                elif order.limit_price:
+                    price_text = f"${order.limit_price:,.2f}"
+                elif order.stop_price:
+                    price_text = f"${order.stop_price:,.2f}"
+                else:
+                    price_text = "-"
+
+                table.add_row(
+                    order.symbol,
+                    side_text,
+                    order.order_type.value.upper(),
+                    str(int(order.qty)),
+                    price_text,
+                    order.status.value.upper(),
+                )
+
+            console.print(table)
+            console.print()
+        else:
+            console.print("[dim]No open orders[/dim]")
+            console.print()
+
+    except Exception as e:
+        console.print(f"[red]Error fetching portfolio: {e}[/red]")
+
+
+@cli.command()
 @click.argument("symbol")
 @click.pass_context
 def quote(ctx: click.Context, symbol: str) -> None:
@@ -191,11 +433,14 @@ def quote(ctx: click.Context, symbol: str) -> None:
 
 @cli.command()
 @click.argument("symbol")
-@click.argument("qty", type=int)
-@click.option("--limit", type=float, help="Limit price (default: market order)")
+@click.argument("price", type=float)
+@click.option("--qty", type=int, default=1, help="Number of shares (default: 1)")
 @click.pass_context
-def buy(ctx: click.Context, symbol: str, qty: int, limit: float | None) -> None:
-    """Buy shares of a stock."""
+def buy(ctx: click.Context, symbol: str, price: float, qty: int) -> None:
+    """Place a limit buy order.
+
+    Example: trader buy TSLA 399.00 --qty 1
+    """
     config = ctx.obj["config"]
     logger = get_logger("autotrader.trades")
 
@@ -207,26 +452,15 @@ def buy(ctx: click.Context, symbol: str, qty: int, limit: float | None) -> None:
         broker = get_broker(config)
         symbol = symbol.upper()
 
-        # Determine order type
-        if limit:
-            order_type = OrderType.LIMIT
-            limit_price = Decimal(str(limit))
-            console.print(f"[yellow]Placing LIMIT BUY: {qty} {symbol} @ ${limit:.2f}[/yellow]")
-        else:
-            order_type = OrderType.MARKET
-            limit_price = None
-            console.print(f"[yellow]Placing MARKET BUY: {qty} {symbol}[/yellow]")
+        order_type = OrderType.LIMIT
+        limit_price = Decimal(str(price))
+        console.print(f"[yellow]Placing LIMIT BUY: {qty} {symbol} @ ${price:.2f}[/yellow]")
 
         # Safety checks
         ledger = TradeLedger()
         checker = SafetyCheck(broker, ledger)
 
-        # Determine price for validation: use limit price for limit orders, otherwise use mid quote
-        if limit:
-            check_price = Decimal(str(limit))
-        else:
-            q = broker.get_quote(symbol)
-            check_price = (q.bid + q.ask) / 2
+        check_price = Decimal(str(price))
 
         allowed, reason = checker.check_order(symbol, int(qty), check_price, is_buy=True)
         if not allowed:
@@ -270,11 +504,14 @@ def buy(ctx: click.Context, symbol: str, qty: int, limit: float | None) -> None:
 
 @cli.command()
 @click.argument("symbol")
-@click.argument("qty", type=int)
-@click.option("--limit", type=float, help="Limit price (default: market order)")
+@click.argument("price", type=float)
+@click.option("--qty", type=int, default=1, help="Number of shares (default: 1)")
 @click.pass_context
-def sell(ctx: click.Context, symbol: str, qty: int, limit: float | None) -> None:
-    """Sell shares of a stock."""
+def sell(ctx: click.Context, symbol: str, price: float, qty: int) -> None:
+    """Place a limit sell order.
+
+    Example: trader sell TSLA 420.00 --qty 1
+    """
     config = ctx.obj["config"]
     logger = get_logger("autotrader.trades")
 
@@ -286,26 +523,15 @@ def sell(ctx: click.Context, symbol: str, qty: int, limit: float | None) -> None
         broker = get_broker(config)
         symbol = symbol.upper()
 
-        # Determine order type
-        if limit:
-            order_type = OrderType.LIMIT
-            limit_price = Decimal(str(limit))
-            console.print(f"[yellow]Placing LIMIT SELL: {qty} {symbol} @ ${limit:.2f}[/yellow]")
-        else:
-            order_type = OrderType.MARKET
-            limit_price = None
-            console.print(f"[yellow]Placing MARKET SELL: {qty} {symbol}[/yellow]")
+        order_type = OrderType.LIMIT
+        limit_price = Decimal(str(price))
+        console.print(f"[yellow]Placing LIMIT SELL: {qty} {symbol} @ ${price:.2f}[/yellow]")
 
         # Safety checks
         ledger = TradeLedger()
         checker = SafetyCheck(broker, ledger)
 
-        # Determine price for validation
-        if limit:
-            check_price = Decimal(str(limit))
-        else:
-            q = broker.get_quote(symbol)
-            check_price = (q.bid + q.ask) / 2
+        check_price = Decimal(str(price))
 
         allowed, reason = checker.check_order(symbol, int(qty), check_price, is_buy=False)
         if not allowed:
@@ -425,6 +651,27 @@ def orders(ctx: click.Context) -> None:
         console.print(f"[red]Error fetching orders: {e}[/red]")
 
 
+@cli.command(name="reconcile-orders")
+@click.option("--orders-dir", type=click.Path(), help="Path to config directory containing orders.yaml")
+@click.pass_context
+def reconcile_orders(ctx: click.Context, orders_dir: str | None) -> None:
+    """Reconcile locally persisted orders with broker state."""
+    config = ctx.obj["config"]
+
+    broker = get_broker(config)
+
+    orders_path = Path(orders_dir) if orders_dir else None
+    engine = TradingEngine(broker, orders_dir=orders_path)
+
+    console.print("Running reconciliation...")
+    try:
+        engine._reconcile_orders()
+        console.print("[green]Reconciliation completed.[/green]")
+    except Exception as e:
+        console.print(f"[red]Reconciliation failed: {e}[/red]")
+    
+
+
 @cli.command()
 @click.argument("order_id")
 @click.pass_context
@@ -449,144 +696,19 @@ def cancel(ctx: click.Context, order_id: str) -> None:
         console.print(f"[red]Error canceling order: {e}[/red]")
 
 
-@cli.group()
-def rules() -> None:
-    """Manage trading rules."""
-    pass
-
-
-@rules.command("list")
-@click.pass_context
-def rules_list(ctx: click.Context) -> None:
-    """List all trading rules."""
-    rules_data = load_rules()
-
-    if not rules_data:
-        console.print("[yellow]No rules configured[/yellow]")
-        console.print("Add a rule with: trader rules add buy AAPL 170 --qty 10")
-        return
-
-    table = Table(title="Trading Rules")
-    table.add_column("ID", style="dim")
-    table.add_column("Symbol", style="cyan")
-    table.add_column("Action")
-    table.add_column("Condition")
-    table.add_column("Target", justify="right")
-    table.add_column("Qty", justify="right")
-    table.add_column("Status")
-
-    for rule in rules_data:
-        action_style = "green" if rule.action == RuleAction.BUY else "red"
-        cond = "≤" if rule.condition == RuleCondition.BELOW else "≥"
-
-        if rule.triggered:
-            status = "[dim]TRIGGERED[/dim]"
-        elif rule.enabled:
-            status = "[green]ACTIVE[/green]"
-        else:
-            status = "[yellow]DISABLED[/yellow]"
-
-        table.add_row(
-            rule.id,
-            rule.symbol,
-            f"[{action_style}]{rule.action.value.upper()}[/{action_style}]",
-            f"price {cond}",
-            f"${rule.target_price:,.2f}",
-            str(rule.quantity),
-            status,
-        )
-
-    console.print(table)
-
-
-@rules.command("add")
-@click.argument("action", type=click.Choice(["buy", "sell"]))
-@click.argument("symbol")
-@click.argument("price", type=float)
-@click.option("--qty", type=int, default=1, help="Quantity to trade")
-@click.option("--above", is_flag=True, help="Trigger when price goes ABOVE target (default: below)")
-@click.pass_context
-def rules_add(
-    ctx: click.Context, action: str, symbol: str, price: float, qty: int, above: bool
-) -> None:
-    """Add a trading rule.
-
-    Examples:
-
-        Buy 10 AAPL when price drops to $170:
-        trader rules add buy AAPL 170 --qty 10
-
-        Sell 5 TSLA when price rises to $300:
-        trader rules add sell TSLA 300 --qty 5 --above
-    """
-    rule_action = RuleAction.BUY if action == "buy" else RuleAction.SELL
-    # Default behavior: buys trigger when price <= target (BELOW),
-    # sells trigger when price >= target (ABOVE). The `--above` flag
-    # can be provided to override the default.
-    if above:
-        condition = RuleCondition.ABOVE
-    else:
-        condition = RuleCondition.BELOW if action == "buy" else RuleCondition.ABOVE
-
-    rule = Rule(
-        symbol=symbol.upper(),
-        action=rule_action,
-        condition=condition,
-        target_price=Decimal(str(price)),
-        quantity=qty,
-    )
-
-    save_rule(rule)
-
-    cond = "≥" if above else "≤"
-    console.print(f"[green]Rule added:[/green] {rule.action.value.upper()} {rule.quantity} {rule.symbol} when price {cond} ${rule.target_price}")
-    console.print(f"[dim]Rule ID: {rule.id}[/dim]")
-
-
-@rules.command("remove")
-@click.argument("rule_id")
-@click.pass_context
-def rules_remove(ctx: click.Context, rule_id: str) -> None:
-    """Remove a trading rule."""
-    if delete_rule(rule_id):
-        console.print(f"[green]Rule {rule_id} deleted[/green]")
-    else:
-        console.print(f"[red]Rule {rule_id} not found[/red]")
-
-
-@rules.command("enable")
-@click.argument("rule_id")
-@click.pass_context
-def rules_enable(ctx: click.Context, rule_id: str) -> None:
-    """Enable a trading rule."""
-    if enable_rule(rule_id, enabled=True):
-        console.print(f"[green]Rule {rule_id} enabled[/green]")
-    else:
-        console.print(f"[red]Rule {rule_id} not found[/red]")
-
-
-@rules.command("disable")
-@click.argument("rule_id")
-@click.pass_context
-def rules_disable(ctx: click.Context, rule_id: str) -> None:
-    """Disable a trading rule."""
-    if enable_rule(rule_id, enabled=False):
-        console.print(f"[yellow]Rule {rule_id} disabled[/yellow]")
-    else:
-        console.print(f"[red]Rule {rule_id} not found[/red]")
-
-
 @cli.command()
-@click.option("--confirm", is_flag=True, help="Confirm production start")
-@click.option("--dry-run", is_flag=True, help="Evaluate rules but don't execute trades")
+@click.option("--dry-run", is_flag=True, help="Evaluate strategies but don't execute trades")
 @click.option("--interval", type=int, default=60, help="Poll interval in seconds")
 @click.option("--once", is_flag=True, help="Run once and exit")
+@click.option("--force", is_flag=True, help="Force start even if another engine might be running")
 @click.pass_context
-def start(ctx: click.Context, confirm: bool, dry_run: bool, interval: int, once: bool) -> None:
+def start(ctx: click.Context, dry_run: bool, interval: int, once: bool, force: bool) -> None:
     """Start the trading engine.
 
     The engine will continuously monitor prices and execute trades
-    based on your configured rules.
+    based on your configured strategies.
+
+    Only one engine can run at a time to prevent duplicate orders.
 
     Examples:
 
@@ -601,96 +723,200 @@ def start(ctx: click.Context, confirm: bool, dry_run: bool, interval: int, once:
 
         Custom poll interval:
         trader start --interval 30
+
+        Force start (use with caution):
+        trader start --force
+
+        Production mode:
+        trader --prod start
     """
     config = ctx.obj["config"]
 
     if not config.alpaca_api_key:
-        console.print("[red]Error: Alpaca API key not configured[/red]")
+        env_var = "ALPACA_PROD_API_KEY" if config.is_prod else "ALPACA_API_KEY"
+        console.print(f"[red]Error: {env_var} not configured[/red]")
         return
 
-    if config.env == Environment.PROD and not confirm:
-        console.print("[red]Error: Production start requires --confirm flag[/red]")
-        return
+    # Interactive confirmation for production
+    if config.is_prod:
+        console.print("[red bold]⚠️  PRODUCTION MODE ⚠️[/red bold]")
+        console.print(f"[red]You are about to trade with REAL MONEY on {config.service.value}[/red]")
+        console.print(f"[dim]Using: {config.base_url}[/dim]")
+        console.print()
+        if not click.confirm("Are you sure you want to continue?", default=False):
+            console.print("[yellow]Aborted.[/yellow]")
+            return
 
-    if config.env == Environment.PROD and not config.enable_prod:
-        console.print("[red]Error: Production trading is disabled[/red]")
-        console.print("Set ENABLE_PROD=true in .env.prod to enable")
-        return
+    # Check for strategies
+    active_strategies = load_strategies()
+    active_strategies = [s for s in active_strategies if s.enabled and s.is_active()]
 
-    # Check for rules
-    rules_data = load_rules()
-    active_rules = [r for r in rules_data if r.enabled and not r.triggered]
-
-    if not active_rules:
-        console.print("[yellow]Warning: No active rules configured[/yellow]")
-        console.print("Add rules with: trader rules add buy AAPL 170 --qty 10")
+    if not active_strategies:
+        console.print("[yellow]Warning: No active strategies configured[/yellow]")
+        console.print("Add a strategy: trader strategy add trailing-stop AAPL --qty 10")
         if not once:
             return
 
+    # Handle --force flag by removing stale lock file
+    if force:
+        lock_path = get_lock_file_path()
+        if lock_path.exists():
+            console.print("[yellow]Forcing start - removing existing lock file[/yellow]")
+            try:
+                lock_path.unlink()
+            except Exception as e:
+                console.print(f"[red]Error removing lock file: {e}[/red]")
+                return
+
     broker = get_broker(config)
-    engine = TradingEngine(broker, poll_interval=interval, dry_run=dry_run)
+    engine = TradingEngine(
+        broker,
+        poll_interval=interval,
+        dry_run=dry_run,
+        strategy_defaults=config.strategy_defaults,
+    )
 
     mode = "[yellow]DRY RUN[/yellow]" if dry_run else f"[green]{config.env.value.upper()}[/green]"
     console.print(f"Starting trading engine in {mode} mode...")
-    console.print(f"Active rules: {len(active_rules)}")
+    console.print(f"Active strategies: {len(active_strategies)}")
     console.print(f"Poll interval: {interval}s")
     console.print("[dim]Press Ctrl+C to stop[/dim]")
     console.print()
 
-    if once:
-        order_ids = engine.run_once()
-        if order_ids:
-            console.print(f"[green]Executed {len(order_ids)} orders[/green]")
+    try:
+        if once:
+            order_ids = engine.run_once()
+            if order_ids:
+                console.print(f"[green]Executed {len(order_ids)} strategy actions[/green]")
+            else:
+                console.print("[yellow]No strategies triggered[/yellow]")
         else:
-            console.print("[yellow]No rules triggered[/yellow]")
-    else:
-        engine.start()
+            engine.start()
+    except EngineAlreadyRunningError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        console.print("[dim]Use --force to override (use with caution)[/dim]")
+
+
+@cli.command()
+@click.option("--force", "-f", is_flag=True, help="Force immediate shutdown (SIGKILL)")
+def stop(force: bool) -> None:
+    """Stop the running trading engine.
+
+    By default, sends SIGTERM and waits for the current cycle to complete.
+    Use --force/-f to immediately kill the engine.
+
+    Examples:
+
+        Graceful stop (waits for cycle):
+        trader stop
+
+        Force immediate shutdown:
+        trader stop --force
+        trader stop -f
+    """
+    import os
+    import signal
+
+    lock_path = get_lock_file_path()
+
+    if not lock_path.exists():
+        console.print("[yellow]No trading engine is currently running[/yellow]")
+        return
+
+    # Read PID from lock file
+    try:
+        with open(lock_path) as f:
+            pid_str = f.read().strip()
+            if not pid_str:
+                console.print("[yellow]Lock file is empty - no engine running[/yellow]")
+                lock_path.unlink()
+                return
+            pid = int(pid_str)
+    except (ValueError, FileNotFoundError) as e:
+        console.print(f"[red]Error reading lock file: {e}[/red]")
+        return
+
+    # Check if process is actually running
+    try:
+        os.kill(pid, 0)  # Signal 0 just checks if process exists
+    except ProcessLookupError:
+        console.print(f"[yellow]Engine process (PID {pid}) is not running[/yellow]")
+        console.print("[dim]Cleaning up stale lock file...[/dim]")
+        try:
+            lock_path.unlink()
+        except Exception:
+            pass
+        return
+    except PermissionError:
+        console.print(f"[red]Permission denied to signal process {pid}[/red]")
+        return
+
+    # Send graceful shutdown signal
+    sig = signal.SIGKILL if force else signal.SIGTERM
+    sig_name = "SIGKILL" if force else "SIGTERM"
+
+    try:
+        os.kill(pid, sig)
+        if force:
+            console.print(f"[yellow]Force killed trading engine (PID {pid})[/yellow]")
+            # Clean up lock file since SIGKILL won't let the process clean up
+            try:
+                lock_path.unlink()
+            except Exception:
+                pass
+        else:
+            console.print(f"[green]Sent shutdown signal to trading engine (PID {pid})[/green]")
+            console.print("[dim]Engine will stop after current cycle completes[/dim]")
+    except ProcessLookupError:
+        console.print(f"[yellow]Engine already stopped[/yellow]")
+    except PermissionError:
+        console.print(f"[red]Permission denied to stop process {pid}[/red]")
+    except Exception as e:
+        console.print(f"[red]Error stopping engine: {e}[/red]")
 
 
 @cli.command()
 @click.pass_context
 def watch(ctx: click.Context) -> None:
-    """Watch prices for symbols in your rules."""
+    """Watch prices for symbols in your strategies."""
     config = ctx.obj["config"]
 
     if not config.alpaca_api_key:
         console.print("[red]Error: Alpaca API key not configured[/red]")
         return
 
-    rules_data = load_rules()
-    if not rules_data:
-        console.print("[yellow]No rules configured[/yellow]")
+    strategies = load_strategies()
+    if not strategies:
+        console.print("[yellow]No strategies configured[/yellow]")
         return
 
     broker = get_broker(config)
 
-    # Get unique symbols
-    symbols = list(set(r.symbol for r in rules_data))
+    # Get unique symbols from strategies
+    symbols = list(set(s.symbol for s in strategies))
 
     table = Table(title="Price Watch")
     table.add_column("Symbol", style="cyan")
     table.add_column("Bid", justify="right")
     table.add_column("Ask", justify="right")
-    table.add_column("Rules")
+    table.add_column("Strategies")
 
     for symbol in symbols:
         try:
             q = broker.get_quote(symbol)
-            mid = (q.bid + q.ask) / 2
 
-            # Find rules for this symbol
-            symbol_rules = [r for r in rules_data if r.symbol == symbol and r.enabled]
-            rule_strs = []
-            for r in symbol_rules:
-                cond = "≤" if r.condition == RuleCondition.BELOW else "≥"
-                triggered = "✓" if r.check(mid) else ""
-                rule_strs.append(f"{r.action.value} {cond}${r.target_price}{triggered}")
+            # Find strategies for this symbol
+            symbol_strategies = [s for s in strategies if s.symbol == symbol]
+            strat_strs = []
+            for s in symbol_strategies:
+                phase = s.phase.value.replace("_", " ")
+                strat_strs.append(f"{s.strategy_type.value}: {phase}")
 
             table.add_row(
                 symbol,
                 f"${q.bid:,.2f}",
                 f"${q.ask:,.2f}",
-                ", ".join(rule_strs) if rule_strs else "-",
+                ", ".join(strat_strs) if strat_strs else "-",
             )
         except Exception as e:
             table.add_row(symbol, "[red]Error[/red]", str(e), "-")
@@ -916,117 +1142,17 @@ def kill(ctx: click.Context) -> None:
 
 
 @cli.command()
-@click.option("--days", type=int, default=30, help="Number of days to simulate")
-@click.option("--capital", type=float, default=100000, help="Starting capital")
-@click.option("--volatility", type=float, default=0.02, help="Daily volatility (0.02 = 2%)")
-@click.pass_context
-def backtest(ctx: click.Context, days: int, capital: float, volatility: float) -> None:
-    """Backtest your trading rules with simulated data.
-
-    This runs a Monte Carlo simulation using your current rules
-    to estimate potential performance.
-
-    Examples:
-
-        Basic backtest:
-        trader backtest
-
-        30 days with $50k:
-        trader backtest --days 30 --capital 50000
-
-        High volatility simulation:
-        trader backtest --volatility 0.05
-    """
-    rules_data = load_rules()
-    active_rules = [r for r in rules_data if r.enabled]
-
-    if not active_rules:
-        console.print("[yellow]No active rules to backtest[/yellow]")
-        console.print("Add rules with: trader rules add buy AAPL 170 --qty 10")
-        return
-
-    console.print(f"[cyan]Running backtest...[/cyan]")
-    console.print(f"Rules: {len(active_rules)}")
-    console.print(f"Days: {days}")
-    console.print(f"Capital: ${capital:,.2f}")
-    console.print(f"Volatility: {volatility:.1%}")
-    console.print()
-
-    try:
-        bt = Backtester(initial_capital=Decimal(str(capital)))
-        result = bt.run(active_rules, days=days, volatility=Decimal(str(volatility)))
-
-        # Results table
-        table = Table(title="Backtest Results")
-        table.add_column("Metric", style="cyan")
-        table.add_column("Value", justify="right")
-
-        table.add_row("Period", f"{result.start_date.strftime('%Y-%m-%d')} to {result.end_date.strftime('%Y-%m-%d')}")
-        table.add_row("Initial Capital", f"${result.initial_capital:,.2f}")
-        table.add_row("Final Capital", f"${result.final_capital:,.2f}")
-
-        ret_style = "green" if result.total_return >= 0 else "red"
-        table.add_row(
-            "Total Return",
-            f"[{ret_style}]${result.total_return:,.2f} ({result.total_return_pct:.2%})[/{ret_style}]",
-        )
-
-        table.add_row("Total Trades", str(result.total_trades))
-        table.add_row("Winning Trades", str(result.winning_trades))
-        table.add_row("Losing Trades", str(result.losing_trades))
-        table.add_row("Win Rate", f"{result.win_rate:.1%}")
-        table.add_row("Max Drawdown", f"[red]{result.max_drawdown:.2%}[/red]")
-
-        console.print(table)
-
-        # Show trades
-        if result.trades:
-            console.print()
-            trade_table = Table(title="Simulated Trades")
-            trade_table.add_column("Date", style="dim")
-            trade_table.add_column("Symbol", style="cyan")
-            trade_table.add_column("Side")
-            trade_table.add_column("Qty", justify="right")
-            trade_table.add_column("Price", justify="right")
-            trade_table.add_column("Rule")
-
-            for trade in result.trades[:20]:  # Show first 20
-                side_style = "green" if trade.side == "buy" else "red"
-                trade_table.add_row(
-                    trade.timestamp.strftime("%m/%d"),
-                    trade.symbol,
-                    f"[{side_style}]{trade.side.upper()}[/{side_style}]",
-                    str(trade.quantity),
-                    f"${trade.price:,.2f}",
-                    trade.rule_id,
-                )
-
-            console.print(trade_table)
-
-            if len(result.trades) > 20:
-                console.print(f"[dim]... and {len(result.trades) - 20} more trades[/dim]")
-
-        console.print()
-        console.print("[dim]Note: This is a simulation with random price movements. Results will vary.[/dim]")
-
-    except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
-
-
-@cli.command()
 @click.argument("symbols", nargs=-1)
 @click.pass_context
 def scan(ctx: click.Context, symbols: tuple[str, ...]) -> None:
-    """Scan symbols for trading opportunities.
-
-    Shows current prices and how close they are to any rule targets.
+    """Scan symbols for current prices.
 
     Examples:
 
         Scan specific symbols:
         trader scan AAPL TSLA GOOGL
 
-        Scan all symbols in rules:
+        Scan all symbols in strategies:
         trader scan
     """
     config = ctx.obj["config"]
@@ -1035,10 +1161,10 @@ def scan(ctx: click.Context, symbols: tuple[str, ...]) -> None:
         console.print("[red]Error: Alpaca API key not configured[/red]")
         return
 
-    # Get symbols from rules if none provided
+    # Get symbols from strategies if none provided
     if not symbols:
-        rules_data = load_rules()
-        symbols = tuple(set(r.symbol for r in rules_data))
+        strategies = load_strategies()
+        symbols = tuple(set(s.symbol for s in strategies))
 
     if not symbols:
         console.print("[yellow]No symbols to scan[/yellow]")
@@ -1046,15 +1172,14 @@ def scan(ctx: click.Context, symbols: tuple[str, ...]) -> None:
         return
 
     broker = get_broker(config)
-    rules_data = load_rules()
+    strategies = load_strategies()
 
     table = Table(title="Market Scan")
     table.add_column("Symbol", style="cyan")
     table.add_column("Bid", justify="right")
     table.add_column("Ask", justify="right")
     table.add_column("Spread", justify="right")
-    table.add_column("Rules")
-    table.add_column("Distance")
+    table.add_column("Strategies")
 
     for symbol in symbols:
         symbol = symbol.upper()
@@ -1064,35 +1189,478 @@ def scan(ctx: click.Context, symbols: tuple[str, ...]) -> None:
             spread = q.ask - q.bid
             spread_pct = (spread / mid * 100) if mid > 0 else Decimal("0")
 
-            # Find rules for this symbol
-            symbol_rules = [r for r in rules_data if r.symbol == symbol and r.enabled]
+            # Find strategies for this symbol
+            symbol_strategies = [s for s in strategies if s.symbol == symbol]
 
-            rule_strs = []
-            distances = []
-            for r in symbol_rules:
-                cond = "≤" if r.condition == RuleCondition.BELOW else "≥"
-                rule_strs.append(f"{r.action.value} {cond}${r.target_price:.0f}")
-
-                # Calculate distance to target
-                if r.condition == RuleCondition.BELOW:
-                    dist = (mid - r.target_price) / r.target_price * 100
-                else:
-                    dist = (r.target_price - mid) / mid * 100
-                distances.append(f"{dist:+.1f}%")
+            strat_strs = []
+            for s in symbol_strategies:
+                strat_strs.append(f"{s.strategy_type.value}: {s.phase.value}")
 
             table.add_row(
                 symbol,
                 f"${q.bid:,.2f}",
                 f"${q.ask:,.2f}",
                 f"${spread:.2f} ({spread_pct:.2f}%)",
-                ", ".join(rule_strs) if rule_strs else "-",
-                ", ".join(distances) if distances else "-",
+                ", ".join(strat_strs) if strat_strs else "-",
             )
 
         except Exception as e:
-            table.add_row(symbol, "[red]Error[/red]", "-", "-", "-", str(e))
+            table.add_row(symbol, "[red]Error[/red]", "-", "-", str(e))
 
     console.print(table)
+
+
+# =============================================================================
+# Strategy Commands
+# =============================================================================
+
+from trader.strategies.models import Strategy, StrategyType, StrategyPhase, EntryType
+from trader.strategies.loader import (
+    load_strategies,
+    save_strategy,
+    delete_strategy,
+    get_strategy,
+    enable_strategy,
+)
+
+
+STRATEGY_HELP = {
+    "trailing-stop": """
+TRAILING STOP STRATEGY
+
+Rides the trend and locks in gains. When price rises, the stop follows.
+When price drops by the trailing percentage, it sells to protect profits.
+
+Best for: Trending stocks you want to hold but protect gains
+
+Example:
+    trader strategy add trailing-stop AAPL --qty 10 --trailing-pct 5
+
+    This buys 10 AAPL at market price. As price rises, a trailing stop
+    follows 5% behind. If price drops 5% from any high, sells to lock profit.
+""",
+    "bracket": """
+BRACKET STRATEGY
+
+Defined risk/reward with both take-profit and stop-loss. Whichever hits
+first closes the position. Classic risk management approach.
+
+Best for: Trades where you know your target and max acceptable loss
+
+Example:
+    trader strategy add bracket TSLA --qty 5 --take-profit 10 --stop-loss 5
+
+    Buys 5 TSLA. Sets take-profit at +10% and stop-loss at -5%.
+    First one hit closes the position.
+""",
+    "scale-out": """
+SCALE OUT STRATEGY
+
+Captures gains progressively while letting winners run. Sells portions
+of your position at different profit targets.
+
+Best for: Strong conviction plays where you want to lock some gains
+
+Example:
+    trader strategy add scale-out GOOGL --qty 30
+
+    Buys 30 shares. Default targets: sell 33% at +5%, 33% at +10%, 34% at +15%.
+""",
+    "grid": """
+GRID STRATEGY
+
+Profits from sideways volatility by buying at regular intervals on the
+way down and selling on the way up. Works best in ranging markets.
+
+Best for: Stocks that trade in a predictable range
+
+Example:
+    trader strategy add grid NVDA --qty 50 --levels 5
+
+    Creates a grid with 5 buy levels below current price and
+    5 sell levels above. Profits from price oscillation.
+""",
+}
+
+
+@cli.group()
+def strategy() -> None:
+    """Manage trading strategies.
+
+    Strategies are automated trading plans that handle both entry and exit.
+    Unlike simple rules that fire once, strategies manage the complete trade
+    lifecycle.
+
+    Available strategies:
+    - trailing-stop: Ride trends, lock in gains with trailing stop
+    - bracket: Defined risk/reward with take-profit and stop-loss
+    - scale-out: Sell portions at progressive profit targets
+    - grid: Profit from sideways volatility
+
+    Run 'trader strategy add --help' for more details.
+    """
+    pass
+
+
+@strategy.command("list")
+@click.pass_context
+def strategy_list(ctx: click.Context) -> None:
+    """List all trading strategies."""
+    strategies = load_strategies()
+
+    if not strategies:
+        console.print("[yellow]No strategies configured[/yellow]")
+        console.print("\nAdd a strategy with:")
+        console.print("  trader strategy add trailing-stop AAPL --qty 10")
+        console.print("\nSee available strategies:")
+        console.print("  trader strategy add --help")
+        return
+
+    table = Table(title="Trading Strategies")
+    table.add_column("ID", style="dim")
+    table.add_column("Symbol", style="cyan")
+    table.add_column("Type")
+    table.add_column("Qty", justify="right")
+    table.add_column("Phase")
+    table.add_column("Details")
+
+    for s in strategies:
+        # Phase styling
+        phase_styles = {
+            StrategyPhase.PENDING: "[yellow]PENDING[/yellow]",
+            StrategyPhase.ENTRY_ACTIVE: "[blue]ENTERING[/blue]",
+            StrategyPhase.POSITION_OPEN: "[green]OPEN[/green]",
+            StrategyPhase.EXITING: "[blue]EXITING[/blue]",
+            StrategyPhase.COMPLETED: "[dim]DONE[/dim]",
+            StrategyPhase.FAILED: "[red]FAILED[/red]",
+            StrategyPhase.PAUSED: "[yellow]PAUSED[/yellow]",
+        }
+        phase_str = phase_styles.get(s.phase, s.phase.value)
+
+        if not s.enabled:
+            phase_str = "[dim]DISABLED[/dim]"
+
+        # Build details string based on strategy type
+        details = []
+        if s.strategy_type == StrategyType.TRAILING_STOP:
+            details.append(f"trail: {s.trailing_stop_pct}%")
+            if s.high_watermark:
+                details.append(f"high: ${s.high_watermark:.2f}")
+        elif s.strategy_type == StrategyType.BRACKET:
+            details.append(f"TP: +{s.take_profit_pct}%")
+            details.append(f"SL: -{s.stop_loss_pct}%")
+        elif s.strategy_type == StrategyType.SCALE_OUT:
+            if s.scale_targets:
+                targets = [f"+{t['target_pct']}%" for t in s.scale_targets]
+                details.append(f"targets: {', '.join(targets)}")
+
+        if s.entry_fill_price:
+            details.insert(0, f"entry: ${s.entry_fill_price:.2f}")
+
+        table.add_row(
+            s.id,
+            s.symbol,
+            s.strategy_type.value.replace("_", "-"),
+            str(s.quantity),
+            phase_str,
+            " | ".join(details) if details else "-",
+        )
+
+    console.print(table)
+
+
+@strategy.command("add")
+@click.argument("strategy_type", type=click.Choice(["trailing-stop", "bracket", "scale-out", "grid"]))
+@click.argument("symbol")
+@click.option("--qty", type=int, default=1, help="Number of shares (default: 1)")
+@click.option("--trailing-pct", type=float, help="Trailing stop percentage (for trailing-stop)")
+@click.option("--take-profit", type=float, help="Take profit percentage (for bracket)")
+@click.option("--stop-loss", type=float, help="Stop loss percentage (for bracket)")
+@click.option("--limit", "-L", type=float, help="Limit price for entry (default: market order)")
+@click.option("--levels", type=int, help="Number of grid levels (for grid)")
+@click.pass_context
+def strategy_add(
+    ctx: click.Context,
+    strategy_type: str,
+    symbol: str,
+    qty: int,
+    trailing_pct: Optional[float],
+    take_profit: Optional[float],
+    stop_loss: Optional[float],
+    limit: Optional[float],
+    levels: Optional[int],
+) -> None:
+    """Add a new trading strategy.
+
+    STRATEGY TYPES:
+
+    \b
+    trailing-stop  Ride trends, lock in gains with a trailing stop
+    bracket        Take-profit AND stop-loss (OCO style)
+    scale-out      Sell portions at progressive profit targets
+    grid           Buy low intervals, sell high intervals
+
+    \b
+    EXAMPLES:
+        trader strategy add trailing-stop AAPL --qty 10 --trailing-pct 5
+        trader strategy add bracket TSLA --qty 5 --take-profit 10 --stop-loss 5
+        trader strategy add scale-out GOOGL --qty 20
+        trader strategy add grid NVDA --levels 5
+
+    Use --limit/-L to enter at a specific price instead of market.
+    """
+    config = ctx.obj["config"]
+    defaults = config.strategy_defaults
+
+    # Normalize strategy type
+    strat_type_map = {
+        "trailing-stop": StrategyType.TRAILING_STOP,
+        "bracket": StrategyType.BRACKET,
+        "scale-out": StrategyType.SCALE_OUT,
+        "grid": StrategyType.GRID,
+    }
+    strat_type = strat_type_map[strategy_type]
+
+    # Determine entry type based on --limit flag
+    entry_type = EntryType.LIMIT if limit else EntryType.MARKET
+    entry_price = Decimal(str(limit)) if limit else None
+
+    # Build strategy based on type
+    try:
+        if strat_type == StrategyType.TRAILING_STOP:
+            trailing = Decimal(str(trailing_pct)) if trailing_pct else defaults.trailing_stop_pct
+            strat = Strategy(
+                symbol=symbol.upper(),
+                strategy_type=strat_type,
+                quantity=qty,
+                entry_type=entry_type,
+                entry_price=entry_price,
+                trailing_stop_pct=trailing,
+            )
+            detail_str = f"trailing stop: {trailing}%"
+
+        elif strat_type == StrategyType.BRACKET:
+            tp = Decimal(str(take_profit)) if take_profit else defaults.take_profit_pct
+            sl = Decimal(str(stop_loss)) if stop_loss else defaults.stop_loss_pct
+            strat = Strategy(
+                symbol=symbol.upper(),
+                strategy_type=strat_type,
+                quantity=qty,
+                entry_type=entry_type,
+                entry_price=entry_price,
+                take_profit_pct=tp,
+                stop_loss_pct=sl,
+            )
+            detail_str = f"take-profit: +{tp}%, stop-loss: -{sl}%"
+
+        elif strat_type == StrategyType.SCALE_OUT:
+            strat = Strategy(
+                symbol=symbol.upper(),
+                strategy_type=strat_type,
+                quantity=qty,
+                entry_type=entry_type,
+                entry_price=entry_price,
+                scale_targets=defaults.scale_tranches,
+            )
+            targets = [f"+{t['target_pct']}%" for t in defaults.scale_tranches]
+            detail_str = f"targets: {', '.join(targets)}"
+
+        elif strat_type == StrategyType.GRID:
+            # For grid, we need to get current price to set range
+            if not config.alpaca_api_key:
+                console.print("[red]Error: Alpaca API key required for grid strategy[/red]")
+                return
+
+            broker = get_broker(config)
+            quote = broker.get_quote(symbol.upper())
+            mid_price = (quote.bid + quote.ask) / 2
+
+            grid_levels = levels or defaults.grid_levels
+            spacing = defaults.grid_spacing_pct
+
+            # Calculate grid range (symmetric around current price)
+            low = mid_price * (1 - (spacing * grid_levels) / 100)
+            high = mid_price * (1 + (spacing * grid_levels) / 100)
+
+            strat = Strategy(
+                symbol=symbol.upper(),
+                strategy_type=strat_type,
+                quantity=qty,
+                grid_config={
+                    "low": float(low),
+                    "high": float(high),
+                    "levels": grid_levels,
+                    "qty_per_level": defaults.grid_qty_per_level,
+                },
+            )
+            detail_str = f"range: ${low:.2f}-${high:.2f}, {grid_levels} levels"
+
+        else:
+            console.print(f"[red]Unknown strategy type: {strategy_type}[/red]")
+            return
+
+    except ValueError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        return
+
+    # Save the strategy
+    save_strategy(strat)
+
+    console.print(f"[green]Strategy added:[/green] {strategy_type} {qty} {symbol.upper()}")
+    console.print(f"[dim]ID: {strat.id}[/dim]")
+    entry_str = f"limit @ ${limit:.2f}" if limit else "market"
+    console.print(f"[dim]Entry: {entry_str}[/dim]")
+    console.print(f"[dim]{detail_str}[/dim]")
+    console.print()
+    console.print("Start the engine to activate: [cyan]trader start[/cyan]")
+
+
+@strategy.command("show")
+@click.argument("strategy_id")
+@click.pass_context
+def strategy_show(ctx: click.Context, strategy_id: str) -> None:
+    """Show details of a specific strategy."""
+    strat = get_strategy(strategy_id)
+
+    if strat is None:
+        console.print(f"[red]Strategy {strategy_id} not found[/red]")
+        return
+
+    console.print(f"\n[bold]{strat.strategy_type.value.replace('_', '-').upper()}[/bold] Strategy")
+    console.print(f"ID: {strat.id}")
+    console.print(f"Symbol: [cyan]{strat.symbol}[/cyan]")
+    console.print(f"Quantity: {strat.quantity}")
+    console.print(f"Phase: {strat.phase.value}")
+    console.print(f"Enabled: {'Yes' if strat.enabled else 'No'}")
+    console.print()
+
+    console.print("[bold]Entry Configuration[/bold]")
+    console.print(f"  Type: {strat.entry_type.value}")
+    if strat.entry_price:
+        console.print(f"  Price: ${strat.entry_price:.2f}")
+    if strat.entry_order_id:
+        console.print(f"  Order ID: {strat.entry_order_id}")
+    if strat.entry_fill_price:
+        console.print(f"  Fill Price: ${strat.entry_fill_price:.2f}")
+    console.print()
+
+    console.print("[bold]Exit Configuration[/bold]")
+    if strat.strategy_type == StrategyType.TRAILING_STOP:
+        console.print(f"  Trailing Stop: {strat.trailing_stop_pct}%")
+        if strat.high_watermark:
+            console.print(f"  High Watermark: ${strat.high_watermark:.2f}")
+            stop_price = strat.high_watermark * (1 - strat.trailing_stop_pct / 100)
+            console.print(f"  Current Stop: ${stop_price:.2f}")
+    elif strat.strategy_type == StrategyType.BRACKET:
+        console.print(f"  Take Profit: +{strat.take_profit_pct}%")
+        console.print(f"  Stop Loss: -{strat.stop_loss_pct}%")
+        if strat.entry_fill_price:
+            tp_price = strat.entry_fill_price * (1 + strat.take_profit_pct / 100)
+            sl_price = strat.entry_fill_price * (1 - strat.stop_loss_pct / 100)
+            console.print(f"  TP Target: ${tp_price:.2f}")
+            console.print(f"  SL Target: ${sl_price:.2f}")
+    elif strat.strategy_type == StrategyType.SCALE_OUT and strat.scale_targets:
+        console.print("  Targets:")
+        for t in strat.scale_targets:
+            console.print(f"    - {t['pct']}% at +{t['target_pct']}%")
+    elif strat.strategy_type == StrategyType.GRID and strat.grid_config:
+        console.print(f"  Range: ${strat.grid_config['low']:.2f} - ${strat.grid_config['high']:.2f}")
+        console.print(f"  Levels: {strat.grid_config['levels']}")
+        console.print(f"  Qty/Level: {strat.grid_config['qty_per_level']}")
+
+    if strat.exit_order_ids:
+        console.print(f"  Exit Orders: {', '.join(strat.exit_order_ids)}")
+    console.print()
+
+    console.print("[bold]Metadata[/bold]")
+    console.print(f"  Created: {strat.created_at}")
+    console.print(f"  Updated: {strat.updated_at}")
+    if strat.notes:
+        console.print(f"  Notes: {strat.notes}")
+
+
+@strategy.command("remove")
+@click.argument("strategy_id")
+@click.pass_context
+def strategy_remove(ctx: click.Context, strategy_id: str) -> None:
+    """Remove a trading strategy."""
+    if delete_strategy(strategy_id):
+        console.print(f"[green]Strategy {strategy_id} removed[/green]")
+    else:
+        console.print(f"[red]Strategy {strategy_id} not found[/red]")
+
+
+@strategy.command("enable")
+@click.argument("strategy_id")
+@click.pass_context
+def strategy_enable(ctx: click.Context, strategy_id: str) -> None:
+    """Enable a trading strategy."""
+    if enable_strategy(strategy_id, enabled=True):
+        console.print(f"[green]Strategy {strategy_id} enabled[/green]")
+    else:
+        console.print(f"[red]Strategy {strategy_id} not found[/red]")
+
+
+@strategy.command("disable")
+@click.argument("strategy_id")
+@click.pass_context
+def strategy_disable(ctx: click.Context, strategy_id: str) -> None:
+    """Disable a trading strategy."""
+    if enable_strategy(strategy_id, enabled=False):
+        console.print(f"[yellow]Strategy {strategy_id} disabled[/yellow]")
+    else:
+        console.print(f"[red]Strategy {strategy_id} not found[/red]")
+
+
+@strategy.command("pause")
+@click.argument("strategy_id")
+@click.pass_context
+def strategy_pause(ctx: click.Context, strategy_id: str) -> None:
+    """Pause an active strategy."""
+    strat = get_strategy(strategy_id)
+    if strat is None:
+        console.print(f"[red]Strategy {strategy_id} not found[/red]")
+        return
+
+    if strat.is_terminal():
+        console.print(f"[yellow]Strategy is already {strat.phase.value}[/yellow]")
+        return
+
+    strat.update_phase(StrategyPhase.PAUSED)
+    save_strategy(strat)
+    console.print(f"[yellow]Strategy {strategy_id} paused[/yellow]")
+
+
+@strategy.command("resume")
+@click.argument("strategy_id")
+@click.pass_context
+def strategy_resume(ctx: click.Context, strategy_id: str) -> None:
+    """Resume a paused strategy."""
+    strat = get_strategy(strategy_id)
+    if strat is None:
+        console.print(f"[red]Strategy {strategy_id} not found[/red]")
+        return
+
+    if strat.phase != StrategyPhase.PAUSED:
+        console.print(f"[yellow]Strategy is not paused (current: {strat.phase.value})[/yellow]")
+        return
+
+    # Resume to position_open if we have a fill, otherwise pending
+    if strat.entry_fill_price:
+        strat.update_phase(StrategyPhase.POSITION_OPEN)
+    else:
+        strat.update_phase(StrategyPhase.PENDING)
+
+    save_strategy(strat)
+    console.print(f"[green]Strategy {strategy_id} resumed ({strat.phase.value})[/green]")
+
+
+@strategy.command("explain")
+@click.argument("strategy_type", type=click.Choice(["trailing-stop", "bracket", "scale-out", "grid"]))
+def strategy_explain(strategy_type: str) -> None:
+    """Explain how a strategy type works."""
+    help_text = STRATEGY_HELP.get(strategy_type, "No help available")
+    console.print(help_text)
 
 
 if __name__ == "__main__":

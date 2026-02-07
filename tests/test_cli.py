@@ -34,21 +34,22 @@ def test_cli_status() -> None:
 def test_cli_status_prod() -> None:
     """Test status command in prod mode."""
     runner = CliRunner()
-    result = runner.invoke(cli, ["--env", "prod", "status"])
+    result = runner.invoke(cli, ["--prod", "status"])
     assert result.exit_code == 0
     assert "PROD" in result.output
 
 
-def test_cli_start_prod_requires_confirm() -> None:
-    """Test that prod start requires --confirm."""
+def test_cli_start_prod_prompts_confirmation() -> None:
+    """Test that prod start shows confirmation prompt."""
     runner = CliRunner()
-    result = runner.invoke(cli, ["--env", "prod", "start"])
+    # Answer 'n' to the confirmation prompt
+    result = runner.invoke(cli, ["--prod", "start"], input="n\n")
     assert result.exit_code == 0
-    assert "requires --confirm" in result.output
+    assert "PRODUCTION MODE" in result.output or "not configured" in result.output
 
 
-def test_cli_rules_list() -> None:
-    """Test rules list command."""
+def test_cli_strategy_list() -> None:
+    """Test strategy list command."""
     runner = CliRunner()
-    result = runner.invoke(cli, ["rules", "list"])
+    result = runner.invoke(cli, ["strategy", "list"])
     assert result.exit_code == 0

@@ -1,0 +1,9 @@
+orders:
+- id: e537ce32-5701-42a0-af4d-d4d7bd696347
+  symbol: TSLA
+  side: buy
+  qty: '1'
+  order_type: limit
+  limit_price: '420'
+  external_id: null
+  status: filled

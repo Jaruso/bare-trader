@@ -24,6 +24,7 @@ class MockBroker(Broker):
             cash=Decimal("100000.00"),
             buying_power=Decimal("200000.00"),
             equity=Decimal("100000.00"),
+            portfolio_value=Decimal("100000.00"),
             currency="USD",
         )
         self._positions: dict[str, Position] = {}
