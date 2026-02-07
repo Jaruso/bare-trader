@@ -4,6 +4,36 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- **Backtesting system**: Complete backtesting framework for testing strategies on historical data
+  - `trader backtest run` - Run backtests with CSV historical data
+  - `trader backtest list` - List all saved backtest results
+  - `trader backtest show` - Display detailed backtest metrics and trade history
+  - `trader backtest compare` - Compare multiple backtests side-by-side
+- `trader/backtest/` module with core backtesting infrastructure:
+  - `HistoricalBroker` - Simulates order fills based on OHLCV bar data
+  - `BacktestEngine` - Sequential bar-by-bar strategy evaluation
+  - `BacktestResult` - Performance metrics (return %, win rate, profit factor, max drawdown, Sharpe ratio)
+  - CSV data loading with validation
+  - JSON-based result persistence
+- Realistic order fill simulation:
+  - Market orders fill at bar close
+  - Limit orders fill at limit price if within bar range
+  - Stop orders trigger when bar crosses threshold
+  - Trailing stops track high watermark
+- Performance metrics: total return, win rate, profit factor, max drawdown, avg win/loss, trade history
+- Equity curve tracking throughout backtest
+- Support for trailing-stop and bracket strategies in backtesting
+
+### Documentation
+
+- Updated README.md with comprehensive backtesting section
+- Added backtesting examples and best practices
+- Updated feature list to reflect backtesting availability
+
 ## [0.2.0] - 2026-02-07
 
 ### Added

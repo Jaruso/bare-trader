@@ -10,7 +10,7 @@ AutoTrader is a command-line trading platform for **automated stock trading**. I
 * ✅ **Trading strategies** (trailing stop, bracket, scale-out, grid)
 * ✅ Portfolio tracking & trade ledger
 * ✅ Safety & risk controls
-* ✅ Backtesting (planned)
+* ✅ **Backtesting** with historical data
 
 ---
 
@@ -161,6 +161,113 @@ trader strategy explain <type>    # Learn about a strategy type
 5. **Exit executes** → Strategy moves to `COMPLETED`
 
 Strategy phases: `PENDING` → `ENTRY_ACTIVE` → `POSITION_OPEN` → `EXITING` → `COMPLETED`
+
+---
+
+## 🧪 Backtesting
+
+Test your trading strategies against historical data before risking real capital. Backtesting helps validate strategy logic, optimize parameters, and identify potential issues.
+
+### Prepare Historical Data
+
+Create CSV files in `data/historical/` with OHLCV data:
+
+```csv
+timestamp,open,high,low,close,volume
+2024-01-02 09:30:00,185.75,186.50,185.00,185.75,50000000
+2024-01-03 09:30:00,186.50,187.25,186.00,186.75,48000000
+```
+
+### Run a Backtest
+
+```bash
+# Trailing stop strategy
+trader backtest run trailing-stop AAPL \
+  --start 2024-01-02 \
+  --end 2024-12-31 \
+  --qty 10 \
+  --trailing-pct 5 \
+  --data-source csv \
+  --data-dir data/historical
+
+# Bracket strategy
+trader backtest run bracket TSLA \
+  --start 2024-01-02 \
+  --end 2024-12-31 \
+  --qty 5 \
+  --take-profit 10 \
+  --stop-loss 5 \
+  --data-source csv \
+  --data-dir data/historical
+```
+
+### Options
+
+```bash
+--start YYYY-MM-DD          # Start date (required)
+--end YYYY-MM-DD            # End date (required)
+--qty INTEGER               # Quantity to trade (default: 10)
+--initial-capital FLOAT     # Starting capital (default: 100000)
+--data-source csv           # Data source (csv only for now)
+--data-dir PATH             # Directory with CSV files
+--save / --no-save          # Save results (default: save)
+```
+
+### View Results
+
+```bash
+# List all backtests
+trader backtest list
+
+# Show detailed results
+trader backtest show <backtest-id>
+
+# Compare multiple backtests
+trader backtest compare <id1> <id2> <id3>
+```
+
+### What Gets Tracked
+
+* **Performance**: Total return, return %, final equity
+* **Trade Statistics**: Win rate, profit factor, total trades
+* **Risk Metrics**: Max drawdown, avg win/loss, largest win/loss
+* **Trade History**: Complete log of all fills with prices
+* **Equity Curve**: Portfolio value over time
+
+### Order Fill Simulation
+
+* **Market orders**: Fill at current bar's close price
+* **Limit orders**: Fill at limit price if within bar's [low, high] range
+* **Stop orders**: Fill at stop price if triggered by bar's range
+* **Trailing stops**: Track high watermark, trigger on pullback threshold
+
+### Example Output
+
+```bash
+$ trader backtest show abc123
+
+         Backtest Results - abc123
+┌─────────────────┬────────────────────────┐
+│ Symbol          │ AAPL                   │
+│ Strategy        │ trailing_stop          │
+│ Date Range      │ 2024-01-02 to 2024-12-31│
+│ Initial Capital │ $100,000.00            │
+│ Final Equity    │ $115,250.00            │
+│ Total Return    │ +$15,250.00            │
+│ Return %        │ +15.25%                │
+│ Total Trades    │ 12                     │
+│ Winning Trades  │ 8 (66.7%)              │
+│ Max Drawdown    │ $3,200.00 (3.2%)       │
+└─────────────────┴────────────────────────┘
+```
+
+### Best Practices
+
+1. **Test with sufficient data**: Use at least 6-12 months of historical data
+2. **Account for costs**: Results don't include slippage or commissions yet (coming in Phase 4)
+3. **Validate assumptions**: Backtest results show what *could have* happened, not what *will* happen
+4. **Paper trade next**: After successful backtests, validate in paper trading before going live
+5. **Multiple scenarios**: Test across different market conditions (trending, ranging, volatile)
 
 ---
 

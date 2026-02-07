@@ -1663,5 +1663,334 @@ def strategy_explain(strategy_type: str) -> None:
     console.print(help_text)
 
 
+# ============================================================================
+# BACKTEST COMMANDS
+# ============================================================================
+
+
+@cli.group()
+def backtest() -> None:
+    """Run and analyze backtests.
+
+    Backtesting allows you to test trading strategies against historical
+    data before risking real capital. This helps validate strategy logic,
+    optimize parameters, and build confidence.
+
+    Available commands:
+    - run: Run a backtest on historical data
+    - list: List all saved backtests
+    - show: Show detailed results for a backtest
+    - compare: Compare multiple backtests side-by-side
+    """
+    pass
+
+
+@backtest.command("run")
+@click.argument("strategy_type", type=click.Choice(["trailing-stop", "bracket"]))
+@click.argument("symbol")
+@click.option("--start", required=True, help="Start date (YYYY-MM-DD)")
+@click.option("--end", required=True, help="End date (YYYY-MM-DD)")
+@click.option("--qty", type=int, default=10, help="Quantity to trade")
+@click.option("--trailing-pct", type=float, help="Trailing stop percentage (for trailing-stop)")
+@click.option("--take-profit", type=float, help="Take profit percentage (for bracket)")
+@click.option("--stop-loss", type=float, help="Stop loss percentage (for bracket)")
+@click.option("--data-source", type=click.Choice(["csv"]), default="csv", help="Data source")
+@click.option("--data-dir", type=click.Path(exists=True), help="Directory containing CSV data files")
+@click.option("--initial-capital", type=float, default=100000.0, help="Starting capital")
+@click.option("--save/--no-save", default=True, help="Save backtest results")
+@click.pass_context
+def backtest_run(
+    ctx: click.Context,
+    strategy_type: str,
+    symbol: str,
+    start: str,
+    end: str,
+    qty: int,
+    trailing_pct: Optional[float],
+    take_profit: Optional[float],
+    stop_loss: Optional[float],
+    data_source: str,
+    data_dir: Optional[str],
+    initial_capital: float,
+    save: bool,
+) -> None:
+    """Run a backtest for a strategy."""
+    from trader.backtest import (
+        BacktestEngine,
+        HistoricalBroker,
+        load_data_for_backtest,
+        save_backtest,
+    )
+    from trader.strategies.models import StrategyType
+
+    logger = ctx.obj["logger"]
+
+    try:
+        # Parse dates
+        start_date = datetime.strptime(start, "%Y-%m-%d")
+        end_date = datetime.strptime(end, "%Y-%m-%d")
+
+        # Validate parameters
+        if strategy_type == "trailing-stop":
+            if trailing_pct is None:
+                console.print("[red]Error: --trailing-pct is required for trailing-stop strategy[/red]")
+                return
+            strategy_config = {
+                "symbol": symbol,
+                "strategy_type": "trailing_stop",
+                "quantity": qty,
+                "trailing_stop_pct": str(trailing_pct),
+            }
+        elif strategy_type == "bracket":
+            if take_profit is None or stop_loss is None:
+                console.print("[red]Error: --take-profit and --stop-loss are required for bracket strategy[/red]")
+                return
+            strategy_config = {
+                "symbol": symbol,
+                "strategy_type": "bracket",
+                "quantity": qty,
+                "take_profit_pct": str(take_profit),
+                "stop_loss_pct": str(stop_loss),
+            }
+        else:
+            console.print(f"[red]Strategy type {strategy_type} not implemented yet[/red]")
+            return
+
+        # Load historical data
+        console.print(f"[cyan]Loading historical data for {symbol}...[/cyan]")
+
+        if data_dir is None:
+            data_dir_path = Path.cwd() / "data" / "historical"
+        else:
+            data_dir_path = Path(data_dir)
+
+        historical_data = load_data_for_backtest(
+            symbols=[symbol],
+            start_date=start_date,
+            end_date=end_date,
+            data_source=data_source,
+            data_dir=data_dir_path,
+        )
+
+        # Create broker and engine
+        broker = HistoricalBroker(
+            historical_data=historical_data,
+            initial_cash=Decimal(str(initial_capital)),
+        )
+
+        engine = BacktestEngine(
+            broker=broker,
+            strategy_config=strategy_config,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        # Run backtest
+        console.print(f"[cyan]Running backtest...[/cyan]")
+        result = engine.run()
+
+        # Save if requested
+        if save:
+            save_backtest(result)
+            console.print(f"[green]Backtest saved with ID: {result.id}[/green]")
+
+        # Display results
+        _display_backtest_result(result)
+
+    except FileNotFoundError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        console.print(f"[yellow]Make sure CSV file exists at: {data_dir_path}/{symbol}.csv[/yellow]")
+    except Exception as e:
+        logger.error(f"Backtest failed: {e}", exc_info=True)
+        console.print(f"[red]Error running backtest: {e}[/red]")
+
+
+@backtest.command("list")
+@click.option("--data-dir", type=click.Path(exists=True), help="Data directory")
+@click.pass_context
+def backtest_list(ctx: click.Context, data_dir: Optional[str]) -> None:
+    """List all saved backtests."""
+    from trader.backtest import list_backtests
+
+    data_dir_path = Path(data_dir) if data_dir else None
+
+    try:
+        backtests = list_backtests(data_dir=data_dir_path)
+
+        if not backtests:
+            console.print("[yellow]No backtests found[/yellow]")
+            return
+
+        table = Table(title="Backtest Results")
+        table.add_column("ID", style="cyan")
+        table.add_column("Symbol", style="white")
+        table.add_column("Strategy", style="blue")
+        table.add_column("Date Range", style="white")
+        table.add_column("Return %", style="green")
+        table.add_column("Win Rate", style="yellow")
+        table.add_column("Trades", style="white")
+        table.add_column("Max DD %", style="red")
+
+        for bt in backtests:
+            return_pct = Decimal(bt["total_return_pct"])
+            return_color = "green" if return_pct > 0 else "red"
+            return_str = f"[{return_color}]{return_pct:+.2f}%[/{return_color}]"
+
+            win_rate = Decimal(bt["win_rate"])
+            date_range = f"{bt['start_date'][:10]} to {bt['end_date'][:10]}"
+
+            table.add_row(
+                bt["id"],
+                bt["symbol"],
+                bt["strategy_type"],
+                date_range,
+                return_str,
+                f"{win_rate:.1f}%",
+                str(bt["total_trades"]),
+                f"{Decimal(bt['max_drawdown_pct']):.2f}%",
+            )
+
+        console.print(table)
+
+    except Exception as e:
+        console.print(f"[red]Error listing backtests: {e}[/red]")
+
+
+@backtest.command("show")
+@click.argument("backtest_id")
+@click.option("--data-dir", type=click.Path(exists=True), help="Data directory")
+@click.pass_context
+def backtest_show(ctx: click.Context, backtest_id: str, data_dir: Optional[str]) -> None:
+    """Show detailed results for a backtest."""
+    from trader.backtest import load_backtest
+
+    data_dir_path = Path(data_dir) if data_dir else None
+
+    try:
+        result = load_backtest(backtest_id, data_dir=data_dir_path)
+        _display_backtest_result(result, detailed=True)
+
+    except FileNotFoundError:
+        console.print(f"[red]Backtest {backtest_id} not found[/red]")
+    except Exception as e:
+        console.print(f"[red]Error loading backtest: {e}[/red]")
+
+
+@backtest.command("compare")
+@click.argument("backtest_ids", nargs=-1, required=True)
+@click.option("--data-dir", type=click.Path(exists=True), help="Data directory")
+@click.pass_context
+def backtest_compare(ctx: click.Context, backtest_ids: tuple[str, ...], data_dir: Optional[str]) -> None:
+    """Compare multiple backtests side-by-side."""
+    from trader.backtest import load_backtest
+
+    data_dir_path = Path(data_dir) if data_dir else None
+
+    try:
+        results = []
+        for bt_id in backtest_ids:
+            try:
+                result = load_backtest(bt_id, data_dir=data_dir_path)
+                results.append(result)
+            except FileNotFoundError:
+                console.print(f"[yellow]Warning: Backtest {bt_id} not found, skipping[/yellow]")
+
+        if not results:
+            console.print("[red]No backtests found to compare[/red]")
+            return
+
+        # Comparison table
+        table = Table(title="Backtest Comparison")
+        table.add_column("Metric", style="cyan")
+        for result in results:
+            table.add_column(f"{result.id[:6]}...", style="white")
+
+        # Add rows for key metrics
+        metrics = [
+            ("Symbol", lambda r: r.symbol),
+            ("Strategy", lambda r: r.strategy_type),
+            ("Date Range", lambda r: f"{r.start_date.date()} to {r.end_date.date()}"),
+            ("Initial Capital", lambda r: f"${r.initial_capital:,.2f}"),
+            ("Final Equity", lambda r: f"${r.initial_capital + r.total_return:,.2f}"),
+            ("Total Return", lambda r: f"${r.total_return:+,.2f}"),
+            ("Return %", lambda r: f"{r.total_return_pct:+.2f}%"),
+            ("Total Trades", lambda r: str(r.total_trades)),
+            ("Win Rate", lambda r: f"{r.win_rate:.1f}%"),
+            ("Profit Factor", lambda r: f"{r.profit_factor:.2f}"),
+            ("Max Drawdown", lambda r: f"${r.max_drawdown:,.2f}"),
+            ("Max Drawdown %", lambda r: f"{r.max_drawdown_pct:.2f}%"),
+            ("Avg Win", lambda r: f"${r.avg_win:,.2f}"),
+            ("Avg Loss", lambda r: f"${r.avg_loss:,.2f}"),
+        ]
+
+        for metric_name, metric_fn in metrics:
+            row = [metric_name]
+            for result in results:
+                row.append(metric_fn(result))
+            table.add_row(*row)
+
+        console.print(table)
+
+    except Exception as e:
+        console.print(f"[red]Error comparing backtests: {e}[/red]")
+
+
+def _display_backtest_result(result, detailed: bool = False) -> None:
+    """Display backtest result in a formatted table."""
+    # Summary table
+    table = Table(title=f"Backtest Results - {result.id}")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style="white")
+
+    # Basic info
+    table.add_row("Symbol", result.symbol)
+    table.add_row("Strategy", result.strategy_type)
+    table.add_row("Date Range", f"{result.start_date.date()} to {result.end_date.date()}")
+
+    # Performance
+    return_color = "green" if result.total_return > 0 else "red"
+    table.add_row("Initial Capital", f"${result.initial_capital:,.2f}")
+    table.add_row("Final Equity", f"${result.initial_capital + result.total_return:,.2f}")
+    table.add_row("Total Return", f"[{return_color}]${result.total_return:+,.2f}[/{return_color}]")
+    table.add_row("Return %", f"[{return_color}]{result.total_return_pct:+.2f}%[/{return_color}]")
+
+    # Trade stats
+    table.add_row("Total Trades", str(result.total_trades))
+    table.add_row("Winning Trades", f"{result.winning_trades} ({result.win_rate:.1f}%)")
+    table.add_row("Losing Trades", str(result.losing_trades))
+    table.add_row("Profit Factor", f"{result.profit_factor:.2f}")
+
+    # Risk metrics
+    table.add_row("Max Drawdown", f"[red]${result.max_drawdown:,.2f} ({result.max_drawdown_pct:.2f}%)[/red]")
+    table.add_row("Avg Win", f"[green]${result.avg_win:,.2f}[/green]")
+    table.add_row("Avg Loss", f"[red]${result.avg_loss:,.2f}[/red]")
+    table.add_row("Largest Win", f"[green]${result.largest_win:,.2f}[/green]")
+    table.add_row("Largest Loss", f"[red]${result.largest_loss:,.2f}[/red]")
+
+    console.print(table)
+
+    # Show trades if detailed
+    if detailed and result.trades:
+        console.print("\n[cyan]Trade History:[/cyan]")
+        trades_table = Table()
+        trades_table.add_column("Timestamp", style="white")
+        trades_table.add_column("Side", style="yellow")
+        trades_table.add_column("Qty", style="white")
+        trades_table.add_column("Price", style="cyan")
+        trades_table.add_column("Total", style="green")
+
+        for trade in result.trades:
+            side_color = "green" if trade["side"] == "buy" else "red"
+            trades_table.add_row(
+                trade["timestamp"],
+                f"[{side_color}]{trade['side'].upper()}[/{side_color}]",
+                trade["qty"],
+                f"${Decimal(trade['price']):,.2f}",
+                f"${Decimal(trade['total']):,.2f}",
+            )
+
+        console.print(trades_table)
+
+
 if __name__ == "__main__":
     cli()

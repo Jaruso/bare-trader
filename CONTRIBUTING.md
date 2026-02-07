@@ -64,12 +64,16 @@ auto-trader/
 │   ├── cli/          # CLI interface (Click commands)
 │   ├── core/         # Trading engine, portfolio, safety
 │   ├── strategies/   # Trading strategies (trailing stop, bracket, etc.)
+│   ├── backtest/     # Backtesting system (historical data, simulation)
 │   ├── data/         # Storage (ledger, SQLite)
 │   ├── oms/          # Order management system
 │   └── utils/        # Helpers, config, logging
 ├── tests/            # Pytest tests
 ├── config/
 │   └── strategies.yaml  # Active strategies
+├── data/
+│   ├── historical/   # CSV files for backtesting
+│   └── backtests/    # Saved backtest results (JSON)
 ├── pyproject.toml
 ├── CLAUDE.md         # AI assistant context
 ├── PLAN.md           # Development roadmap
@@ -88,6 +92,14 @@ poetry install
 poetry run trader status
 poetry run trader balance
 poetry run trader strategy list
+
+# Run backtests
+poetry run trader backtest run trailing-stop AAPL \
+  --start 2024-01-02 --end 2024-12-31 \
+  --qty 10 --trailing-pct 5 \
+  --data-source csv --data-dir data/historical
+poetry run trader backtest list
+poetry run trader backtest show <backtest-id>
 
 # Run tests
 poetry run pytest
