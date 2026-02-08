@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Strategy optimization**: Grid/random parameter search using backtests
+  - `trader optimize` command with objectives and sampling
+  - Optimization result persistence under `data/optimizations/`
+  - Objective scoring for return, win rate, profit factor, and drawdown
 - **Backtest visualization**: Interactive Bokeh charts for price/equity curves and trades
   - `trader backtest run --chart/--show` to render charts immediately
   - `trader backtest show --chart/--show` to chart existing results

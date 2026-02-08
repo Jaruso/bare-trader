@@ -311,6 +311,59 @@ $ trader backtest show abc123
 
 ---
 
+## 🧪 Strategy Optimization
+
+Use `trader optimize` to run grid or random search over strategy parameters.
+
+```bash
+# Optimize trailing-stop percentage (grid search)
+trader optimize trailing-stop \
+  --symbol AAPL \
+  --start 2024-01-02 \
+  --end 2024-12-31 \
+  --params trailing_stop_pct:2,3,4 \
+  --objective total_return_pct \
+  --show-results
+
+# Optimize bracket strategy with multiple parameters
+trader optimize bracket \
+  --symbol TSLA \
+  --start 2024-01-02 \
+  --end 2024-12-31 \
+  --params take_profit_pct:5,8 stop_loss_pct:2,4 \
+  --objective profit_factor \
+  --method grid \
+  --show-results
+
+# Random search with sampling
+trader optimize trailing-stop \
+  --symbol SPY \
+  --start 2024-01-02 \
+  --end 2024-12-31 \
+  --params trailing_stop_pct:1,2,3,4,5 \
+  --method random \
+  --num-samples 10 \
+  --show-results
+```
+
+### Optimization Options
+
+```bash
+--params KEY:VAL1,VAL2      # Parameter grid (repeatable)
+--objective total_return_pct|total_return|win_rate|profit_factor|max_drawdown_pct
+--method grid|random         # Search method
+--num-samples INTEGER        # Required for random search
+--data-source csv|alpaca|cached
+--data-dir PATH              # Historical data directory
+--results-dir PATH           # Optimization results directory
+--save / --no-save           # Save results (default: save)
+--show-results               # Display results summary
+```
+
+Saved optimization results are stored under `data/optimizations/` by default.
+
+---
+
 ## 💡 Quick Start
 
 ```bash

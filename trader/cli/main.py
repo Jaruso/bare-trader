@@ -1764,6 +1764,116 @@ def visualize(
     )
 
 
+@cli.command()
+@click.argument("strategy_type", type=click.Choice(["trailing-stop", "bracket"]))
+@click.option("--symbol", required=True, help="Trading symbol")
+@click.option("--start", required=True, help="Start date (YYYY-MM-DD)")
+@click.option("--end", required=True, help="End date (YYYY-MM-DD)")
+@click.option(
+    "--params",
+    multiple=True,
+    required=True,
+    help="Parameter grid (e.g. trailing_stop_pct:1,2,3)",
+)
+@click.option(
+    "--objective",
+    type=click.Choice(
+        [
+            "total_return_pct",
+            "total_return",
+            "win_rate",
+            "profit_factor",
+            "max_drawdown_pct",
+        ]
+    ),
+    default="total_return_pct",
+    show_default=True,
+    help="Optimization objective",
+)
+@click.option(
+    "--method",
+    type=click.Choice(["grid", "random"]),
+    default="grid",
+    show_default=True,
+    help="Search method",
+)
+@click.option("--num-samples", type=int, help="Number of samples for random search")
+@click.option(
+    "--data-source",
+    type=click.Choice(["csv", "alpaca", "cached"]),
+    default="csv",
+    help="Historical data source",
+)
+@click.option("--data-dir", type=click.Path(exists=True), help="Historical data directory")
+@click.option(
+    "--results-dir",
+    type=click.Path(exists=True),
+    help="Directory to save optimization results",
+)
+@click.option("--initial-capital", type=float, default=100000.0, help="Starting capital")
+@click.option("--save/--no-save", default=True, help="Save optimization results")
+@click.option("--show-results", is_flag=True, help="Display results summary")
+@click.pass_context
+def optimize(
+    ctx: click.Context,
+    strategy_type: str,
+    symbol: str,
+    start: str,
+    end: str,
+    params: tuple[str, ...],
+    objective: str,
+    method: str,
+    num_samples: Optional[int],
+    data_source: str,
+    data_dir: Optional[str],
+    results_dir: Optional[str],
+    initial_capital: float,
+    save: bool,
+    show_results: bool,
+) -> None:
+    """Optimize strategy parameters using backtests."""
+    from trader.optimization import Optimizer, save_optimization
+
+    logger = ctx.obj["logger"]
+
+    try:
+        start_date = datetime.strptime(start, "%Y-%m-%d")
+        end_date = datetime.strptime(end, "%Y-%m-%d")
+        param_grid = _parse_param_grid(params)
+        _validate_optimization_params(strategy_type, param_grid)
+
+        optimizer = Optimizer(
+            strategy_type=strategy_type,
+            symbol=symbol,
+            start_date=start_date,
+            end_date=end_date,
+            objective=objective,
+            data_source=data_source,
+            data_dir=data_dir,
+            initial_capital=initial_capital,
+        )
+
+        result = optimizer.optimize(
+            param_grid=param_grid,
+            method=method,
+            num_samples=num_samples,
+        )
+
+        if save:
+            save_optimization(
+                result,
+                data_dir=Path(results_dir) if results_dir else None,
+            )
+            console.print(f"[green]Optimization saved with ID: {result.id}[/green]")
+
+        if show_results:
+            _display_optimization_result(result)
+
+    except Exception as exc:
+        logger.error(f"Optimization failed: {exc}", exc_info=True)
+        console.print(f"[red]Error running optimization: {exc}[/red]")
+
+
 @backtest.command("run")
 @click.argument("strategy_type", type=click.Choice(["trailing-stop", "bracket"]))
 @click.argument("symbol")
@@ -2161,6 +2271,71 @@ def _render_backtest_chart(
 
     if show:
         chart_builder.show()
+
+
+def _parse_param_grid(param_entries: tuple[str, ...]) -> dict[str, list]:
+    alias_map = {
+        "trail_percent": "trailing_stop_pct",
+        "trailing_pct": "trailing_stop_pct",
+        "trailing_stop_pct": "trailing_stop_pct",
+        "take_profit": "take_profit_pct",
+        "take_profit_pct": "take_profit_pct",
+        "stop_loss": "stop_loss_pct",
+        "stop_loss_pct": "stop_loss_pct",
+        "qty": "quantity",
+        "quantity": "quantity",
+    }
+    grid: dict[str, list] = {}
+
+    for entry in param_entries:
+        if ":" not in entry:
+            raise ValueError(f"Invalid param format: {entry}")
+        key, raw_values = entry.split(":", 1)
+        key = key.strip()
+        if key not in alias_map:
+            raise ValueError(f"Unknown parameter: {key}")
+        canonical = alias_map[key]
+        values = [v.strip() for v in raw_values.split(",") if v.strip()]
+        if not values:
+            raise ValueError(f"No values provided for {key}")
+
+        parsed_values = []
+        for value in values:
+            if canonical == "quantity":
+                parsed_values.append(int(value))
+            else:
+                parsed_values.append(Decimal(value))
+
+        grid[canonical] = parsed_values
+
+    return grid
+
+
+def _validate_optimization_params(strategy_type: str, param_grid: dict[str, list]) -> None:
+    if strategy_type == "trailing-stop":
+        if "trailing_stop_pct" not in param_grid:
+            raise ValueError("trailing_stop_pct is required for trailing-stop optimization")
+    elif strategy_type == "bracket":
+        if "take_profit_pct" not in param_grid or "stop_loss_pct" not in param_grid:
+            raise ValueError("take_profit_pct and stop_loss_pct are required for bracket optimization")
+
+
+def _display_optimization_result(result) -> None:
+    table = Table(title=f"Optimization Results - {result.id}")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style="white")
+
+    table.add_row("Strategy", result.strategy_type)
+    table.add_row("Symbol", result.symbol)
+    table.add_row("Date Range", f"{result.start_date.date()} to {result.end_date.date()}")
+    table.add_row("Objective", result.objective)
+    table.add_row("Method", result.method)
+    table.add_row("Combinations", str(result.num_combinations))
+    table.add_row("Runtime (s)", f"{result.runtime_seconds:.2f}")
+    table.add_row("Best Score", str(result.best_score))
+    table.add_row("Best Params", str(result.best_params))
+
+    console.print(table)
 
 
 if __name__ == "__main__":
