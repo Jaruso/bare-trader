@@ -16,6 +16,7 @@ dependencies = [
     "alpaca-py>=0.21.0",
     "rich>=13.0.0",
     "pytz>=2024.1",
+    "pyarrow>=19.0.0",
 ]
 
 [project.scripts]

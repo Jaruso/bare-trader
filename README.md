@@ -46,6 +46,25 @@ ALPACA_PROD_SECRET_KEY=your_live_secret
 
 AutoTrader defaults to paper trading.
 
+Optional data settings:
+
+```env
+# Data source: csv, alpaca, cached
+DATA_SOURCE=csv
+
+# CSV data location (used for csv/cached sources)
+HISTORICAL_DATA_DIR=data/historical
+
+# Cache settings (Parquet)
+DATA_CACHE_ENABLED=true
+DATA_CACHE_BACKEND=parquet
+DATA_CACHE_DIR=data/cache
+DATA_CACHE_TTL_MINUTES=60
+
+# Alpaca data feed override (optional)
+ALPACA_DATA_FEED=
+```
+
 ---
 
 ## ▶️ Usage
@@ -170,7 +189,7 @@ Test your trading strategies against historical data before risking real capital
 
 ### Prepare Historical Data
 
-Create CSV files in `data/historical/` with OHLCV data:
+Create CSV files in `data/historical/` with OHLCV data (for `csv` data source):
 
 ```csv
 timestamp,open,high,low,close,volume
@@ -199,6 +218,14 @@ trader backtest run bracket TSLA \
   --stop-loss 5 \
   --data-source csv \
   --data-dir data/historical
+
+# Alpaca historical data (requires API keys)
+trader backtest run trailing-stop AAPL \
+  --start 2024-01-02 \
+  --end 2024-12-31 \
+  --qty 10 \
+  --trailing-pct 5 \
+  --data-source alpaca
 ```
 
 ### Options
@@ -208,10 +235,13 @@ trader backtest run bracket TSLA \
 --end YYYY-MM-DD            # End date (required)
 --qty INTEGER               # Quantity to trade (default: 10)
 --initial-capital FLOAT     # Starting capital (default: 100000)
---data-source csv           # Data source (csv only for now)
+--data-source csv|alpaca|cached  # Data source
 --data-dir PATH             # Directory with CSV files
 --save / --no-save          # Save results (default: save)
 ```
+
+Note: Parquet caching requires the optional `pyarrow` dependency
+(`pip install pyarrow`).
 
 ### View Results
 

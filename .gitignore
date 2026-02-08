@@ -53,7 +53,7 @@ htmlcov/
 
 # Logs and data
 logs/
-data/
+/data/
 *.log
 
 # Poetry

@@ -6,6 +6,9 @@ from typing import Optional
 
 import pandas as pd
 
+from trader.data import DataProvider, TimeFrame, get_data_provider
+from trader.utils.config import Config, load_config
+
 
 def load_csv_data(file_path: Path) -> pd.DataFrame:
     """Load OHLCV data from CSV file.
@@ -62,6 +65,9 @@ def load_data_for_backtest(
     end_date: datetime,
     data_source: str = "csv",
     data_dir: Optional[Path] = None,
+    timeframe: TimeFrame = TimeFrame.DAY_1,
+    provider: Optional[DataProvider] = None,
+    config: Optional[Config] = None,
 ) -> dict[str, pd.DataFrame]:
     """Load historical data for backtesting.
 
@@ -69,8 +75,11 @@ def load_data_for_backtest(
         symbols: List of stock symbols to load.
         start_date: Start date for data range.
         end_date: End date for data range.
-        data_source: Data source ("csv" or "alpaca").
+        data_source: Data source ("csv", "alpaca", or "cached").
         data_dir: Directory containing CSV files (required for csv source).
+        timeframe: Bar timeframe for historical data.
+        provider: Optional pre-configured data provider (overrides data_source).
+        config: Optional config for provider factory (defaults to load_config()).
 
     Returns:
         Dictionary mapping symbol to OHLCV DataFrame.
@@ -79,12 +88,16 @@ def load_data_for_backtest(
         ValueError: If data_source is invalid or required parameters missing.
         FileNotFoundError: If CSV file not found for a symbol.
     """
-    if data_source == "csv":
-        return _load_from_csv(symbols, start_date, end_date, data_dir)
-    elif data_source == "alpaca":
-        raise NotImplementedError("Alpaca data source coming in Phase 4")
-    else:
-        raise ValueError(f"Unknown data source: {data_source}")
+    if provider is None:
+        if config is None:
+            config = load_config()
+        provider = get_data_provider(
+            config=config,
+            source_override=data_source,
+            historical_dir_override=data_dir,
+        )
+
+    return provider.get_bars(symbols, start_date, end_date, timeframe=timeframe)
 
 
 def _load_from_csv(
@@ -118,28 +131,7 @@ def _load_from_csv(
     if not data_dir.exists():
         raise FileNotFoundError(f"Data directory not found: {data_dir}")
 
-    result = {}
+    from trader.data.providers.csv_provider import CSVDataProvider
 
-    for symbol in symbols:
-        csv_file = data_dir / f"{symbol}.csv"
-        if not csv_file.exists():
-            raise FileNotFoundError(
-                f"CSV file not found for {symbol}: {csv_file}. "
-                f"Expected format: {data_dir}/{symbol}.csv"
-            )
-
-        # Load full CSV
-        df = load_csv_data(csv_file)
-
-        # Filter to date range
-        df = df[(df.index >= start_date) & (df.index <= end_date)]
-
-        if len(df) == 0:
-            raise ValueError(
-                f"No data found for {symbol} in date range "
-                f"{start_date.date()} to {end_date.date()}"
-            )
-
-        result[symbol] = df
-
-    return result
+    provider = CSVDataProvider(data_dir=data_dir)
+    return provider.get_bars(symbols, start_date, end_date, timeframe=TimeFrame.DAY_1)

@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Data provider abstraction**: Pluggable historical data sources with optional Parquet caching
+  - `AlpacaDataProvider` for Alpaca API historical data
+  - `CSVDataProvider` for local CSV files with normalized OHLCV format
+  - `CachedDataProvider` for Parquet-backed caching with TTL
+  - Provider factory (`get_data_provider`) and new data config env vars
 - **Backtesting system**: Complete backtesting framework for testing strategies on historical data
   - `trader backtest run` - Run backtests with CSV historical data
   - `trader backtest list` - List all saved backtest results

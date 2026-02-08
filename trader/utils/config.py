@@ -66,6 +66,40 @@ class StrategyDefaults:
 
 
 @dataclass
+class DataCacheConfig:
+    """Cache settings for historical data providers."""
+
+    enabled: bool
+    backend: str
+    directory: Path
+    ttl_minutes: int
+
+
+@dataclass
+class DataConfig:
+    """Data provider configuration."""
+
+    source: str
+    csv_dir: Path
+    alpaca_feed: str | None
+    cache: DataCacheConfig
+
+
+def _default_data_config() -> DataConfig:
+    return DataConfig(
+        source="csv",
+        csv_dir=Path("data") / "historical",
+        alpaca_feed=None,
+        cache=DataCacheConfig(
+            enabled=True,
+            backend="parquet",
+            directory=Path("data") / "cache",
+            ttl_minutes=60,
+        ),
+    )
+
+
+@dataclass
 class Config:
     """Application configuration."""
 
@@ -77,6 +111,7 @@ class Config:
     data_dir: Path
     log_dir: Path
     strategy_defaults: StrategyDefaults
+    data: DataConfig = field(default_factory=_default_data_config)
 
     @property
     def is_paper(self) -> bool:
@@ -134,6 +169,28 @@ def load_config(
     data_dir = project_root / "data"
     log_dir = project_root / "logs"
 
+    # Data provider config
+    data_source = os.getenv("DATA_SOURCE", "csv")
+    csv_dir = Path(os.getenv("HISTORICAL_DATA_DIR", str(data_dir / "historical")))
+    alpaca_feed = os.getenv("ALPACA_DATA_FEED") or None
+
+    cache_enabled = os.getenv("DATA_CACHE_ENABLED", "true").lower() in {"1", "true", "yes"}
+    cache_backend = os.getenv("DATA_CACHE_BACKEND", "parquet")
+    cache_dir = Path(os.getenv("DATA_CACHE_DIR", str(data_dir / "cache")))
+    cache_ttl_minutes = int(os.getenv("DATA_CACHE_TTL_MINUTES", "60"))
+
+    data_config = DataConfig(
+        source=data_source,
+        csv_dir=csv_dir,
+        alpaca_feed=alpaca_feed,
+        cache=DataCacheConfig(
+            enabled=cache_enabled,
+            backend=cache_backend,
+            directory=cache_dir,
+            ttl_minutes=cache_ttl_minutes,
+        ),
+    )
+
     # Load strategy defaults from environment
     strategy_defaults = StrategyDefaults(
         trailing_stop_pct=Decimal(os.getenv("STRATEGY_TRAILING_STOP_PCT", "5.0")),
@@ -151,4 +208,5 @@ def load_config(
         data_dir=data_dir,
         log_dir=log_dir,
         strategy_defaults=strategy_defaults,
+        data=data_config,
     )

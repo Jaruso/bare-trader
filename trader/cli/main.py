@@ -1694,7 +1694,12 @@ def backtest() -> None:
 @click.option("--trailing-pct", type=float, help="Trailing stop percentage (for trailing-stop)")
 @click.option("--take-profit", type=float, help="Take profit percentage (for bracket)")
 @click.option("--stop-loss", type=float, help="Stop loss percentage (for bracket)")
-@click.option("--data-source", type=click.Choice(["csv"]), default="csv", help="Data source")
+@click.option(
+    "--data-source",
+    type=click.Choice(["csv", "alpaca", "cached"]),
+    default="csv",
+    help="Data source",
+)
 @click.option("--data-dir", type=click.Path(exists=True), help="Directory containing CSV data files")
 @click.option("--initial-capital", type=float, default=100000.0, help="Starting capital")
 @click.option("--save/--no-save", default=True, help="Save backtest results")
