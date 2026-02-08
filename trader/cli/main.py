@@ -7,12 +7,13 @@ from rich.table import Table
 from decimal import Decimal
 from typing import Optional
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from trader import __version__
 from trader.api.alpaca import AlpacaBroker
 from trader.api.broker import Broker, OrderSide, OrderStatus, OrderType
+from trader.analysis.trades import analyze_trades
 from trader.core.engine import TradingEngine, EngineAlreadyRunningError, get_lock_file_path
 from trader.core.portfolio import Portfolio
 from trader.core.safety import SafetyCheck, SafetyLimits
@@ -1043,6 +1044,99 @@ def history(ctx: click.Context, symbol: str | None, limit: int) -> None:
     today_pnl = ledger.get_total_today_pnl()
     pnl_style = "green" if today_pnl >= 0 else "red"
     console.print(f"\nToday's Realized P/L: [{pnl_style}]${today_pnl:,.2f}[/{pnl_style}]")
+
+
+@cli.command()
+@click.option("--symbol", help="Filter by symbol")
+@click.option("--days", type=int, default=30, help="Analyze trades from last N days")
+@click.option("--limit", type=int, default=1000, help="Max trades to analyze")
+@click.pass_context
+def analyze(ctx: click.Context, symbol: str | None, days: int, limit: int) -> None:
+    """Analyze trade performance."""
+    ledger = TradeLedger()
+    since = datetime.now() - timedelta(days=days)
+    trades = ledger.get_trades(symbol=symbol, since=since, limit=limit)
+
+    if not trades:
+        console.print("[yellow]No trades recorded for analysis[/yellow]")
+        return
+
+    report = analyze_trades(trades)
+    summary = report.summary
+
+    title = f"Trade Analysis{f' - {symbol}' if symbol else ''}"
+    table = Table(title=title)
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", justify="right")
+
+    table.add_row("Trades", str(summary.total_trades))
+    table.add_row(
+        "Winning Trades",
+        f"{summary.winning_trades} ({summary.win_rate:.1f}%)",
+    )
+    table.add_row("Gross Profit", f"${summary.gross_profit:,.2f}")
+    table.add_row("Gross Loss", f"-${summary.gross_loss:,.2f}")
+
+    net_style = "green" if summary.net_profit >= 0 else "red"
+    table.add_row(
+        "Net P/L",
+        f"[{net_style}]${summary.net_profit:,.2f}[/{net_style}]",
+    )
+
+    profit_factor = "N/A"
+    if summary.gross_loss > 0:
+        profit_factor = f"{summary.profit_factor:.2f}"
+    table.add_row("Profit Factor", profit_factor)
+
+    table.add_row("Avg Win", f"${summary.avg_win:,.2f}")
+    table.add_row("Avg Loss", f"${summary.avg_loss:,.2f}")
+    table.add_row("Largest Win", f"${summary.largest_win:,.2f}")
+    table.add_row("Largest Loss", f"${summary.largest_loss:,.2f}")
+    table.add_row("Avg Hold (min)", f"{summary.avg_hold_minutes:.1f}")
+
+    console.print(table)
+
+    if report.per_symbol:
+        symbol_table = Table(title="Per-Symbol Performance")
+        symbol_table.add_column("Symbol", style="cyan")
+        symbol_table.add_column("Trades", justify="right")
+        symbol_table.add_column("Win %", justify="right")
+        symbol_table.add_column("Net P/L", justify="right")
+        symbol_table.add_column("Profit Factor", justify="right")
+
+        for sym, stats in sorted(report.per_symbol.items()):
+            net_style = "green" if stats.net_profit >= 0 else "red"
+            pf_display = "N/A" if stats.gross_loss == 0 else f"{stats.profit_factor:.2f}"
+            symbol_table.add_row(
+                sym,
+                str(stats.total_trades),
+                f"{stats.win_rate:.1f}%",
+                f"[{net_style}]${stats.net_profit:,.2f}[/{net_style}]",
+                pf_display,
+            )
+
+        console.print(symbol_table)
+
+    if report.open_positions:
+        open_table = Table(title="Open Lots (Unmatched Buys)")
+        open_table.add_column("Symbol", style="cyan")
+        open_table.add_column("Lots", justify="right")
+        open_table.add_column("Qty", justify="right")
+        open_table.add_column("Avg Cost", justify="right")
+
+        for pos in report.open_positions:
+            open_table.add_row(
+                pos.symbol,
+                str(pos.lots),
+                str(pos.quantity),
+                f"${pos.avg_cost:,.2f}",
+            )
+
+        console.print(open_table)
+
+    remaining_sells = {k: v for k, v in report.unmatched_sell_qty.items() if v > 0}
+    if remaining_sells:
+        console.print("[yellow]Warning: sells without matching buys detected.[/yellow]")
 
 
 @cli.command()

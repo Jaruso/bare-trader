@@ -104,6 +104,16 @@ trader orders         # Open orders
 trader quote AAPL     # Get current quote
 ```
 
+### Analyze Trades
+
+```bash
+# Last 30 days (default)
+trader analyze
+
+# Filter by symbol and time window
+trader analyze --symbol AAPL --days 7
+```
+
 ---
 
 ## 📊 Trading Strategies

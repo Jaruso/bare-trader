@@ -8,9 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+
 - **Indicators library**: Built-in SMA, EMA, RSI, MACD, ATR, Bollinger Bands, OBV, and VWAP
   - `trader indicator list` and `trader indicator describe` CLI commands
   - Optional `pandas-ta` integration with pandas fallback calculations
+- **Trade analysis module**: CLI and analytics for realized trade performance
+  - `trader analyze` command with per-symbol stats and open-lot report
+  - FIFO matching to compute win rate, profit factor, avg win/loss, and hold time
 - **Strategy optimization**: Grid/random parameter search using backtests
   - `trader optimize` command with objectives and sampling
   - Optimization result persistence under `data/optimizations/`
