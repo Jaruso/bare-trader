@@ -1,0 +1,13 @@
+---
+description: AutoTrader repo conventions and workflow
+alwaysApply: true
+---
+
+# AutoTrader Project Rules
+
+- Always refer to `PLAN.md` for scope and keep it updated with new work.
+- Update `README.md`, `CONTRIBUTING.md`, and `CHANGELOG.md` whenever behavior, config, or workflows change.
+- Prefer modular, testable abstractions; avoid silent failures.
+- Preserve backward compatibility when touching public CLI or data-loading paths.
+- Run tests before finishing changes and report results; mention any warnings.
+- Keep data/cache artifacts out of git (only track code under `trader/`).
