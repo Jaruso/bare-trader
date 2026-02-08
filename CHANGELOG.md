@@ -4,10 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.3.0] - 2026-02-07
 
 ### Added
 
+- **Indicators library**: Built-in SMA, EMA, RSI, MACD, ATR, Bollinger Bands, OBV, and VWAP
+  - `trader indicator list` and `trader indicator describe` CLI commands
+  - Optional `pandas-ta` integration with pandas fallback calculations
 - **Strategy optimization**: Grid/random parameter search using backtests
   - `trader optimize` command with objectives and sampling
   - Optimization result persistence under `data/optimizations/`

@@ -1302,6 +1302,54 @@ def strategy() -> None:
     pass
 
 
+@cli.group()
+def indicator() -> None:
+    """Work with technical indicators."""
+    pass
+
+
+@indicator.command("list")
+def indicator_list() -> None:
+    """List available indicators."""
+    from trader.indicators import list_indicators
+
+    table = Table(title="Indicators")
+    table.add_column("Name", style="cyan")
+    table.add_column("Description", style="white")
+    table.add_column("Params", style="green")
+
+    for spec in list_indicators():
+        params = ", ".join(f"{k}" for k in spec.params.keys()) if spec.params else "-"
+        table.add_row(spec.name, spec.description, params)
+
+    console.print(table)
+
+
+@indicator.command("describe")
+@click.argument("name")
+def indicator_describe(name: str) -> None:
+    """Show details for an indicator."""
+    from trader.indicators import get_indicator
+
+    try:
+        indicator_obj = get_indicator(name)
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        return
+
+    spec = indicator_obj.spec
+    table = Table(title=f"Indicator - {spec.name}")
+    table.add_column("Field", style="cyan")
+    table.add_column("Value", style="white")
+
+    table.add_row("Description", spec.description)
+    table.add_row("Output", spec.output or "-")
+    params = ", ".join(f"{k}: {v}" for k, v in spec.params.items()) if spec.params else "-"
+    table.add_row("Params", params)
+
+    console.print(table)
+
+
 @strategy.command("list")
 @click.pass_context
 def strategy_list(ctx: click.Context) -> None:
