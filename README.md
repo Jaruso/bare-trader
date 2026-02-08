@@ -12,6 +12,14 @@ AutoTrader is a command-line trading platform for **automated stock trading**. I
 * ✅ Safety & risk controls
 * ✅ **Backtesting** with historical data
 
+## 🤖 MCP Server (Planned)
+
+AutoTrader is designed to support both CLI users and AI agents via an MCP
+server. The MCP plan outlines how we will expose the same actions available in
+the CLI through a FastAPI MCP-compliant server.
+
+See `MCP-PLAN.md` for the detailed roadmap.
+
 ---
 
 ## 📦 Installation
