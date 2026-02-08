@@ -27,6 +27,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Performance metrics: total return, win rate, profit factor, max drawdown, avg win/loss, trade history
 - Equity curve tracking throughout backtest
 - Support for trailing-stop and bracket strategies in backtesting
+- **OCO (One-Cancels-Other) bracket orders**: Full implementation with both take-profit and stop-loss
+  - Sequential order placement: take-profit limit order, then stop-loss stop order
+  - Automatic cancellation of remaining order when one fills
+  - Proper strategy completion after OCO execution
+  - Works in both live trading and backtesting environments
+
+### Fixed
+
+- **Total Return calculation bug**: HistoricalBroker now properly stores initial_cash for accurate metrics calculation
+- **Bracket strategy phase management**: _evaluate_exiting now delegates to bracket handler for proper OCO logic
 
 ### Documentation
 
