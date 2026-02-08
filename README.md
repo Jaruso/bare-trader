@@ -364,6 +364,24 @@ Saved optimization results are stored under `data/optimizations/` by default.
 
 ---
 
+## 📈 Indicators Library
+
+AutoTrader ships with a lightweight indicators library. If `pandas-ta` is
+installed it will be used; otherwise, built-in pandas-based calculations are used.
+
+```bash
+# List indicators
+trader indicator list
+
+# Describe an indicator
+trader indicator describe rsi
+```
+
+Available indicators include SMA, EMA, RSI, MACD, ATR, Bollinger Bands, OBV, VWAP,
+and a rolling high/low band helper.
+
+---
+
 ## 💡 Quick Start
 
 ```bash
