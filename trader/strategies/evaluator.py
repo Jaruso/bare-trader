@@ -10,7 +10,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import Optional
 
-from trader.api.broker import Broker, OrderSide, OrderType
+from trader.api.broker import Broker, OrderSide, OrderType, OrderStatus
 from trader.strategies.models import Strategy, StrategyPhase, StrategyType, EntryType
 from trader.strategies.loader import save_strategy, get_strategy
 from trader.utils.config import StrategyDefaults
@@ -322,9 +322,8 @@ class StrategyEvaluator:
         take_profit_price = strategy.entry_fill_price * (1 + strategy.take_profit_pct / 100)
         stop_loss_price = strategy.entry_fill_price * (1 - strategy.stop_loss_pct / 100)
 
-        # If no exit orders yet, place take-profit first
-        # (In a real implementation, you'd place both and track them)
-        if not strategy.exit_order_ids:
+        # Phase 1: Place take-profit limit order
+        if len(strategy.exit_order_ids) == 0:
             return StrategyAction(
                 strategy_id=strategy.id,
                 action_type=ActionType.PLACE_EXIT_ORDER,
@@ -338,8 +337,75 @@ class StrategyEvaluator:
                 reason=f"Placing take-profit at ${take_profit_price:.2f}",
             )
 
-        # TODO: Full bracket implementation would track both orders
-        # and cancel the remaining one when first fills
+        # Phase 2: Place stop-loss stop order
+        if len(strategy.exit_order_ids) == 1:
+            return StrategyAction(
+                strategy_id=strategy.id,
+                action_type=ActionType.PLACE_EXIT_ORDER,
+                order_params={
+                    "symbol": strategy.symbol,
+                    "qty": Decimal(str(strategy.quantity)),
+                    "side": OrderSide.SELL,
+                    "order_type": OrderType.STOP,
+                    "stop_price": stop_loss_price,
+                },
+                reason=f"Placing stop-loss at ${stop_loss_price:.2f}",
+            )
+
+        # Phase 3: Check if either order filled (OCO logic)
+        if len(strategy.exit_order_ids) == 2:
+            tp_order_id = strategy.exit_order_ids[0]
+            sl_order_id = strategy.exit_order_ids[1]
+
+            tp_order = self.broker.get_order(tp_order_id)
+            sl_order = self.broker.get_order(sl_order_id)
+
+            if tp_order is None or sl_order is None:
+                self.logger.warning(f"Bracket order not found for strategy {strategy.id}")
+                return None
+
+            # Check if take-profit filled and stop-loss pending
+            if (tp_order.status == OrderStatus.FILLED and
+                sl_order.status in (OrderStatus.NEW, OrderStatus.PENDING)):
+                self.logger.info(
+                    f"Take-profit filled at ${tp_order.filled_avg_price:.2f}, "
+                    f"canceling stop-loss {sl_order_id}"
+                )
+                return StrategyAction(
+                    strategy_id=strategy.id,
+                    action_type=ActionType.CANCEL_ORDER,
+                    order_params={"order_id": sl_order_id},
+                    reason=f"Take-profit hit at ${tp_order.filled_avg_price:.2f}",
+                )
+
+            # Check if stop-loss filled and take-profit pending
+            if (sl_order.status == OrderStatus.FILLED and
+                tp_order.status in (OrderStatus.NEW, OrderStatus.PENDING)):
+                self.logger.info(
+                    f"Stop-loss filled at ${sl_order.filled_avg_price:.2f}, "
+                    f"canceling take-profit {tp_order_id}"
+                )
+                return StrategyAction(
+                    strategy_id=strategy.id,
+                    action_type=ActionType.CANCEL_ORDER,
+                    order_params={"order_id": tp_order_id},
+                    reason=f"Stop-loss hit at ${sl_order.filled_avg_price:.2f}",
+                )
+
+            # Check if one filled and other canceled - strategy complete
+            if (tp_order.status == OrderStatus.FILLED and sl_order.status == OrderStatus.CANCELED):
+                return StrategyAction(
+                    strategy_id=strategy.id,
+                    action_type=ActionType.COMPLETE,
+                    reason=f"Bracket complete: Take-profit hit at ${tp_order.filled_avg_price:.2f}",
+                )
+
+            if (sl_order.status == OrderStatus.FILLED and tp_order.status == OrderStatus.CANCELED):
+                return StrategyAction(
+                    strategy_id=strategy.id,
+                    action_type=ActionType.COMPLETE,
+                    reason=f"Bracket complete: Stop-loss hit at ${sl_order.filled_avg_price:.2f}",
+                )
 
         return None
 
@@ -361,7 +427,11 @@ class StrategyEvaluator:
         return None
 
     def _evaluate_exiting(self, strategy: Strategy) -> Optional[StrategyAction]:
-        """Check if exit orders have filled."""
+        """Check if exit orders have filled.
+
+        For bracket strategies with OCO orders, delegate to bracket handler
+        to manage the two-order logic.
+        """
         if not strategy.exit_order_ids:
             return StrategyAction(
                 strategy_id=strategy.id,
@@ -369,9 +439,11 @@ class StrategyEvaluator:
                 reason="Exiting phase but no exit_order_ids",
             )
 
-        from trader.api.broker import OrderStatus
+        # Bracket strategies need special OCO handling
+        if strategy.strategy_type == StrategyType.BRACKET:
+            return self._evaluate_bracket(strategy)
 
-        # Check all exit orders
+        # For other strategies, check if any exit order filled
         for order_id in strategy.exit_order_ids:
             order = self.broker.get_order(order_id)
             if order is None:
