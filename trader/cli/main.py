@@ -1685,6 +1685,85 @@ def backtest() -> None:
     pass
 
 
+@cli.command()
+@click.argument("source")
+@click.option(
+    "--data-source",
+    type=click.Choice(["csv", "alpaca", "cached"]),
+    default="csv",
+    help="Data source for charting",
+)
+@click.option(
+    "--data-dir",
+    type=click.Path(exists=True),
+    help="Backtests directory (containing backtests/)",
+)
+@click.option(
+    "--historical-dir",
+    type=click.Path(exists=True),
+    help="Historical data directory for charting",
+)
+@click.option("--output", type=click.Path(dir_okay=False), help="Save chart to HTML file")
+@click.option("--show", is_flag=True, help="Open chart in browser")
+@click.option(
+    "--theme",
+    type=click.Choice(["dark", "light"]),
+    default="dark",
+    show_default=True,
+    help="Chart theme",
+)
+@click.pass_context
+def visualize(
+    ctx: click.Context,
+    source: str,
+    data_source: str,
+    data_dir: Optional[str],
+    historical_dir: Optional[str],
+    output: Optional[str],
+    show: bool,
+    theme: str,
+) -> None:
+    """Visualize a backtest result from ID or JSON file."""
+    if not output and not show:
+        console.print("[red]Provide --output or --show to render a chart[/red]")
+        return
+
+    from trader.backtest import load_backtest
+    from trader.backtest.results import BacktestResult
+
+    result = None
+    source_path = Path(source)
+    if source_path.exists():
+        try:
+            import json
+
+            with open(source_path, "r") as f:
+                data = json.load(f)
+            result = BacktestResult.from_dict(data)
+        except Exception as exc:
+            console.print(f"[red]Error loading backtest file: {exc}[/red]")
+            return
+    else:
+        data_dir_path = Path(data_dir) if data_dir else None
+        try:
+            result = load_backtest(source, data_dir=data_dir_path)
+        except FileNotFoundError:
+            console.print(f"[red]Backtest {source} not found[/red]")
+            return
+        except Exception as exc:
+            console.print(f"[red]Error loading backtest: {exc}[/red]")
+            return
+
+    _render_backtest_chart(
+        result=result,
+        data_source=data_source,
+        historical_dir=historical_dir,
+        chart_path=output,
+        show=show,
+        theme=theme,
+    )
+
+
 @backtest.command("run")
 @click.argument("strategy_type", type=click.Choice(["trailing-stop", "bracket"]))
 @click.argument("symbol")
@@ -1703,6 +1782,15 @@ def backtest() -> None:
 @click.option("--data-dir", type=click.Path(exists=True), help="Directory containing CSV data files")
 @click.option("--initial-capital", type=float, default=100000.0, help="Starting capital")
 @click.option("--save/--no-save", default=True, help="Save backtest results")
+@click.option("--chart", type=click.Path(dir_okay=False), help="Save chart to HTML file")
+@click.option("--show", is_flag=True, help="Open chart in browser")
+@click.option(
+    "--theme",
+    type=click.Choice(["dark", "light"]),
+    default="dark",
+    show_default=True,
+    help="Chart theme",
+)
 @click.pass_context
 def backtest_run(
     ctx: click.Context,
@@ -1718,6 +1806,9 @@ def backtest_run(
     data_dir: Optional[str],
     initial_capital: float,
     save: bool,
+    chart: Optional[str],
+    show: bool,
+    theme: str,
 ) -> None:
     """Run a backtest for a strategy."""
     from trader.backtest import (
@@ -1801,6 +1892,14 @@ def backtest_run(
 
         # Display results
         _display_backtest_result(result)
+        _render_backtest_chart(
+            result=result,
+            data_source=data_source,
+            historical_dir=str(data_dir_path),
+            chart_path=chart,
+            show=show,
+            theme=theme,
+        )
 
     except FileNotFoundError as e:
         console.print(f"[red]Error: {e}[/red]")
@@ -1864,8 +1963,37 @@ def backtest_list(ctx: click.Context, data_dir: Optional[str]) -> None:
 @backtest.command("show")
 @click.argument("backtest_id")
 @click.option("--data-dir", type=click.Path(exists=True), help="Data directory")
+@click.option(
+    "--historical-dir",
+    type=click.Path(exists=True),
+    help="Historical data directory for charting",
+)
+@click.option(
+    "--data-source",
+    type=click.Choice(["csv", "alpaca", "cached"]),
+    default="csv",
+    help="Data source for charting",
+)
+@click.option("--chart", type=click.Path(dir_okay=False), help="Save chart to HTML file")
+@click.option("--show", is_flag=True, help="Open chart in browser")
+@click.option(
+    "--theme",
+    type=click.Choice(["dark", "light"]),
+    default="dark",
+    show_default=True,
+    help="Chart theme",
+)
 @click.pass_context
-def backtest_show(ctx: click.Context, backtest_id: str, data_dir: Optional[str]) -> None:
+def backtest_show(
+    ctx: click.Context,
+    backtest_id: str,
+    data_dir: Optional[str],
+    historical_dir: Optional[str],
+    data_source: str,
+    chart: Optional[str],
+    show: bool,
+    theme: str,
+) -> None:
     """Show detailed results for a backtest."""
     from trader.backtest import load_backtest
 
@@ -1874,6 +2002,14 @@ def backtest_show(ctx: click.Context, backtest_id: str, data_dir: Optional[str])
     try:
         result = load_backtest(backtest_id, data_dir=data_dir_path)
         _display_backtest_result(result, detailed=True)
+        _render_backtest_chart(
+            result=result,
+            data_source=data_source,
+            historical_dir=historical_dir,
+            chart_path=chart,
+            show=show,
+            theme=theme,
+        )
 
     except FileNotFoundError:
         console.print(f"[red]Backtest {backtest_id} not found[/red]")
@@ -1995,6 +2131,36 @@ def _display_backtest_result(result, detailed: bool = False) -> None:
             )
 
         console.print(trades_table)
+
+
+def _render_backtest_chart(
+    result,
+    data_source: str,
+    historical_dir: Optional[str],
+    chart_path: Optional[str],
+    show: bool,
+    theme: str,
+) -> None:
+    if not chart_path and not show:
+        return
+
+    from trader.visualization import build_backtest_chart, default_historical_data_dir
+
+    resolved_dir = Path(historical_dir) if historical_dir else default_historical_data_dir()
+    chart_builder = build_backtest_chart(
+        result=result,
+        data_source=data_source,
+        data_dir=resolved_dir,
+        theme=theme,
+        include_price=True,
+    )
+
+    if chart_path:
+        chart_builder.save_html(chart_path)
+        console.print(f"[green]Chart saved to {chart_path}[/green]")
+
+    if show:
+        chart_builder.show()
 
 
 if __name__ == "__main__":
