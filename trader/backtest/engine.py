@@ -120,23 +120,13 @@ class BacktestEngine:
         result = calculate_metrics(
             filled_orders=filled_orders,
             equity_curve=self.equity_curve,
-            initial_capital=self.broker._account.portfolio_value - self.broker._account.equity + self.broker._account.cash,
+            initial_capital=self.broker.initial_cash,
             strategy_type=self.strategy.strategy_type.value,
             symbol=self.strategy.symbol,
             start_date=self.start_date,
             end_date=self.end_date,
             strategy_config=self.strategy.to_dict(),
         )
-
-        # Actually, use the initial cash as initial capital
-        initial_capital = Decimal("100000.00")  # Default from broker
-        if hasattr(self.broker, "_initial_cash"):
-            initial_capital = self.broker._initial_cash
-        elif self.equity_curve:
-            # Try to infer from first equity point
-            initial_capital = self.equity_curve[0][1]
-
-        result.initial_capital = initial_capital
 
         self.logger.info(
             f"Backtest complete: Return {result.total_return_pct:.2f}% | "

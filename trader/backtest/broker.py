@@ -49,6 +49,7 @@ class HistoricalBroker(Broker):
         """
         self.data = historical_data
         self.logger = get_logger("autotrader.backtest.broker")
+        self.initial_cash = initial_cash  # Store for metrics calculation
 
         # Current state
         self.current_timestamp: Optional[datetime] = None
