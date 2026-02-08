@@ -238,6 +238,9 @@ trader backtest run trailing-stop AAPL \
 --data-source csv|alpaca|cached  # Data source
 --data-dir PATH             # Directory with CSV files
 --save / --no-save          # Save results (default: save)
+--chart PATH                # Save chart to HTML file
+--show                       # Open chart in browser
+--theme dark|light           # Chart theme (default: dark)
 ```
 
 Note: Parquet caching requires the optional `pyarrow` dependency
@@ -254,6 +257,13 @@ trader backtest show <backtest-id>
 
 # Compare multiple backtests
 trader backtest compare <id1> <id2> <id3>
+
+# Save a chart for an existing backtest
+trader backtest show <backtest-id> --chart charts/backtest.html
+
+# Visualize a backtest by ID or JSON file
+trader visualize <backtest-id> --output charts/backtest.html --historical-dir data/historical
+trader visualize data/backtests/abc123.json --show --historical-dir data/historical
 ```
 
 ### What Gets Tracked

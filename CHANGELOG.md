@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Backtest visualization**: Interactive Bokeh charts for price/equity curves and trades
+  - `trader backtest run --chart/--show` to render charts immediately
+  - `trader backtest show --chart/--show` to chart existing results
+  - `trader visualize` command for backtest IDs or JSON files
+  - New `trader/visualization/` module with `ChartBuilder`
 - **Data provider abstraction**: Pluggable historical data sources with optional Parquet caching
   - `AlpacaDataProvider` for Alpaca API historical data
   - `CSVDataProvider` for local CSV files with normalized OHLCV format
