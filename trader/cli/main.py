@@ -1,204 +1,228 @@
-"""CLI entry point for AutoTrader."""
+"""CLI entry point for AutoTrader.
+
+All business logic is delegated to the trader.app service layer.
+This module handles:
+- Click argument parsing
+- Rich table formatting for human output
+- JSON output when --json flag is used
+- Error rendering (Rich or JSON based on mode)
+"""
+
+import json as json_lib
+from datetime import datetime, timedelta
+from decimal import Decimal
+from pathlib import Path
 
 import click
 from rich.console import Console
 from rich.table import Table
 
-from decimal import Decimal
-from typing import Optional
-
-from datetime import datetime, timedelta
-from pathlib import Path
-
 from trader import __version__
-from trader.api.alpaca import AlpacaBroker
-from trader.api.broker import Broker, OrderSide, OrderStatus, OrderType
-from trader.analysis.trades import analyze_trades
-from trader.core.engine import TradingEngine, EngineAlreadyRunningError, get_lock_file_path
-from trader.core.portfolio import Portfolio
-from trader.core.safety import SafetyCheck, SafetyLimits
-from trader.data.ledger import TradeLedger
-from trader.oms.store import save_order, load_orders
-from trader.utils.config import Config, Environment, load_config
-from trader.utils.logging import get_logger, setup_logging
+from trader.errors import AppError
+from trader.utils.config import Environment, load_config
+from trader.utils.logging import setup_logging
 
 console = Console()
 
 
-def get_broker(config: Config) -> Broker:
-    """Create broker instance from config."""
-    return AlpacaBroker(
-        api_key=config.alpaca_api_key,
-        secret_key=config.alpaca_secret_key,
-        paper=config.is_paper,
-    )
+# =============================================================================
+# Helpers
+# =============================================================================
+
+
+def _handle_error(error: AppError, as_json: bool = False) -> None:
+    """Render an AppError as Rich text or JSON."""
+    if as_json:
+        console.print(json_lib.dumps(error.to_dict(), indent=2))
+    else:
+        console.print(f"[red]Error: {error.message}[/red]")
+        if error.suggestion:
+            console.print(f"[dim]{error.suggestion}[/dim]")
+
+
+def _json_output(data: object) -> None:
+    """Print a Pydantic model or dict as JSON."""
+    if hasattr(data, "model_dump_json"):
+        console.print(data.model_dump_json(indent=2))  # type: ignore[union-attr]
+    else:
+        console.print(json_lib.dumps(data, indent=2, default=str))
+
+
+def _get_json_flag(ctx: click.Context) -> bool:
+    """Get the --json flag from context."""
+    return ctx.obj.get("json", False)
+
+
+# =============================================================================
+# CLI Group
+# =============================================================================
 
 
 @click.group()
 @click.version_option(version=__version__, prog_name="trader")
 @click.option("--prod", is_flag=True, help="Use production environment (default: paper)")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
 @click.pass_context
-def cli(ctx: click.Context, prod: bool) -> None:
+def cli(ctx: click.Context, prod: bool, as_json: bool) -> None:
     """AutoTrader - CLI-based automated trading system."""
     ctx.ensure_object(dict)
     config = load_config(prod=prod)
     ctx.obj["config"] = config
+    ctx.obj["json"] = as_json
 
     # Set up logging
     logger = setup_logging(log_dir=config.log_dir, log_to_file=True)
     ctx.obj["logger"] = logger
 
 
+# =============================================================================
+# Status & Account Commands
+# =============================================================================
+
+
 @cli.command()
 @click.pass_context
 def status(ctx: click.Context) -> None:
     """Show current system status including engine state."""
-    import os
+    from trader.app.engine import get_engine_status
 
     config = ctx.obj["config"]
+    as_json = _get_json_flag(ctx)
 
-    table = Table(title="AutoTrader Status")
-    table.add_column("Setting", style="cyan")
-    table.add_column("Value", style="green")
+    try:
+        result = get_engine_status(config)
+        if as_json:
+            _json_output(result)
+        else:
+            table = Table(title="AutoTrader Status")
+            table.add_column("Setting", style="cyan")
+            table.add_column("Value", style="green")
 
-    # Environment info
-    env_style = "yellow" if config.env == Environment.PAPER else "red bold"
-    table.add_row("Environment", f"[{env_style}]{config.env.value.upper()}[/{env_style}]")
-    table.add_row("Service", config.service.value)
-    table.add_row("Base URL", config.base_url)
+            env_style = "yellow" if config.env == Environment.PAPER else "red bold"
+            table.add_row("Environment", f"[{env_style}]{result.environment}[/{env_style}]")
+            table.add_row("Service", result.service)
+            table.add_row("Base URL", result.base_url)
 
-    # API key status
-    key_status = "Configured" if config.alpaca_api_key else "[red]Not Set[/red]"
-    table.add_row("API Key", key_status)
+            key_status = "Configured" if result.api_key_configured else "[red]Not Set[/red]"
+            table.add_row("API Key", key_status)
 
-    # Engine status
-    lock_path = get_lock_file_path()
-    engine_running = False
-    engine_pid = None
+            if result.running:
+                table.add_row("Engine", f"[green]RUNNING[/green] (PID {result.pid})")
+            else:
+                table.add_row("Engine", "[yellow]NOT RUNNING[/yellow]")
 
-    if lock_path.exists():
-        try:
-            with open(lock_path) as f:
-                pid_str = f.read().strip()
-                if pid_str:
-                    pid = int(pid_str)
-                    try:
-                        os.kill(pid, 0)  # Check if process exists
-                        engine_running = True
-                        engine_pid = pid
-                    except ProcessLookupError:
-                        pass  # Stale lock file
-        except (ValueError, FileNotFoundError):
-            pass
-
-    if engine_running:
-        table.add_row("Engine", f"[green]RUNNING[/green] (PID {engine_pid})")
-    else:
-        table.add_row("Engine", "[yellow]NOT RUNNING[/yellow]")
-
-    console.print(table)
+            console.print(table)
+    except AppError as e:
+        _handle_error(e, as_json)
 
 
 @cli.command()
 @click.pass_context
 def balance(ctx: click.Context) -> None:
     """Show account balance and portfolio summary."""
-    config = ctx.obj["config"]
+    from trader.app.portfolio import get_balance
 
-    if not config.alpaca_api_key:
-        console.print("[red]Error: Alpaca API key not configured[/red]")
-        console.print("Set ALPACA_API_KEY and ALPACA_SECRET_KEY in .env")
-        return
+    config = ctx.obj["config"]
+    as_json = _get_json_flag(ctx)
 
     try:
-        broker = get_broker(config)
-        account = broker.get_account()
-        positions_list = broker.get_positions()
-        market_open = broker.is_market_open()
+        result = get_balance(config)
+        if as_json:
+            _json_output(result)
+        else:
+            table = Table(title="Account Summary")
+            table.add_column("Metric", style="cyan")
+            table.add_column("Value", style="green", justify="right")
 
-        # Account table
-        table = Table(title="Account Summary")
-        table.add_column("Metric", style="cyan")
-        table.add_column("Value", style="green", justify="right")
+            acct = result.account
+            table.add_row("Portfolio Value", f"${acct.portfolio_value:,.2f}")
+            table.add_row("Equity", f"${acct.equity:,.2f}")
+            table.add_row("Cash", f"${acct.cash:,.2f}")
+            table.add_row("Buying Power", f"${acct.buying_power:,.2f}")
 
-        table.add_row("Portfolio Value", f"${account.portfolio_value:,.2f}")
-        table.add_row("Equity", f"${account.equity:,.2f}")
-        table.add_row("Cash", f"${account.cash:,.2f}")
-        table.add_row("Buying Power", f"${account.buying_power:,.2f}")
+            if result.day_change is not None:
+                change_style = "green" if result.day_change >= 0 else "red"
+                sign = "+" if result.day_change >= 0 else ""
+                table.add_row(
+                    "Day's Change",
+                    f"[{change_style}]{sign}${result.day_change:,.2f} "
+                    f"({sign}{result.day_change_pct:.2f}%)[/{change_style}]",
+                )
 
-        # Day's change
-        if account.last_equity:
-            day_change = account.equity - account.last_equity
-            day_change_pct = (day_change / account.last_equity) * 100 if account.last_equity else 0
-            change_style = "green" if day_change >= 0 else "red"
-            sign = "+" if day_change >= 0 else ""
-            table.add_row(
-                "Day's Change",
-                f"[{change_style}]{sign}${day_change:,.2f} ({sign}{day_change_pct:.2f}%)[/{change_style}]"
+            if result.positions:
+                pl_style = "green" if result.total_unrealized_pl >= 0 else "red"
+                sign = "+" if result.total_unrealized_pl >= 0 else ""
+                upl = f"[{pl_style}]{sign}${result.total_unrealized_pl:,.2f}[/{pl_style}]"
+                table.add_row("Unrealized P/L", upl)
+                table.add_row("Open Positions", str(len(result.positions)))
+
+            table.add_row("", "")
+            market_status = (
+                "[green]OPEN[/green]" if result.market_open
+                else "[yellow]CLOSED[/yellow]"
             )
+            table.add_row("Market", market_status)
+            table.add_row("Day Trades (5d)", str(acct.daytrade_count))
+            if acct.pattern_day_trader:
+                table.add_row("PDT Status", "[red]FLAGGED[/red]")
 
-        # Positions summary
-        if positions_list:
-            total_unrealized = sum(p.unrealized_pl for p in positions_list)
-            pl_style = "green" if total_unrealized >= 0 else "red"
-            sign = "+" if total_unrealized >= 0 else ""
-            table.add_row("Unrealized P/L", f"[{pl_style}]{sign}${total_unrealized:,.2f}[/{pl_style}]")
-            table.add_row("Open Positions", str(len(positions_list)))
-
-        table.add_row("", "")  # Spacer
-        market_status = "[green]OPEN[/green]" if market_open else "[yellow]CLOSED[/yellow]"
-        table.add_row("Market", market_status)
-        table.add_row("Day Trades (5d)", str(account.daytrade_count))
-        if account.pattern_day_trader:
-            table.add_row("PDT Status", "[red]FLAGGED[/red]")
-
-        console.print(table)
+            console.print(table)
+    except AppError as e:
+        _handle_error(e, as_json)
     except Exception as e:
-        console.print(f"[red]Error fetching balance: {e}[/red]")
+        if as_json:
+            console.print(json_lib.dumps({"error": "UNEXPECTED", "message": str(e)}, indent=2))
+        else:
+            console.print(f"[red]Error fetching balance: {e}[/red]")
 
 
 @cli.command()
 @click.pass_context
 def positions(ctx: click.Context) -> None:
     """Show current positions."""
-    config = ctx.obj["config"]
+    from trader.app.portfolio import get_positions
 
-    if not config.alpaca_api_key:
-        console.print("[red]Error: Alpaca API key not configured[/red]")
-        return
+    config = ctx.obj["config"]
+    as_json = _get_json_flag(ctx)
 
     try:
-        broker = get_broker(config)
-        positions_list = broker.get_positions()
+        positions_list = get_positions(config)
+        if as_json:
+            _json_output([p.model_dump() for p in positions_list])
+        else:
+            if not positions_list:
+                console.print("[yellow]No open positions[/yellow]")
+                return
 
-        if not positions_list:
-            console.print("[yellow]No open positions[/yellow]")
-            return
+            table = Table(title="Open Positions")
+            table.add_column("Symbol", style="cyan")
+            table.add_column("Qty", justify="right")
+            table.add_column("Avg Price", justify="right")
+            table.add_column("Current", justify="right")
+            table.add_column("Market Value", justify="right")
+            table.add_column("P/L", justify="right")
+            table.add_column("P/L %", justify="right")
 
-        table = Table(title="Open Positions")
-        table.add_column("Symbol", style="cyan")
-        table.add_column("Qty", justify="right")
-        table.add_column("Avg Price", justify="right")
-        table.add_column("Current", justify="right")
-        table.add_column("Market Value", justify="right")
-        table.add_column("P/L", justify="right")
-        table.add_column("P/L %", justify="right")
+            for pos in positions_list:
+                pl_style = "green" if pos.unrealized_pl >= 0 else "red"
+                table.add_row(
+                    pos.symbol,
+                    str(pos.qty),
+                    f"${pos.avg_entry_price:,.2f}",
+                    f"${pos.current_price:,.2f}",
+                    f"${pos.market_value:,.2f}",
+                    f"[{pl_style}]${pos.unrealized_pl:,.2f}[/{pl_style}]",
+                    f"[{pl_style}]{pos.unrealized_pl_pct:.2%}[/{pl_style}]",
+                )
 
-        for pos in positions_list:
-            pl_style = "green" if pos.unrealized_pl >= 0 else "red"
-            table.add_row(
-                pos.symbol,
-                str(pos.qty),
-                f"${pos.avg_entry_price:,.2f}",
-                f"${pos.current_price:,.2f}",
-                f"${pos.market_value:,.2f}",
-                f"[{pl_style}]${pos.unrealized_pl:,.2f}[/{pl_style}]",
-                f"[{pl_style}]{pos.unrealized_pl_pct:.2%}[/{pl_style}]",
-            )
-
-        console.print(table)
+            console.print(table)
+    except AppError as e:
+        _handle_error(e, as_json)
     except Exception as e:
-        console.print(f"[red]Error fetching positions: {e}[/red]")
+        if as_json:
+            console.print(json_lib.dumps({"error": "UNEXPECTED", "message": str(e)}, indent=2))
+        else:
+            console.print(f"[red]Error fetching positions: {e}[/red]")
 
 
 @cli.command()
@@ -206,202 +230,141 @@ def positions(ctx: click.Context) -> None:
 @click.pass_context
 def orders(ctx: click.Context, show_all: bool) -> None:
     """Show open orders."""
-    config = ctx.obj["config"]
+    from trader.app.orders import list_orders
 
-    if not config.alpaca_api_key:
-        console.print("[red]Error: Alpaca API key not configured[/red]")
-        return
+    config = ctx.obj["config"]
+    as_json = _get_json_flag(ctx)
 
     try:
-        broker = get_broker(config)
-        orders_list = broker.get_orders()
+        orders_list = list_orders(config, show_all=show_all)
+        if as_json:
+            _json_output([o.model_dump() for o in orders_list])
+        else:
+            if not orders_list:
+                console.print("[yellow]No open orders[/yellow]")
+                return
 
-        if not show_all:
-            # Filter to only open/pending orders
-            open_statuses = {OrderStatus.NEW, OrderStatus.PENDING, OrderStatus.ACCEPTED, OrderStatus.PARTIALLY_FILLED}
-            orders_list = [o for o in orders_list if o.status in open_statuses]
+            table = Table(title="Orders" if show_all else "Open Orders")
+            table.add_column("ID", style="dim", max_width=8)
+            table.add_column("Symbol", style="cyan")
+            table.add_column("Side", justify="center")
+            table.add_column("Type", justify="center")
+            table.add_column("Qty", justify="right")
+            table.add_column("Price", justify="right")
+            table.add_column("Status", justify="center")
 
-        if not orders_list:
-            console.print("[yellow]No open orders[/yellow]")
-            return
+            for order in orders_list:
+                side_style = "green" if order.side == "buy" else "red"
+                side_text = f"[{side_style}]{order.side.upper()}[/{side_style}]"
 
-        table = Table(title="Orders" if show_all else "Open Orders")
-        table.add_column("ID", style="dim", max_width=8)
-        table.add_column("Symbol", style="cyan")
-        table.add_column("Side", justify="center")
-        table.add_column("Type", justify="center")
-        table.add_column("Qty", justify="right")
-        table.add_column("Filled", justify="right")
-        table.add_column("Price", justify="right")
-        table.add_column("Status", justify="center")
+                if order.order_type == "market":
+                    price_text = "MARKET"
+                elif order.limit_price:
+                    price_text = f"${order.limit_price:,.2f}"
+                elif order.stop_price:
+                    price_text = f"${order.stop_price:,.2f}"
+                elif order.trail_percent:
+                    price_text = f"{order.trail_percent}%"
+                else:
+                    price_text = "-"
 
-        for order in orders_list:
-            side_style = "green" if order.side == OrderSide.BUY else "red"
-            side_text = f"[{side_style}]{order.side.value.upper()}[/{side_style}]"
+                table.add_row(
+                    order.id[:8],
+                    order.symbol,
+                    side_text,
+                    order.order_type.upper(),
+                    str(order.qty),
+                    price_text,
+                    order.status.upper(),
+                )
 
-            # Format price based on order type
-            if order.order_type == OrderType.MARKET:
-                price_text = "MARKET"
-            elif order.order_type == OrderType.LIMIT and order.limit_price:
-                price_text = f"${order.limit_price:,.2f}"
-            elif order.order_type == OrderType.STOP and order.stop_price:
-                price_text = f"${order.stop_price:,.2f}"
-            elif order.order_type == OrderType.TRAILING_STOP and order.trail_percent:
-                price_text = f"{order.trail_percent}%"
-            else:
-                price_text = "-"
-
-            # Status styling
-            status_styles = {
-                OrderStatus.FILLED: "green",
-                OrderStatus.CANCELED: "dim",
-                OrderStatus.REJECTED: "red",
-                OrderStatus.PARTIALLY_FILLED: "yellow",
-            }
-            status_style = status_styles.get(order.status, "white")
-            status_text = f"[{status_style}]{order.status.value.upper()}[/{status_style}]"
-
-            table.add_row(
-                order.id[:8],
-                order.symbol,
-                side_text,
-                order.order_type.value.upper(),
-                str(order.qty),
-                str(order.filled_qty),
-                price_text,
-                status_text,
-            )
-
-        console.print(table)
+            console.print(table)
+    except AppError as e:
+        _handle_error(e, as_json)
     except Exception as e:
-        console.print(f"[red]Error fetching orders: {e}[/red]")
+        if as_json:
+            console.print(json_lib.dumps({"error": "UNEXPECTED", "message": str(e)}, indent=2))
+        else:
+            console.print(f"[red]Error fetching orders: {e}[/red]")
 
 
 @cli.command()
 @click.pass_context
 def portfolio(ctx: click.Context) -> None:
-    """Show full portfolio overview (balance + positions + orders)."""
-    config = ctx.obj["config"]
+    """Show portfolio summary and performance."""
+    from trader.app.portfolio import get_portfolio_summary
 
-    if not config.alpaca_api_key:
-        console.print("[red]Error: Alpaca API key not configured[/red]")
-        return
+    config = ctx.obj["config"]
+    as_json = _get_json_flag(ctx)
 
     try:
-        broker = get_broker(config)
-        account = broker.get_account()
-        positions_list = broker.get_positions()
-        orders_list = broker.get_orders()
-        market_open = broker.is_market_open()
+        result = get_portfolio_summary(config)
+        if as_json:
+            _json_output(result)
+        else:
+            # Summary table
+            table = Table(title="Portfolio Summary")
+            table.add_column("Metric", style="cyan")
+            table.add_column("Value", style="green", justify="right")
 
-        # Filter to open orders
-        open_statuses = {OrderStatus.NEW, OrderStatus.PENDING, OrderStatus.ACCEPTED, OrderStatus.PARTIALLY_FILLED}
-        open_orders = [o for o in orders_list if o.status in open_statuses]
+            table.add_row("Total Equity", f"${result.total_equity:,.2f}")
+            table.add_row("Cash", f"${result.cash:,.2f}")
+            table.add_row("Positions Value", f"${result.positions_value:,.2f}")
+            table.add_row("Position Count", str(result.position_count))
 
-        # === Account Summary ===
-        console.print()
-        market_status = "[green]● OPEN[/green]" if market_open else "[yellow]● CLOSED[/yellow]"
-        console.print(f"[bold]Account Overview[/bold]  {market_status}")
-        console.print()
+            unreal_style = "green" if result.unrealized_pnl >= 0 else "red"
+            real_style = "green" if result.realized_pnl_today >= 0 else "red"
+            total_style = "green" if result.total_pnl_today >= 0 else "red"
 
-        # Main metrics in a compact format
-        console.print(f"  Portfolio Value:  [bold]${account.portfolio_value:,.2f}[/bold]")
-        console.print(f"  Cash:             ${account.cash:,.2f}")
-        console.print(f"  Buying Power:     ${account.buying_power:,.2f}")
-
-        # Day's change
-        if account.last_equity:
-            day_change = account.equity - account.last_equity
-            day_change_pct = (day_change / account.last_equity) * 100 if account.last_equity else 0
-            change_style = "green" if day_change >= 0 else "red"
-            sign = "+" if day_change >= 0 else ""
-            console.print(f"  Day's Change:     [{change_style}]{sign}${day_change:,.2f} ({sign}{day_change_pct:.2f}%)[/{change_style}]")
-
-        console.print()
-
-        # === Positions ===
-        if positions_list:
-            console.print(f"[bold]Positions ({len(positions_list)})[/bold]")
-            console.print()
-
-            table = Table(show_header=True, header_style="bold", box=None, padding=(0, 2))
-            table.add_column("Symbol", style="cyan")
-            table.add_column("Qty", justify="right")
-            table.add_column("Price", justify="right")
-            table.add_column("Value", justify="right")
-            table.add_column("P/L", justify="right")
-            table.add_column("%", justify="right")
-
-            total_value = sum(p.market_value for p in positions_list)
-            total_pl = sum(p.unrealized_pl for p in positions_list)
-
-            for pos in positions_list:
-                pl_style = "green" if pos.unrealized_pl >= 0 else "red"
-                sign = "+" if pos.unrealized_pl >= 0 else ""
-                table.add_row(
-                    pos.symbol,
-                    str(int(pos.qty)),
-                    f"${pos.current_price:,.2f}",
-                    f"${pos.market_value:,.2f}",
-                    f"[{pl_style}]{sign}${pos.unrealized_pl:,.2f}[/{pl_style}]",
-                    f"[{pl_style}]{sign}{pos.unrealized_pl_pct * 100:.1f}%[/{pl_style}]",
-                )
+            table.add_row(
+                "Unrealized P/L",
+                f"[{unreal_style}]${result.unrealized_pnl:,.2f} "
+                f"({result.unrealized_pnl_pct:.2%})[/{unreal_style}]",
+            )
+            table.add_row(
+                "Realized P/L (Today)",
+                f"[{real_style}]${result.realized_pnl_today:,.2f}[/{real_style}]",
+            )
+            table.add_row(
+                "Total P/L (Today)",
+                f"[{total_style}]${result.total_pnl_today:,.2f}[/{total_style}]",
+            )
 
             console.print(table)
-            console.print()
 
-            # Totals
-            pl_style = "green" if total_pl >= 0 else "red"
-            sign = "+" if total_pl >= 0 else ""
-            console.print(f"  Total Value: ${total_value:,.2f}  |  Unrealized P/L: [{pl_style}]{sign}${total_pl:,.2f}[/{pl_style}]")
-            console.print()
-        else:
-            console.print("[dim]No open positions[/dim]")
-            console.print()
+            # Positions breakdown
+            if result.positions:
+                console.print()
+                pos_table = Table(title="Position Breakdown")
+                pos_table.add_column("Symbol", style="cyan")
+                pos_table.add_column("Qty", justify="right")
+                pos_table.add_column("Avg Cost", justify="right")
+                pos_table.add_column("Current", justify="right")
+                pos_table.add_column("Value", justify="right")
+                pos_table.add_column("P/L", justify="right")
+                pos_table.add_column("Weight", justify="right")
 
-        # === Open Orders ===
-        if open_orders:
-            console.print(f"[bold]Open Orders ({len(open_orders)})[/bold]")
-            console.print()
+                for pos in result.positions:
+                    pl_style = "green" if pos.unrealized_pnl >= 0 else "red"
+                    pos_table.add_row(
+                        pos.symbol,
+                        str(pos.quantity),
+                        f"${pos.avg_cost:,.2f}",
+                        f"${pos.current_price:,.2f}",
+                        f"${pos.market_value:,.2f}",
+                        f"[{pl_style}]${pos.unrealized_pnl:,.2f}[/{pl_style}]",
+                        f"{pos.weight_pct:.1f}%",
+                    )
 
-            table = Table(show_header=True, header_style="bold", box=None, padding=(0, 2))
-            table.add_column("Symbol", style="cyan")
-            table.add_column("Side")
-            table.add_column("Type")
-            table.add_column("Qty", justify="right")
-            table.add_column("Price", justify="right")
-            table.add_column("Status")
+                console.print(pos_table)
 
-            for order in open_orders:
-                side_style = "green" if order.side == OrderSide.BUY else "red"
-                side_text = f"[{side_style}]{order.side.value.upper()}[/{side_style}]"
-
-                if order.order_type == OrderType.MARKET:
-                    price_text = "MKT"
-                elif order.limit_price:
-                    price_text = f"${order.limit_price:,.2f}"
-                elif order.stop_price:
-                    price_text = f"${order.stop_price:,.2f}"
-                else:
-                    price_text = "-"
-
-                table.add_row(
-                    order.symbol,
-                    side_text,
-                    order.order_type.value.upper(),
-                    str(int(order.qty)),
-                    price_text,
-                    order.status.value.upper(),
-                )
-
-            console.print(table)
-            console.print()
-        else:
-            console.print("[dim]No open orders[/dim]")
-            console.print()
-
+    except AppError as e:
+        _handle_error(e, as_json)
     except Exception as e:
-        console.print(f"[red]Error fetching portfolio: {e}[/red]")
+        if as_json:
+            console.print(json_lib.dumps({"error": "UNEXPECTED", "message": str(e)}, indent=2))
+        else:
+            console.print(f"[red]Error: {e}[/red]")
 
 
 @cli.command()
@@ -409,27 +372,37 @@ def portfolio(ctx: click.Context) -> None:
 @click.pass_context
 def quote(ctx: click.Context, symbol: str) -> None:
     """Get current quote for a symbol."""
-    config = ctx.obj["config"]
+    from trader.app.portfolio import get_quote
 
-    if not config.alpaca_api_key:
-        console.print("[red]Error: Alpaca API key not configured[/red]")
-        return
+    config = ctx.obj["config"]
+    as_json = _get_json_flag(ctx)
 
     try:
-        broker = get_broker(config)
-        q = broker.get_quote(symbol.upper())
+        result = get_quote(config, symbol)
+        if as_json:
+            _json_output(result)
+        else:
+            table = Table(title=f"Quote: {symbol.upper()}")
+            table.add_column("Metric", style="cyan")
+            table.add_column("Value", style="green", justify="right")
 
-        table = Table(title=f"Quote: {symbol.upper()}")
-        table.add_column("Metric", style="cyan")
-        table.add_column("Value", style="green", justify="right")
+            table.add_row("Bid", f"${result.bid:,.2f}")
+            table.add_row("Ask", f"${result.ask:,.2f}")
+            table.add_row("Spread", f"${result.spread:,.2f}")
 
-        table.add_row("Bid", f"${q.bid:,.2f}")
-        table.add_row("Ask", f"${q.ask:,.2f}")
-        table.add_row("Spread", f"${q.ask - q.bid:,.2f}")
-
-        console.print(table)
+            console.print(table)
+    except AppError as e:
+        _handle_error(e, as_json)
     except Exception as e:
-        console.print(f"[red]Error fetching quote: {e}[/red]")
+        if as_json:
+            console.print(json_lib.dumps({"error": "UNEXPECTED", "message": str(e)}, indent=2))
+        else:
+            console.print(f"[red]Error fetching quote: {e}[/red]")
+
+
+# =============================================================================
+# Order Commands
+# =============================================================================
 
 
 @cli.command()
@@ -442,65 +415,47 @@ def buy(ctx: click.Context, symbol: str, price: float, qty: int) -> None:
 
     Example: trader buy TSLA 399.00 --qty 1
     """
-    config = ctx.obj["config"]
-    logger = get_logger("autotrader.trades")
+    from trader.app.orders import place_order
+    from trader.schemas.orders import OrderRequest
 
-    if not config.alpaca_api_key:
-        console.print("[red]Error: Alpaca API key not configured[/red]")
-        return
+    config = ctx.obj["config"]
+    as_json = _get_json_flag(ctx)
 
     try:
-        broker = get_broker(config)
-        symbol = symbol.upper()
-
-        order_type = OrderType.LIMIT
-        limit_price = Decimal(str(price))
-        console.print(f"[yellow]Placing LIMIT BUY: {qty} {symbol} @ ${price:.2f}[/yellow]")
-
-        # Safety checks
-        ledger = TradeLedger()
-        checker = SafetyCheck(broker, ledger)
-
-        check_price = Decimal(str(price))
-
-        allowed, reason = checker.check_order(symbol, int(qty), check_price, is_buy=True)
-        if not allowed:
-            console.print(f"[red]Order blocked by safety checks: {reason}[/red]")
-            return
-
-        order = broker.place_order(
-            symbol=symbol,
-            qty=Decimal(str(qty)),
-            side=OrderSide.BUY,
-            order_type=order_type,
-            limit_price=limit_price,
+        request = OrderRequest(
+            symbol=symbol, qty=qty,
+            price=Decimal(str(price)), side="buy",
         )
+        if not as_json:
+            msg = f"Placing LIMIT BUY: {qty} {symbol.upper()} @ ${price:.2f}"
+            console.print(f"[yellow]{msg}[/yellow]")
 
-        try:
-            save_order(order)
-        except Exception:
-            # Don't block the CLI if persistence fails; log and continue
-            ctx.obj["logger"].exception("Failed to persist order")
+        result = place_order(config, request)
 
-        logger.info(f"BUY {qty} {symbol} | Order ID: {order.id} | Status: {order.status.value}")
+        if as_json:
+            _json_output(result)
+        else:
+            table = Table(title="Order Placed")
+            table.add_column("Field", style="cyan")
+            table.add_column("Value", style="green")
 
-        table = Table(title="Order Placed")
-        table.add_column("Field", style="cyan")
-        table.add_column("Value", style="green")
+            table.add_row("Order ID", result.id)
+            table.add_row("Symbol", result.symbol)
+            table.add_row("Side", "BUY")
+            table.add_row("Quantity", str(result.qty))
+            table.add_row("Type", result.order_type.upper())
+            if result.limit_price:
+                table.add_row("Limit Price", f"${result.limit_price:,.2f}")
+            table.add_row("Status", result.status.upper())
 
-        table.add_row("Order ID", order.id)
-        table.add_row("Symbol", order.symbol)
-        table.add_row("Side", "BUY")
-        table.add_row("Quantity", str(order.qty))
-        table.add_row("Type", order.order_type.value.upper())
-        if order.limit_price:
-            table.add_row("Limit Price", f"${order.limit_price:,.2f}")
-        table.add_row("Status", order.status.value.upper())
-
-        console.print(table)
-
+            console.print(table)
+    except AppError as e:
+        _handle_error(e, as_json)
     except Exception as e:
-        console.print(f"[red]Error placing order: {e}[/red]")
+        if as_json:
+            console.print(json_lib.dumps({"error": "UNEXPECTED", "message": str(e)}, indent=2))
+        else:
+            console.print(f"[red]Error placing order: {e}[/red]")
 
 
 @cli.command()
@@ -513,164 +468,82 @@ def sell(ctx: click.Context, symbol: str, price: float, qty: int) -> None:
 
     Example: trader sell TSLA 420.00 --qty 1
     """
-    config = ctx.obj["config"]
-    logger = get_logger("autotrader.trades")
+    from trader.app.orders import place_order
+    from trader.schemas.orders import OrderRequest
 
-    if not config.alpaca_api_key:
-        console.print("[red]Error: Alpaca API key not configured[/red]")
-        return
+    config = ctx.obj["config"]
+    as_json = _get_json_flag(ctx)
 
     try:
-        broker = get_broker(config)
-        symbol = symbol.upper()
-
-        order_type = OrderType.LIMIT
-        limit_price = Decimal(str(price))
-        console.print(f"[yellow]Placing LIMIT SELL: {qty} {symbol} @ ${price:.2f}[/yellow]")
-
-        # Safety checks
-        ledger = TradeLedger()
-        checker = SafetyCheck(broker, ledger)
-
-        check_price = Decimal(str(price))
-
-        allowed, reason = checker.check_order(symbol, int(qty), check_price, is_buy=False)
-        if not allowed:
-            console.print(f"[red]Order blocked by safety checks: {reason}[/red]")
-            return
-
-        order = broker.place_order(
-            symbol=symbol,
-            qty=Decimal(str(qty)),
-            side=OrderSide.SELL,
-            order_type=order_type,
-            limit_price=limit_price,
+        request = OrderRequest(
+            symbol=symbol, qty=qty,
+            price=Decimal(str(price)), side="sell",
         )
+        if not as_json:
+            msg = f"Placing LIMIT SELL: {qty} {symbol.upper()} @ ${price:.2f}"
+            console.print(f"[yellow]{msg}[/yellow]")
 
-        try:
-            save_order(order)
-        except Exception:
-            ctx.obj["logger"].exception("Failed to persist order")
+        result = place_order(config, request)
 
-        logger.info(f"SELL {qty} {symbol} | Order ID: {order.id} | Status: {order.status.value}")
+        if as_json:
+            _json_output(result)
+        else:
+            table = Table(title="Order Placed")
+            table.add_column("Field", style="cyan")
+            table.add_column("Value", style="green")
 
-        table = Table(title="Order Placed")
-        table.add_column("Field", style="cyan")
-        table.add_column("Value", style="green")
+            table.add_row("Order ID", result.id)
+            table.add_row("Symbol", result.symbol)
+            table.add_row("Side", "SELL")
+            table.add_row("Quantity", str(result.qty))
+            table.add_row("Type", result.order_type.upper())
+            if result.limit_price:
+                table.add_row("Limit Price", f"${result.limit_price:,.2f}")
+            table.add_row("Status", result.status.upper())
 
-        table.add_row("Order ID", order.id)
-        table.add_row("Symbol", order.symbol)
-        table.add_row("Side", "SELL")
-        table.add_row("Quantity", str(order.qty))
-        table.add_row("Type", order.order_type.value.upper())
-        if order.limit_price:
-            table.add_row("Limit Price", f"${order.limit_price:,.2f}")
-        table.add_row("Status", order.status.value.upper())
-
-        console.print(table)
-
+            console.print(table)
+    except AppError as e:
+        _handle_error(e, as_json)
     except Exception as e:
-        console.print(f"[red]Error placing order: {e}[/red]")
-
-
-@cli.command()
-@click.pass_context
-def orders(ctx: click.Context) -> None:
-    """Show open orders."""
-    config = ctx.obj["config"]
-
-    if not config.alpaca_api_key:
-        console.print("[red]Error: Alpaca API key not configured[/red]")
-        return
-
-    try:
-        broker = get_broker(config)
-        orders_list = broker.get_orders()
-
-        if not orders_list:
-            console.print("[yellow]No open orders[/yellow]")
-            return
-
-        table = Table(title="Open Orders")
-        table.add_column("ID", style="dim")
-        table.add_column("Symbol", style="cyan")
-        table.add_column("Side")
-        table.add_column("Type")
-        table.add_column("Qty", justify="right")
-        table.add_column("Limit", justify="right")
-        table.add_column("Status")
-
-        for order in orders_list:
-            side_style = "green" if order.side == OrderSide.BUY else "red"
-            table.add_row(
-                order.id[:8] + "...",
-                order.symbol,
-                f"[{side_style}]{order.side.value.upper()}[/{side_style}]",
-                order.order_type.value.upper(),
-                str(order.qty),
-                f"${order.limit_price:,.2f}" if order.limit_price else "-",
-                order.status.value.upper(),
-            )
-
-        console.print(table)
-
-        # Also show locally persisted pending orders and reserved buying power
-        try:
-            persisted = load_orders()
-        except Exception:
-            persisted = []
-
-        if persisted:
-            p_table = Table(title="Pending Orders (local)")
-            p_table.add_column("ID", style="dim")
-            p_table.add_column("Symbol", style="cyan")
-            p_table.add_column("Side")
-            p_table.add_column("Qty", justify="right")
-            p_table.add_column("Limit", justify="right")
-            p_table.add_column("Status")
-
-            reserved_buy_value = Decimal("0")
-            for po in persisted:
-                limit_str = f"${po.limit_price:,.2f}" if po.limit_price else "-"
-                p_table.add_row(po.id or "-", po.symbol, po.side.value.upper(), str(po.qty), limit_str, po.status.value.upper())
-
-                # consider pending buys as reserved value
-                if po.side.value == "buy" and po.status.value in ("new", "submitted"):
-                    if po.limit_price is not None:
-                        reserved_buy_value += po.limit_price * po.qty
-                    else:
-                        try:
-                            q = broker.get_quote(po.symbol)
-                            mid = (q.bid + q.ask) / 2
-                        except Exception:
-                            mid = Decimal("0")
-                        reserved_buy_value += mid * po.qty
-
-            console.print(p_table)
-            console.print(f"\nReserved Buying Power (pending buys): [yellow]${reserved_buy_value:,.2f}[/yellow]\n")
-    except Exception as e:
-        console.print(f"[red]Error fetching orders: {e}[/red]")
+        if as_json:
+            console.print(json_lib.dumps({"error": "UNEXPECTED", "message": str(e)}, indent=2))
+        else:
+            console.print(f"[red]Error placing order: {e}[/red]")
 
 
 @cli.command(name="reconcile-orders")
-@click.option("--orders-dir", type=click.Path(), help="Path to config directory containing orders.yaml")
+@click.option(
+    "--orders-dir", type=click.Path(),
+    help="Path to config directory containing orders.yaml",
+)
 @click.pass_context
 def reconcile_orders(ctx: click.Context, orders_dir: str | None) -> None:
     """Reconcile locally persisted orders with broker state."""
+    from trader.core.engine import TradingEngine
+
     config = ctx.obj["config"]
+    as_json = _get_json_flag(ctx)
 
-    broker = get_broker(config)
-
-    orders_path = Path(orders_dir) if orders_dir else None
-    engine = TradingEngine(broker, orders_dir=orders_path)
-
-    console.print("Running reconciliation...")
     try:
+        from trader.app import get_broker
+        broker = get_broker(config)
+        orders_path = Path(orders_dir) if orders_dir else None
+        engine = TradingEngine(broker, orders_dir=orders_path)
+
+        if not as_json:
+            console.print("Running reconciliation...")
         engine._reconcile_orders()
-        console.print("[green]Reconciliation completed.[/green]")
+        if as_json:
+            _json_output({"status": "completed"})
+        else:
+            console.print("[green]Reconciliation completed.[/green]")
+    except AppError as e:
+        _handle_error(e, as_json)
     except Exception as e:
-        console.print(f"[red]Reconciliation failed: {e}[/red]")
-    
+        if as_json:
+            console.print(json_lib.dumps({"error": "UNEXPECTED", "message": str(e)}, indent=2))
+        else:
+            console.print(f"[red]Reconciliation failed: {e}[/red]")
 
 
 @cli.command()
@@ -678,23 +551,29 @@ def reconcile_orders(ctx: click.Context, orders_dir: str | None) -> None:
 @click.pass_context
 def cancel(ctx: click.Context, order_id: str) -> None:
     """Cancel an open order."""
-    config = ctx.obj["config"]
+    from trader.app.orders import cancel_order
 
-    if not config.alpaca_api_key:
-        console.print("[red]Error: Alpaca API key not configured[/red]")
-        return
+    config = ctx.obj["config"]
+    as_json = _get_json_flag(ctx)
 
     try:
-        broker = get_broker(config)
-        success = broker.cancel_order(order_id)
-
-        if success:
-            console.print(f"[green]Order {order_id} canceled[/green]")
+        result = cancel_order(config, order_id)
+        if as_json:
+            _json_output(result)
         else:
-            console.print(f"[red]Failed to cancel order {order_id}[/red]")
-
+            console.print(f"[green]Order {order_id} canceled[/green]")
+    except AppError as e:
+        _handle_error(e, as_json)
     except Exception as e:
-        console.print(f"[red]Error canceling order: {e}[/red]")
+        if as_json:
+            console.print(json_lib.dumps({"error": "UNEXPECTED", "message": str(e)}, indent=2))
+        else:
+            console.print(f"[red]Error canceling order: {e}[/red]")
+
+
+# =============================================================================
+# Engine Commands
+# =============================================================================
 
 
 @cli.command()
@@ -731,6 +610,10 @@ def start(ctx: click.Context, dry_run: bool, interval: int, once: bool, force: b
         Production mode:
         trader --prod start
     """
+    from trader.app import get_broker
+    from trader.core.engine import EngineAlreadyRunningError, TradingEngine, get_lock_file_path
+    from trader.strategies.loader import load_strategies
+
     config = ctx.obj["config"]
 
     if not config.alpaca_api_key:
@@ -740,8 +623,9 @@ def start(ctx: click.Context, dry_run: bool, interval: int, once: bool, force: b
 
     # Interactive confirmation for production
     if config.is_prod:
-        console.print("[red bold]⚠️  PRODUCTION MODE ⚠️[/red bold]")
-        console.print(f"[red]You are about to trade with REAL MONEY on {config.service.value}[/red]")
+        console.print("[red bold]\u26a0\ufe0f  PRODUCTION MODE \u26a0\ufe0f[/red bold]")
+        svc = config.service.value
+        console.print(f"[red]You are about to trade with REAL MONEY on {svc}[/red]")
         console.print(f"[dim]Using: {config.base_url}[/dim]")
         console.print()
         if not click.confirm("Are you sure you want to continue?", default=False):
@@ -800,7 +684,8 @@ def start(ctx: click.Context, dry_run: bool, interval: int, once: bool, force: b
 
 @cli.command()
 @click.option("--force", "-f", is_flag=True, help="Force immediate shutdown (SIGKILL)")
-def stop(force: bool) -> None:
+@click.pass_context
+def stop(ctx: click.Context, force: bool) -> None:
     """Stop the running trading engine.
 
     By default, sends SIGTERM and waits for the current cycle to complete.
@@ -815,192 +700,70 @@ def stop(force: bool) -> None:
         trader stop --force
         trader stop -f
     """
-    import os
-    import signal
+    from trader.app.engine import stop_engine
 
-    lock_path = get_lock_file_path()
-
-    if not lock_path.exists():
-        console.print("[yellow]No trading engine is currently running[/yellow]")
-        return
-
-    # Read PID from lock file
-    try:
-        with open(lock_path) as f:
-            pid_str = f.read().strip()
-            if not pid_str:
-                console.print("[yellow]Lock file is empty - no engine running[/yellow]")
-                lock_path.unlink()
-                return
-            pid = int(pid_str)
-    except (ValueError, FileNotFoundError) as e:
-        console.print(f"[red]Error reading lock file: {e}[/red]")
-        return
-
-    # Check if process is actually running
-    try:
-        os.kill(pid, 0)  # Signal 0 just checks if process exists
-    except ProcessLookupError:
-        console.print(f"[yellow]Engine process (PID {pid}) is not running[/yellow]")
-        console.print("[dim]Cleaning up stale lock file...[/dim]")
-        try:
-            lock_path.unlink()
-        except Exception:
-            pass
-        return
-    except PermissionError:
-        console.print(f"[red]Permission denied to signal process {pid}[/red]")
-        return
-
-    # Send graceful shutdown signal
-    sig = signal.SIGKILL if force else signal.SIGTERM
-    sig_name = "SIGKILL" if force else "SIGTERM"
+    as_json = _get_json_flag(ctx)
 
     try:
-        os.kill(pid, sig)
-        if force:
-            console.print(f"[yellow]Force killed trading engine (PID {pid})[/yellow]")
-            # Clean up lock file since SIGKILL won't let the process clean up
-            try:
-                lock_path.unlink()
-            except Exception:
-                pass
+        result = stop_engine(force=force)
+        if as_json:
+            _json_output(result)
         else:
-            console.print(f"[green]Sent shutdown signal to trading engine (PID {pid})[/green]")
-            console.print("[dim]Engine will stop after current cycle completes[/dim]")
-    except ProcessLookupError:
-        console.print(f"[yellow]Engine already stopped[/yellow]")
-    except PermissionError:
-        console.print(f"[red]Permission denied to stop process {pid}[/red]")
-    except Exception as e:
-        console.print(f"[red]Error stopping engine: {e}[/red]")
+            if result["status"] == "killed":
+                console.print(f"[yellow]Force killed trading engine (PID {result['pid']})[/yellow]")
+            elif result["status"] == "stopping":
+                pid = result['pid']
+                console.print(f"[green]Sent shutdown signal to trading engine (PID {pid})[/green]")
+                console.print("[dim]Engine will stop after current cycle completes[/dim]")
+            else:
+                console.print("[yellow]Engine already stopped[/yellow]")
+    except AppError as e:
+        _handle_error(e, as_json)
 
 
 @cli.command()
 @click.pass_context
 def watch(ctx: click.Context) -> None:
     """Watch prices for symbols in your strategies."""
+    from trader.app.portfolio import watch_strategies
+
     config = ctx.obj["config"]
-
-    if not config.alpaca_api_key:
-        console.print("[red]Error: Alpaca API key not configured[/red]")
-        return
-
-    strategies = load_strategies()
-    if not strategies:
-        console.print("[yellow]No strategies configured[/yellow]")
-        return
-
-    broker = get_broker(config)
-
-    # Get unique symbols from strategies
-    symbols = list(set(s.symbol for s in strategies))
-
-    table = Table(title="Price Watch")
-    table.add_column("Symbol", style="cyan")
-    table.add_column("Bid", justify="right")
-    table.add_column("Ask", justify="right")
-    table.add_column("Strategies")
-
-    for symbol in symbols:
-        try:
-            q = broker.get_quote(symbol)
-
-            # Find strategies for this symbol
-            symbol_strategies = [s for s in strategies if s.symbol == symbol]
-            strat_strs = []
-            for s in symbol_strategies:
-                phase = s.phase.value.replace("_", " ")
-                strat_strs.append(f"{s.strategy_type.value}: {phase}")
-
-            table.add_row(
-                symbol,
-                f"${q.bid:,.2f}",
-                f"${q.ask:,.2f}",
-                ", ".join(strat_strs) if strat_strs else "-",
-            )
-        except Exception as e:
-            table.add_row(symbol, "[red]Error[/red]", str(e), "-")
-
-    console.print(table)
-
-
-@cli.command()
-@click.pass_context
-def portfolio(ctx: click.Context) -> None:
-    """Show portfolio summary and performance."""
-    config = ctx.obj["config"]
-
-    if not config.alpaca_api_key:
-        console.print("[red]Error: Alpaca API key not configured[/red]")
-        return
+    as_json = _get_json_flag(ctx)
 
     try:
-        broker = get_broker(config)
-        ledger = TradeLedger()
-        pf = Portfolio(broker, ledger)
+        results = watch_strategies(config)
+        if as_json:
+            _json_output(results)
+        else:
+            if not results:
+                console.print("[yellow]No strategies configured[/yellow]")
+                return
 
-        summary = pf.get_summary()
+            table = Table(title="Price Watch")
+            table.add_column("Symbol", style="cyan")
+            table.add_column("Bid", justify="right")
+            table.add_column("Ask", justify="right")
+            table.add_column("Strategies")
 
-        # Summary table
-        table = Table(title="Portfolio Summary")
-        table.add_column("Metric", style="cyan")
-        table.add_column("Value", style="green", justify="right")
+            for item in results:
+                if "error" in item:
+                    table.add_row(item["symbol"], "[red]Error[/red]", str(item["error"]), "-")
+                else:
+                    table.add_row(
+                        item["symbol"],
+                        f"${Decimal(item['bid']):,.2f}",
+                        f"${Decimal(item['ask']):,.2f}",
+                        ", ".join(item["strategies"]) if item["strategies"] else "-",
+                    )
 
-        table.add_row("Total Equity", f"${summary.total_equity:,.2f}")
-        table.add_row("Cash", f"${summary.cash:,.2f}")
-        table.add_row("Positions Value", f"${summary.positions_value:,.2f}")
-        table.add_row("Position Count", str(summary.position_count))
+            console.print(table)
+    except AppError as e:
+        _handle_error(e, as_json)
 
-        # P/L styling
-        unreal_style = "green" if summary.unrealized_pnl >= 0 else "red"
-        real_style = "green" if summary.realized_pnl_today >= 0 else "red"
-        total_style = "green" if summary.total_pnl_today >= 0 else "red"
 
-        table.add_row(
-            "Unrealized P/L",
-            f"[{unreal_style}]${summary.unrealized_pnl:,.2f} ({summary.unrealized_pnl_pct:.2%})[/{unreal_style}]",
-        )
-        table.add_row(
-            "Realized P/L (Today)",
-            f"[{real_style}]${summary.realized_pnl_today:,.2f}[/{real_style}]",
-        )
-        table.add_row(
-            "Total P/L (Today)",
-            f"[{total_style}]${summary.total_pnl_today:,.2f}[/{total_style}]",
-        )
-
-        console.print(table)
-
-        # Positions breakdown
-        positions = pf.get_positions_detail()
-        if positions:
-            console.print()
-            pos_table = Table(title="Position Breakdown")
-            pos_table.add_column("Symbol", style="cyan")
-            pos_table.add_column("Qty", justify="right")
-            pos_table.add_column("Avg Cost", justify="right")
-            pos_table.add_column("Current", justify="right")
-            pos_table.add_column("Value", justify="right")
-            pos_table.add_column("P/L", justify="right")
-            pos_table.add_column("Weight", justify="right")
-
-            for pos in positions:
-                pl_style = "green" if pos.unrealized_pnl >= 0 else "red"
-                pos_table.add_row(
-                    pos.symbol,
-                    str(pos.quantity),
-                    f"${pos.avg_cost:,.2f}",
-                    f"${pos.current_price:,.2f}",
-                    f"${pos.market_value:,.2f}",
-                    f"[{pl_style}]${pos.unrealized_pnl:,.2f}[/{pl_style}]",
-                    f"{pos.weight_pct:.1f}%",
-                )
-
-            console.print(pos_table)
-
-    except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
+# =============================================================================
+# History & Analysis Commands
+# =============================================================================
 
 
 @cli.command()
@@ -1009,8 +772,15 @@ def portfolio(ctx: click.Context) -> None:
 @click.pass_context
 def history(ctx: click.Context, symbol: str | None, limit: int) -> None:
     """Show trade history."""
-    ledger = TradeLedger()
-    trades = ledger.get_trades(symbol=symbol, limit=limit)
+    from trader.app.analysis import get_today_pnl, get_trade_history
+
+    as_json = _get_json_flag(ctx)
+
+    trades = get_trade_history(symbol=symbol, limit=limit)
+
+    if as_json:
+        _json_output(trades)
+        return
 
     if not trades:
         console.print("[yellow]No trades recorded[/yellow]")
@@ -1026,22 +796,23 @@ def history(ctx: click.Context, symbol: str | None, limit: int) -> None:
     table.add_column("Status")
 
     for trade in trades:
-        side_style = "green" if trade.is_buy else "red"
-        time_str = trade.timestamp.strftime("%m/%d %H:%M")
+        ts = datetime.fromisoformat(trade["timestamp"])
+        side_val = trade["side"]
+        side_style = "green" if side_val == "buy" else "red"
+        time_str = ts.strftime("%m/%d %H:%M")
         table.add_row(
             time_str,
-            trade.symbol,
-            f"[{side_style}]{trade.side.upper()}[/{side_style}]",
-            str(trade.quantity),
-            f"${trade.price:,.2f}",
-            f"${trade.total:,.2f}",
-            trade.status.upper(),
+            trade["symbol"],
+            f"[{side_style}]{side_val.upper()}[/{side_style}]",
+            trade["quantity"],
+            f"${Decimal(trade['price']):,.2f}",
+            f"${Decimal(trade['total']):,.2f}",
+            trade["status"].upper(),
         )
 
     console.print(table)
 
-    # Show today's P/L
-    today_pnl = ledger.get_total_today_pnl()
+    today_pnl = get_today_pnl()
     pnl_style = "green" if today_pnl >= 0 else "red"
     console.print(f"\nToday's Realized P/L: [{pnl_style}]${today_pnl:,.2f}[/{pnl_style}]")
 
@@ -1053,16 +824,23 @@ def history(ctx: click.Context, symbol: str | None, limit: int) -> None:
 @click.pass_context
 def analyze(ctx: click.Context, symbol: str | None, days: int, limit: int) -> None:
     """Analyze trade performance."""
-    ledger = TradeLedger()
-    since = datetime.now() - timedelta(days=days)
-    trades = ledger.get_trades(symbol=symbol, since=since, limit=limit)
+    from trader.app.analysis import analyze_trade_performance
 
-    if not trades:
-        console.print("[yellow]No trades recorded for analysis[/yellow]")
+    as_json = _get_json_flag(ctx)
+
+    result = analyze_trade_performance(symbol=symbol, days=days, limit=limit)
+    if result is None:
+        if as_json:
+            _json_output({"trades": 0, "message": "No trades recorded for analysis"})
+        else:
+            console.print("[yellow]No trades recorded for analysis[/yellow]")
         return
 
-    report = analyze_trades(trades)
-    summary = report.summary
+    if as_json:
+        _json_output(result)
+        return
+
+    summary = result.summary
 
     title = f"Trade Analysis{f' - {symbol}' if symbol else ''}"
     table = Table(title=title)
@@ -1070,18 +848,12 @@ def analyze(ctx: click.Context, symbol: str | None, days: int, limit: int) -> No
     table.add_column("Value", justify="right")
 
     table.add_row("Trades", str(summary.total_trades))
-    table.add_row(
-        "Winning Trades",
-        f"{summary.winning_trades} ({summary.win_rate:.1f}%)",
-    )
+    table.add_row("Winning Trades", f"{summary.winning_trades} ({summary.win_rate:.1f}%)")
     table.add_row("Gross Profit", f"${summary.gross_profit:,.2f}")
     table.add_row("Gross Loss", f"-${summary.gross_loss:,.2f}")
 
     net_style = "green" if summary.net_profit >= 0 else "red"
-    table.add_row(
-        "Net P/L",
-        f"[{net_style}]${summary.net_profit:,.2f}[/{net_style}]",
-    )
+    table.add_row("Net P/L", f"[{net_style}]${summary.net_profit:,.2f}[/{net_style}]")
 
     profit_factor = "N/A"
     if summary.gross_loss > 0:
@@ -1096,7 +868,7 @@ def analyze(ctx: click.Context, symbol: str | None, days: int, limit: int) -> No
 
     console.print(table)
 
-    if report.per_symbol:
+    if result.per_symbol:
         symbol_table = Table(title="Per-Symbol Performance")
         symbol_table.add_column("Symbol", style="cyan")
         symbol_table.add_column("Trades", justify="right")
@@ -1104,27 +876,27 @@ def analyze(ctx: click.Context, symbol: str | None, days: int, limit: int) -> No
         symbol_table.add_column("Net P/L", justify="right")
         symbol_table.add_column("Profit Factor", justify="right")
 
-        for sym, stats in sorted(report.per_symbol.items()):
-            net_style = "green" if stats.net_profit >= 0 else "red"
+        for sym, stats in sorted(result.per_symbol.items()):
+            s_net_style = "green" if stats.net_profit >= 0 else "red"
             pf_display = "N/A" if stats.gross_loss == 0 else f"{stats.profit_factor:.2f}"
             symbol_table.add_row(
                 sym,
                 str(stats.total_trades),
                 f"{stats.win_rate:.1f}%",
-                f"[{net_style}]${stats.net_profit:,.2f}[/{net_style}]",
+                f"[{s_net_style}]${stats.net_profit:,.2f}[/{s_net_style}]",
                 pf_display,
             )
 
         console.print(symbol_table)
 
-    if report.open_positions:
+    if result.open_positions:
         open_table = Table(title="Open Lots (Unmatched Buys)")
         open_table.add_column("Symbol", style="cyan")
         open_table.add_column("Lots", justify="right")
         open_table.add_column("Qty", justify="right")
         open_table.add_column("Avg Cost", justify="right")
 
-        for pos in report.open_positions:
+        for pos in result.open_positions:
             open_table.add_row(
                 pos.symbol,
                 str(pos.lots),
@@ -1134,7 +906,7 @@ def analyze(ctx: click.Context, symbol: str | None, days: int, limit: int) -> No
 
         console.print(open_table)
 
-    remaining_sells = {k: v for k, v in report.unmatched_sell_qty.items() if v > 0}
+    remaining_sells = {k: v for k, v in result.unmatched_sell_qty.items() if v > 0}
     if remaining_sells:
         console.print("[yellow]Warning: sells without matching buys detected.[/yellow]")
 
@@ -1145,94 +917,109 @@ def analyze(ctx: click.Context, symbol: str | None, days: int, limit: int) -> No
 @click.pass_context
 def export(ctx: click.Context, output: str, days: int) -> None:
     """Export trade history to CSV."""
-    from datetime import timedelta
+    from trader.data.ledger import TradeLedger
 
     ledger = TradeLedger()
     since = datetime.now() - timedelta(days=days)
     path = Path(output)
 
     count = ledger.export_csv(path, since=since)
-    console.print(f"[green]Exported {count} trades to {path}[/green]")
+    as_json = _get_json_flag(ctx)
+    if as_json:
+        _json_output({"exported": count, "path": str(path)})
+    else:
+        console.print(f"[green]Exported {count} trades to {path}[/green]")
+
+
+# =============================================================================
+# Safety Commands
+# =============================================================================
 
 
 @cli.command()
 @click.pass_context
 def safety(ctx: click.Context) -> None:
     """Show safety controls status."""
-    config = ctx.obj["config"]
+    from trader.app.data import get_safety_status
 
-    if not config.alpaca_api_key:
-        console.print("[red]Error: Alpaca API key not configured[/red]")
-        return
+    config = ctx.obj["config"]
+    as_json = _get_json_flag(ctx)
 
     try:
-        broker = get_broker(config)
-        ledger = TradeLedger()
-        checker = SafetyCheck(broker, ledger)
+        result = get_safety_status(config)
+        if as_json:
+            _json_output(result)
+        else:
+            status = result["status"]
+            limits_data = result["limits"]
 
-        status = checker.get_status()
+            table = Table(title="Safety Controls")
+            table.add_column("Control", style="cyan")
+            table.add_column("Status", justify="right")
+            table.add_column("Limit", justify="right")
 
-        table = Table(title="Safety Controls")
-        table.add_column("Control", style="cyan")
-        table.add_column("Status", justify="right")
-        table.add_column("Limit", justify="right")
+            kill_status = "[red]ACTIVE[/red]" if status["kill_switch"] else "[green]OFF[/green]"
+            table.add_row("Kill Switch", kill_status, "-")
 
-        # Kill switch
-        kill_status = "[red]ACTIVE[/red]" if status["kill_switch"] else "[green]OFF[/green]"
-        table.add_row("Kill Switch", kill_status, "-")
+            pnl = status["daily_pnl"]
+            pnl_style = "green" if pnl >= 0 else "red"
+            remaining = status["daily_pnl_remaining"]
+            table.add_row(
+                "Daily P/L",
+                f"[{pnl_style}]${pnl:,.2f}[/{pnl_style}]",
+                f"${status['daily_pnl_limit']:,.2f}",
+            )
+            table.add_row("Loss Remaining", f"${remaining:,.2f}", "-")
 
-        # Daily P/L
-        pnl = status["daily_pnl"]
-        pnl_style = "green" if pnl >= 0 else "red"
-        remaining = status["daily_pnl_remaining"]
-        table.add_row(
-            "Daily P/L",
-            f"[{pnl_style}]${pnl:,.2f}[/{pnl_style}]",
-            f"${status['daily_pnl_limit']:,.2f}",
-        )
-        table.add_row("Loss Remaining", f"${remaining:,.2f}", "-")
+            trades_count = status["trade_count"]
+            trade_limit = status["trade_limit"]
+            pct = trades_count / trade_limit * 100 if trade_limit > 0 else 0
+            table.add_row("Trades Today", f"{trades_count} ({pct:.0f}%)", str(trade_limit))
+            table.add_row("Trades Remaining", str(status["trades_remaining"]), "-")
 
-        # Trade count
-        trades = status["trade_count"]
-        limit = status["trade_limit"]
-        pct = trades / limit * 100 if limit > 0 else 0
-        table.add_row("Trades Today", f"{trades} ({pct:.0f}%)", str(limit))
-        table.add_row("Trades Remaining", str(status["trades_remaining"]), "-")
+            can_trade = status["can_trade"]
+            trade_status = "[green]YES[/green]" if can_trade else "[red]NO[/red]"
+            table.add_row("Can Trade", trade_status, "-")
 
-        # Can trade
-        can_trade = status["can_trade"]
-        trade_status = "[green]YES[/green]" if can_trade else "[red]NO[/red]"
-        table.add_row("Can Trade", trade_status, "-")
+            console.print(table)
 
-        console.print(table)
+            # Position limits
+            console.print()
+            limit_table = Table(title="Position Limits")
+            limit_table.add_column("Limit", style="cyan")
+            limit_table.add_column("Value", justify="right")
 
-        # Show limits
-        console.print()
-        limits = SafetyLimits()
-        limit_table = Table(title="Position Limits")
-        limit_table.add_column("Limit", style="cyan")
-        limit_table.add_column("Value", justify="right")
+            limit_table.add_row("Max Position Size", f"{limits_data['max_position_size']} shares")
+            mpv = Decimal(limits_data['max_position_value'])
+            mov = Decimal(limits_data['max_order_value'])
+            limit_table.add_row("Max Position Value", f"${mpv:,.2f}")
+            limit_table.add_row("Max Order Value", f"${mov:,.2f}")
+            limit_table.add_row("Max Daily Loss", f"${Decimal(limits_data['max_daily_loss']):,.2f}")
+            limit_table.add_row("Max Daily Trades", str(limits_data["max_daily_trades"]))
 
-        limit_table.add_row("Max Position Size", f"{limits.max_position_size} shares")
-        limit_table.add_row("Max Position Value", f"${limits.max_position_value:,.2f}")
-        limit_table.add_row("Max Order Value", f"${limits.max_order_value:,.2f}")
-        limit_table.add_row("Max Daily Loss", f"${limits.max_daily_loss:,.2f}")
-        limit_table.add_row("Max Daily Trades", str(limits.max_daily_trades))
+            console.print(limit_table)
 
-        console.print(limit_table)
-
+    except AppError as e:
+        _handle_error(e, as_json)
     except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
+        if as_json:
+            console.print(json_lib.dumps({"error": "UNEXPECTED", "message": str(e)}, indent=2))
+        else:
+            console.print(f"[red]Error: {e}[/red]")
 
 
 @cli.command()
 @click.pass_context
 def kill(ctx: click.Context) -> None:
     """Activate kill switch - stops all automated trading."""
-    console.print("[red]KILL SWITCH ACTIVATED[/red]")
-    console.print("All automated trading is now stopped.")
-    console.print("Manual trades via buy/sell commands are still allowed.")
-    console.print("\nTo reset, restart the trading engine.")
+    as_json = _get_json_flag(ctx)
+    if as_json:
+        _json_output({"status": "kill_switch_activated"})
+    else:
+        console.print("[red]KILL SWITCH ACTIVATED[/red]")
+        console.print("All automated trading is now stopped.")
+        console.print("Manual trades via buy/sell commands are still allowed.")
+        console.print("\nTo reset, restart the trading engine.")
 
 
 @cli.command()
@@ -1249,73 +1036,49 @@ def scan(ctx: click.Context, symbols: tuple[str, ...]) -> None:
         Scan all symbols in strategies:
         trader scan
     """
+    from trader.app.portfolio import scan_symbols
+
     config = ctx.obj["config"]
+    as_json = _get_json_flag(ctx)
 
-    if not config.alpaca_api_key:
-        console.print("[red]Error: Alpaca API key not configured[/red]")
-        return
+    try:
+        results = scan_symbols(config, list(symbols) if symbols else None)
+        if as_json:
+            _json_output(results)
+        else:
+            if not results:
+                console.print("[yellow]No symbols to scan[/yellow]")
+                console.print("Provide symbols: trader scan AAPL TSLA")
+                return
 
-    # Get symbols from strategies if none provided
-    if not symbols:
-        strategies = load_strategies()
-        symbols = tuple(set(s.symbol for s in strategies))
+            table = Table(title="Market Scan")
+            table.add_column("Symbol", style="cyan")
+            table.add_column("Bid", justify="right")
+            table.add_column("Ask", justify="right")
+            table.add_column("Spread", justify="right")
+            table.add_column("Strategies")
 
-    if not symbols:
-        console.print("[yellow]No symbols to scan[/yellow]")
-        console.print("Provide symbols: trader scan AAPL TSLA")
-        return
+            for item in results:
+                if "error" in item:
+                    table.add_row(item["symbol"], "[red]Error[/red]", "-", "-", str(item["error"]))
+                else:
+                    table.add_row(
+                        item["symbol"],
+                        f"${Decimal(item['bid']):,.2f}",
+                        f"${Decimal(item['ask']):,.2f}",
+                        f"${Decimal(item['spread']):.2f} ({Decimal(item['spread_pct']):.2f}%)",
+                        ", ".join(item["strategies"]) if item["strategies"] else "-",
+                    )
 
-    broker = get_broker(config)
-    strategies = load_strategies()
-
-    table = Table(title="Market Scan")
-    table.add_column("Symbol", style="cyan")
-    table.add_column("Bid", justify="right")
-    table.add_column("Ask", justify="right")
-    table.add_column("Spread", justify="right")
-    table.add_column("Strategies")
-
-    for symbol in symbols:
-        symbol = symbol.upper()
-        try:
-            q = broker.get_quote(symbol)
-            mid = (q.bid + q.ask) / 2
-            spread = q.ask - q.bid
-            spread_pct = (spread / mid * 100) if mid > 0 else Decimal("0")
-
-            # Find strategies for this symbol
-            symbol_strategies = [s for s in strategies if s.symbol == symbol]
-
-            strat_strs = []
-            for s in symbol_strategies:
-                strat_strs.append(f"{s.strategy_type.value}: {s.phase.value}")
-
-            table.add_row(
-                symbol,
-                f"${q.bid:,.2f}",
-                f"${q.ask:,.2f}",
-                f"${spread:.2f} ({spread_pct:.2f}%)",
-                ", ".join(strat_strs) if strat_strs else "-",
-            )
-
-        except Exception as e:
-            table.add_row(symbol, "[red]Error[/red]", "-", "-", str(e))
-
-    console.print(table)
+            console.print(table)
+    except AppError as e:
+        _handle_error(e, as_json)
 
 
 # =============================================================================
 # Strategy Commands
 # =============================================================================
 
-from trader.strategies.models import Strategy, StrategyType, StrategyPhase, EntryType
-from trader.strategies.loader import (
-    load_strategies,
-    save_strategy,
-    delete_strategy,
-    get_strategy,
-    enable_strategy,
-)
 
 
 STRATEGY_HELP = {
@@ -1403,54 +1166,74 @@ def indicator() -> None:
 
 
 @indicator.command("list")
-def indicator_list() -> None:
+@click.pass_context
+def indicator_list(ctx: click.Context) -> None:
     """List available indicators."""
-    from trader.indicators import list_indicators
+    from trader.app.indicators import list_all_indicators
 
-    table = Table(title="Indicators")
-    table.add_column("Name", style="cyan")
-    table.add_column("Description", style="white")
-    table.add_column("Params", style="green")
+    as_json = _get_json_flag(ctx)
 
-    for spec in list_indicators():
-        params = ", ".join(f"{k}" for k in spec.params.keys()) if spec.params else "-"
-        table.add_row(spec.name, spec.description, params)
+    indicators = list_all_indicators()
+    if as_json:
+        _json_output([i.model_dump() for i in indicators])
+    else:
+        table = Table(title="Indicators")
+        table.add_column("Name", style="cyan")
+        table.add_column("Description", style="white")
+        table.add_column("Params", style="green")
 
-    console.print(table)
+        for spec in indicators:
+            params = ", ".join(f"{k}" for k in spec.params.keys()) if spec.params else "-"
+            table.add_row(spec.name, spec.description, params)
+
+        console.print(table)
 
 
 @indicator.command("describe")
 @click.argument("name")
-def indicator_describe(name: str) -> None:
+@click.pass_context
+def indicator_describe(ctx: click.Context, name: str) -> None:
     """Show details for an indicator."""
-    from trader.indicators import get_indicator
+    from trader.app.indicators import describe_indicator
+
+    as_json = _get_json_flag(ctx)
 
     try:
-        indicator_obj = get_indicator(name)
-    except ValueError as exc:
-        console.print(f"[red]{exc}[/red]")
-        return
+        result = describe_indicator(name)
+        if as_json:
+            _json_output(result)
+        else:
+            table = Table(title=f"Indicator - {result.name}")
+            table.add_column("Field", style="cyan")
+            table.add_column("Value", style="white")
 
-    spec = indicator_obj.spec
-    table = Table(title=f"Indicator - {spec.name}")
-    table.add_column("Field", style="cyan")
-    table.add_column("Value", style="white")
+            table.add_row("Description", result.description)
+            table.add_row("Output", result.output or "-")
+            params = (
+                ", ".join(f"{k}: {v}" for k, v in result.params.items())
+                if result.params else "-"
+            )
+            table.add_row("Params", params)
 
-    table.add_row("Description", spec.description)
-    table.add_row("Output", spec.output or "-")
-    params = ", ".join(f"{k}: {v}" for k, v in spec.params.items()) if spec.params else "-"
-    table.add_row("Params", params)
-
-    console.print(table)
+            console.print(table)
+    except AppError as e:
+        _handle_error(e, as_json)
 
 
 @strategy.command("list")
 @click.pass_context
 def strategy_list(ctx: click.Context) -> None:
     """List all trading strategies."""
-    strategies = load_strategies()
+    from trader.app.strategies import list_strategies
 
-    if not strategies:
+    as_json = _get_json_flag(ctx)
+    result = list_strategies()
+
+    if as_json:
+        _json_output(result)
+        return
+
+    if not result.strategies:
         console.print("[yellow]No strategies configured[/yellow]")
         console.print("\nAdd a strategy with:")
         console.print("  trader strategy add trailing-stop AAPL --qty 10")
@@ -1466,32 +1249,33 @@ def strategy_list(ctx: click.Context) -> None:
     table.add_column("Phase")
     table.add_column("Details")
 
-    for s in strategies:
+    for s in result.strategies:
         # Phase styling
         phase_styles = {
-            StrategyPhase.PENDING: "[yellow]PENDING[/yellow]",
-            StrategyPhase.ENTRY_ACTIVE: "[blue]ENTERING[/blue]",
-            StrategyPhase.POSITION_OPEN: "[green]OPEN[/green]",
-            StrategyPhase.EXITING: "[blue]EXITING[/blue]",
-            StrategyPhase.COMPLETED: "[dim]DONE[/dim]",
-            StrategyPhase.FAILED: "[red]FAILED[/red]",
-            StrategyPhase.PAUSED: "[yellow]PAUSED[/yellow]",
+            "pending": "[yellow]PENDING[/yellow]",
+            "entry_active": "[blue]ENTERING[/blue]",
+            "position_open": "[green]OPEN[/green]",
+            "exiting": "[blue]EXITING[/blue]",
+            "completed": "[dim]DONE[/dim]",
+            "failed": "[red]FAILED[/red]",
+            "paused": "[yellow]PAUSED[/yellow]",
         }
-        phase_str = phase_styles.get(s.phase, s.phase.value)
+        phase_str = phase_styles.get(s.phase, s.phase)
 
         if not s.enabled:
             phase_str = "[dim]DISABLED[/dim]"
 
-        # Build details string based on strategy type
+        # Build details string
         details = []
-        if s.strategy_type == StrategyType.TRAILING_STOP:
+        stype = s.strategy_type
+        if stype == "trailing_stop":
             details.append(f"trail: {s.trailing_stop_pct}%")
             if s.high_watermark:
                 details.append(f"high: ${s.high_watermark:.2f}")
-        elif s.strategy_type == StrategyType.BRACKET:
+        elif stype == "bracket":
             details.append(f"TP: +{s.take_profit_pct}%")
             details.append(f"SL: -{s.stop_loss_pct}%")
-        elif s.strategy_type == StrategyType.SCALE_OUT:
+        elif stype == "scale_out":
             if s.scale_targets:
                 targets = [f"+{t['target_pct']}%" for t in s.scale_targets]
                 details.append(f"targets: {', '.join(targets)}")
@@ -1502,7 +1286,7 @@ def strategy_list(ctx: click.Context) -> None:
         table.add_row(
             s.id,
             s.symbol,
-            s.strategy_type.value.replace("_", "-"),
+            s.strategy_type.replace("_", "-"),
             str(s.quantity),
             phase_str,
             " | ".join(details) if details else "-",
@@ -1512,7 +1296,9 @@ def strategy_list(ctx: click.Context) -> None:
 
 
 @strategy.command("add")
-@click.argument("strategy_type", type=click.Choice(["trailing-stop", "bracket", "scale-out", "grid"]))
+@click.argument("strategy_type", type=click.Choice([
+    "trailing-stop", "bracket", "scale-out", "grid",
+]))
 @click.argument("symbol")
 @click.option("--qty", type=int, default=1, help="Number of shares (default: 1)")
 @click.option("--trailing-pct", type=float, help="Trailing stop percentage (for trailing-stop)")
@@ -1526,11 +1312,11 @@ def strategy_add(
     strategy_type: str,
     symbol: str,
     qty: int,
-    trailing_pct: Optional[float],
-    take_profit: Optional[float],
-    stop_loss: Optional[float],
-    limit: Optional[float],
-    levels: Optional[int],
+    trailing_pct: float | None,
+    take_profit: float | None,
+    stop_loss: float | None,
+    limit: float | None,
+    levels: int | None,
 ) -> None:
     """Add a new trading strategy.
 
@@ -1551,110 +1337,53 @@ def strategy_add(
 
     Use --limit/-L to enter at a specific price instead of market.
     """
+    from trader.app.strategies import create_strategy
+    from trader.schemas.strategies import StrategyCreate
+
     config = ctx.obj["config"]
-    defaults = config.strategy_defaults
+    as_json = _get_json_flag(ctx)
 
-    # Normalize strategy type
-    strat_type_map = {
-        "trailing-stop": StrategyType.TRAILING_STOP,
-        "bracket": StrategyType.BRACKET,
-        "scale-out": StrategyType.SCALE_OUT,
-        "grid": StrategyType.GRID,
-    }
-    strat_type = strat_type_map[strategy_type]
-
-    # Determine entry type based on --limit flag
-    entry_type = EntryType.LIMIT if limit else EntryType.MARKET
-    entry_price = Decimal(str(limit)) if limit else None
-
-    # Build strategy based on type
     try:
-        if strat_type == StrategyType.TRAILING_STOP:
-            trailing = Decimal(str(trailing_pct)) if trailing_pct else defaults.trailing_stop_pct
-            strat = Strategy(
-                symbol=symbol.upper(),
-                strategy_type=strat_type,
-                quantity=qty,
-                entry_type=entry_type,
-                entry_price=entry_price,
-                trailing_stop_pct=trailing,
-            )
-            detail_str = f"trailing stop: {trailing}%"
+        request = StrategyCreate(
+            strategy_type=strategy_type,
+            symbol=symbol,
+            qty=qty,
+            trailing_pct=trailing_pct,
+            take_profit=take_profit,
+            stop_loss=stop_loss,
+            entry_price=limit,
+            levels=levels,
+        )
+        result = create_strategy(config, request)
 
-        elif strat_type == StrategyType.BRACKET:
-            tp = Decimal(str(take_profit)) if take_profit else defaults.take_profit_pct
-            sl = Decimal(str(stop_loss)) if stop_loss else defaults.stop_loss_pct
-            strat = Strategy(
-                symbol=symbol.upper(),
-                strategy_type=strat_type,
-                quantity=qty,
-                entry_type=entry_type,
-                entry_price=entry_price,
-                take_profit_pct=tp,
-                stop_loss_pct=sl,
-            )
-            detail_str = f"take-profit: +{tp}%, stop-loss: -{sl}%"
-
-        elif strat_type == StrategyType.SCALE_OUT:
-            strat = Strategy(
-                symbol=symbol.upper(),
-                strategy_type=strat_type,
-                quantity=qty,
-                entry_type=entry_type,
-                entry_price=entry_price,
-                scale_targets=defaults.scale_tranches,
-            )
-            targets = [f"+{t['target_pct']}%" for t in defaults.scale_tranches]
-            detail_str = f"targets: {', '.join(targets)}"
-
-        elif strat_type == StrategyType.GRID:
-            # For grid, we need to get current price to set range
-            if not config.alpaca_api_key:
-                console.print("[red]Error: Alpaca API key required for grid strategy[/red]")
-                return
-
-            broker = get_broker(config)
-            quote = broker.get_quote(symbol.upper())
-            mid_price = (quote.bid + quote.ask) / 2
-
-            grid_levels = levels or defaults.grid_levels
-            spacing = defaults.grid_spacing_pct
-
-            # Calculate grid range (symmetric around current price)
-            low = mid_price * (1 - (spacing * grid_levels) / 100)
-            high = mid_price * (1 + (spacing * grid_levels) / 100)
-
-            strat = Strategy(
-                symbol=symbol.upper(),
-                strategy_type=strat_type,
-                quantity=qty,
-                grid_config={
-                    "low": float(low),
-                    "high": float(high),
-                    "levels": grid_levels,
-                    "qty_per_level": defaults.grid_qty_per_level,
-                },
-            )
-            detail_str = f"range: ${low:.2f}-${high:.2f}, {grid_levels} levels"
-
+        if as_json:
+            _json_output(result)
         else:
-            console.print(f"[red]Unknown strategy type: {strategy_type}[/red]")
-            return
+            console.print(f"[green]Strategy added:[/green] {strategy_type} {qty} {symbol.upper()}")
+            console.print(f"[dim]ID: {result.id}[/dim]")
+            entry_str = f"limit @ ${limit:.2f}" if limit else "market"
+            console.print(f"[dim]Entry: {entry_str}[/dim]")
 
-    except ValueError as e:
-        console.print(f"[red]Error: {e}[/red]")
-        return
+            # Build detail string for display
+            stype = result.strategy_type
+            if stype == "trailing_stop":
+                console.print(f"[dim]trailing stop: {result.trailing_stop_pct}%[/dim]")
+            elif stype == "bracket":
+                tp = result.take_profit_pct
+                sl = result.stop_loss_pct
+                console.print(f"[dim]take-profit: +{tp}%, stop-loss: -{sl}%[/dim]")
+            elif stype == "scale_out" and result.scale_targets:
+                targets = [f"+{t['target_pct']}%" for t in result.scale_targets]
+                console.print(f"[dim]targets: {', '.join(targets)}[/dim]")
+            elif stype == "grid" and result.grid_config:
+                gc = result.grid_config
+                lo, hi, lvl = gc['low'], gc['high'], gc['levels']
+                console.print(f"[dim]range: ${lo:.2f}-${hi:.2f}, {lvl} levels[/dim]")
 
-    # Save the strategy
-    save_strategy(strat)
-
-    console.print(f"[green]Strategy added:[/green] {strategy_type} {qty} {symbol.upper()}")
-    console.print(f"[dim]ID: {strat.id}[/dim]")
-    entry_str = f"limit @ ${limit:.2f}" if limit else "market"
-    console.print(f"[dim]Entry: {entry_str}[/dim]")
-    console.print(f"[dim]{detail_str}[/dim]")
-    console.print()
-    console.print("Start the engine to activate: [cyan]trader start[/cyan]")
+            console.print()
+            console.print("Start the engine to activate: [cyan]trader start[/cyan]")
+    except AppError as e:
+        _handle_error(e, as_json)
 
 
 @strategy.command("show")
@@ -1662,63 +1391,71 @@ def strategy_add(
 @click.pass_context
 def strategy_show(ctx: click.Context, strategy_id: str) -> None:
     """Show details of a specific strategy."""
-    strat = get_strategy(strategy_id)
+    from trader.app.strategies import get_strategy_detail
 
-    if strat is None:
-        console.print(f"[red]Strategy {strategy_id} not found[/red]")
-        return
+    as_json = _get_json_flag(ctx)
 
-    console.print(f"\n[bold]{strat.strategy_type.value.replace('_', '-').upper()}[/bold] Strategy")
-    console.print(f"ID: {strat.id}")
-    console.print(f"Symbol: [cyan]{strat.symbol}[/cyan]")
-    console.print(f"Quantity: {strat.quantity}")
-    console.print(f"Phase: {strat.phase.value}")
-    console.print(f"Enabled: {'Yes' if strat.enabled else 'No'}")
-    console.print()
+    try:
+        strat = get_strategy_detail(strategy_id)
+        if as_json:
+            _json_output(strat)
+        else:
+            stype_label = strat.strategy_type.replace('_', '-').upper()
+            console.print(f"\n[bold]{stype_label}[/bold] Strategy")
+            console.print(f"ID: {strat.id}")
+            console.print(f"Symbol: [cyan]{strat.symbol}[/cyan]")
+            console.print(f"Quantity: {strat.quantity}")
+            console.print(f"Phase: {strat.phase}")
+            console.print(f"Enabled: {'Yes' if strat.enabled else 'No'}")
+            console.print()
 
-    console.print("[bold]Entry Configuration[/bold]")
-    console.print(f"  Type: {strat.entry_type.value}")
-    if strat.entry_price:
-        console.print(f"  Price: ${strat.entry_price:.2f}")
-    if strat.entry_order_id:
-        console.print(f"  Order ID: {strat.entry_order_id}")
-    if strat.entry_fill_price:
-        console.print(f"  Fill Price: ${strat.entry_fill_price:.2f}")
-    console.print()
+            console.print("[bold]Entry Configuration[/bold]")
+            console.print(f"  Type: {strat.entry_type}")
+            if strat.entry_price:
+                console.print(f"  Price: ${strat.entry_price:.2f}")
+            if strat.entry_order_id:
+                console.print(f"  Order ID: {strat.entry_order_id}")
+            if strat.entry_fill_price:
+                console.print(f"  Fill Price: ${strat.entry_fill_price:.2f}")
+            console.print()
 
-    console.print("[bold]Exit Configuration[/bold]")
-    if strat.strategy_type == StrategyType.TRAILING_STOP:
-        console.print(f"  Trailing Stop: {strat.trailing_stop_pct}%")
-        if strat.high_watermark:
-            console.print(f"  High Watermark: ${strat.high_watermark:.2f}")
-            stop_price = strat.high_watermark * (1 - strat.trailing_stop_pct / 100)
-            console.print(f"  Current Stop: ${stop_price:.2f}")
-    elif strat.strategy_type == StrategyType.BRACKET:
-        console.print(f"  Take Profit: +{strat.take_profit_pct}%")
-        console.print(f"  Stop Loss: -{strat.stop_loss_pct}%")
-        if strat.entry_fill_price:
-            tp_price = strat.entry_fill_price * (1 + strat.take_profit_pct / 100)
-            sl_price = strat.entry_fill_price * (1 - strat.stop_loss_pct / 100)
-            console.print(f"  TP Target: ${tp_price:.2f}")
-            console.print(f"  SL Target: ${sl_price:.2f}")
-    elif strat.strategy_type == StrategyType.SCALE_OUT and strat.scale_targets:
-        console.print("  Targets:")
-        for t in strat.scale_targets:
-            console.print(f"    - {t['pct']}% at +{t['target_pct']}%")
-    elif strat.strategy_type == StrategyType.GRID and strat.grid_config:
-        console.print(f"  Range: ${strat.grid_config['low']:.2f} - ${strat.grid_config['high']:.2f}")
-        console.print(f"  Levels: {strat.grid_config['levels']}")
-        console.print(f"  Qty/Level: {strat.grid_config['qty_per_level']}")
+            console.print("[bold]Exit Configuration[/bold]")
+            if strat.strategy_type == "trailing_stop":
+                console.print(f"  Trailing Stop: {strat.trailing_stop_pct}%")
+                if strat.high_watermark:
+                    console.print(f"  High Watermark: ${strat.high_watermark:.2f}")
+                    stop_price = strat.high_watermark * (1 - strat.trailing_stop_pct / 100)
+                    console.print(f"  Current Stop: ${stop_price:.2f}")
+            elif strat.strategy_type == "bracket":
+                console.print(f"  Take Profit: +{strat.take_profit_pct}%")
+                console.print(f"  Stop Loss: -{strat.stop_loss_pct}%")
+                if strat.entry_fill_price:
+                    tp_price = strat.entry_fill_price * (1 + strat.take_profit_pct / 100)
+                    sl_price = strat.entry_fill_price * (1 - strat.stop_loss_pct / 100)
+                    console.print(f"  TP Target: ${tp_price:.2f}")
+                    console.print(f"  SL Target: ${sl_price:.2f}")
+            elif strat.strategy_type == "scale_out" and strat.scale_targets:
+                console.print("  Targets:")
+                for t in strat.scale_targets:
+                    console.print(f"    - {t['pct']}% at +{t['target_pct']}%")
+            elif strat.strategy_type == "grid" and strat.grid_config:
+                lo = strat.grid_config['low']
+                hi = strat.grid_config['high']
+                console.print(f"  Range: ${lo:.2f} - ${hi:.2f}")
+                console.print(f"  Levels: {strat.grid_config['levels']}")
+                console.print(f"  Qty/Level: {strat.grid_config['qty_per_level']}")
 
-    if strat.exit_order_ids:
-        console.print(f"  Exit Orders: {', '.join(strat.exit_order_ids)}")
-    console.print()
+            if strat.exit_order_ids:
+                console.print(f"  Exit Orders: {', '.join(strat.exit_order_ids)}")
+            console.print()
 
-    console.print("[bold]Metadata[/bold]")
-    console.print(f"  Created: {strat.created_at}")
-    console.print(f"  Updated: {strat.updated_at}")
-    if strat.notes:
-        console.print(f"  Notes: {strat.notes}")
+            console.print("[bold]Metadata[/bold]")
+            console.print(f"  Created: {strat.created_at}")
+            console.print(f"  Updated: {strat.updated_at}")
+            if strat.notes:
+                console.print(f"  Notes: {strat.notes}")
+    except AppError as e:
+        _handle_error(e, as_json)
 
 
 @strategy.command("remove")
@@ -1726,10 +1463,18 @@ def strategy_show(ctx: click.Context, strategy_id: str) -> None:
 @click.pass_context
 def strategy_remove(ctx: click.Context, strategy_id: str) -> None:
     """Remove a trading strategy."""
-    if delete_strategy(strategy_id):
-        console.print(f"[green]Strategy {strategy_id} removed[/green]")
-    else:
-        console.print(f"[red]Strategy {strategy_id} not found[/red]")
+    from trader.app.strategies import remove_strategy
+
+    as_json = _get_json_flag(ctx)
+
+    try:
+        result = remove_strategy(strategy_id)
+        if as_json:
+            _json_output(result)
+        else:
+            console.print(f"[green]Strategy {strategy_id} removed[/green]")
+    except AppError as e:
+        _handle_error(e, as_json)
 
 
 @strategy.command("enable")
@@ -1737,10 +1482,18 @@ def strategy_remove(ctx: click.Context, strategy_id: str) -> None:
 @click.pass_context
 def strategy_enable(ctx: click.Context, strategy_id: str) -> None:
     """Enable a trading strategy."""
-    if enable_strategy(strategy_id, enabled=True):
-        console.print(f"[green]Strategy {strategy_id} enabled[/green]")
-    else:
-        console.print(f"[red]Strategy {strategy_id} not found[/red]")
+    from trader.app.strategies import set_strategy_enabled
+
+    as_json = _get_json_flag(ctx)
+
+    try:
+        result = set_strategy_enabled(strategy_id, enabled=True)
+        if as_json:
+            _json_output(result)
+        else:
+            console.print(f"[green]Strategy {strategy_id} enabled[/green]")
+    except AppError as e:
+        _handle_error(e, as_json)
 
 
 @strategy.command("disable")
@@ -1748,10 +1501,18 @@ def strategy_enable(ctx: click.Context, strategy_id: str) -> None:
 @click.pass_context
 def strategy_disable(ctx: click.Context, strategy_id: str) -> None:
     """Disable a trading strategy."""
-    if enable_strategy(strategy_id, enabled=False):
-        console.print(f"[yellow]Strategy {strategy_id} disabled[/yellow]")
-    else:
-        console.print(f"[red]Strategy {strategy_id} not found[/red]")
+    from trader.app.strategies import set_strategy_enabled
+
+    as_json = _get_json_flag(ctx)
+
+    try:
+        result = set_strategy_enabled(strategy_id, enabled=False)
+        if as_json:
+            _json_output(result)
+        else:
+            console.print(f"[yellow]Strategy {strategy_id} disabled[/yellow]")
+    except AppError as e:
+        _handle_error(e, as_json)
 
 
 @strategy.command("pause")
@@ -1759,18 +1520,18 @@ def strategy_disable(ctx: click.Context, strategy_id: str) -> None:
 @click.pass_context
 def strategy_pause(ctx: click.Context, strategy_id: str) -> None:
     """Pause an active strategy."""
-    strat = get_strategy(strategy_id)
-    if strat is None:
-        console.print(f"[red]Strategy {strategy_id} not found[/red]")
-        return
+    from trader.app.strategies import pause_strategy
 
-    if strat.is_terminal():
-        console.print(f"[yellow]Strategy is already {strat.phase.value}[/yellow]")
-        return
+    as_json = _get_json_flag(ctx)
 
-    strat.update_phase(StrategyPhase.PAUSED)
-    save_strategy(strat)
-    console.print(f"[yellow]Strategy {strategy_id} paused[/yellow]")
+    try:
+        result = pause_strategy(strategy_id)
+        if as_json:
+            _json_output(result)
+        else:
+            console.print(f"[yellow]Strategy {strategy_id} paused[/yellow]")
+    except AppError as e:
+        _handle_error(e, as_json)
 
 
 @strategy.command("resume")
@@ -1778,27 +1539,24 @@ def strategy_pause(ctx: click.Context, strategy_id: str) -> None:
 @click.pass_context
 def strategy_resume(ctx: click.Context, strategy_id: str) -> None:
     """Resume a paused strategy."""
-    strat = get_strategy(strategy_id)
-    if strat is None:
-        console.print(f"[red]Strategy {strategy_id} not found[/red]")
-        return
+    from trader.app.strategies import resume_strategy
 
-    if strat.phase != StrategyPhase.PAUSED:
-        console.print(f"[yellow]Strategy is not paused (current: {strat.phase.value})[/yellow]")
-        return
+    as_json = _get_json_flag(ctx)
 
-    # Resume to position_open if we have a fill, otherwise pending
-    if strat.entry_fill_price:
-        strat.update_phase(StrategyPhase.POSITION_OPEN)
-    else:
-        strat.update_phase(StrategyPhase.PENDING)
-
-    save_strategy(strat)
-    console.print(f"[green]Strategy {strategy_id} resumed ({strat.phase.value})[/green]")
+    try:
+        result = resume_strategy(strategy_id)
+        if as_json:
+            _json_output(result)
+        else:
+            console.print(f"[green]Strategy {strategy_id} resumed ({result['phase']})[/green]")
+    except AppError as e:
+        _handle_error(e, as_json)
 
 
 @strategy.command("explain")
-@click.argument("strategy_type", type=click.Choice(["trailing-stop", "bracket", "scale-out", "grid"]))
+@click.argument("strategy_type", type=click.Choice([
+    "trailing-stop", "bracket", "scale-out", "grid",
+]))
 def strategy_explain(strategy_type: str) -> None:
     """Explain how a strategy type works."""
     help_text = STRATEGY_HELP.get(strategy_type, "No help available")
@@ -1859,9 +1617,9 @@ def visualize(
     ctx: click.Context,
     source: str,
     data_source: str,
-    data_dir: Optional[str],
-    historical_dir: Optional[str],
-    output: Optional[str],
+    data_dir: str | None,
+    historical_dir: str | None,
+    output: str | None,
     show: bool,
     theme: str,
 ) -> None:
@@ -1877,10 +1635,8 @@ def visualize(
     source_path = Path(source)
     if source_path.exists():
         try:
-            import json
-
-            with open(source_path, "r") as f:
-                data = json.load(f)
+            with open(source_path) as f:
+                data = json_lib.load(f)
             result = BacktestResult.from_dict(data)
         except Exception as exc:
             console.print(f"[red]Error loading backtest file: {exc}[/red]")
@@ -1965,10 +1721,10 @@ def optimize(
     params: tuple[str, ...],
     objective: str,
     method: str,
-    num_samples: Optional[int],
+    num_samples: int | None,
     data_source: str,
-    data_dir: Optional[str],
-    results_dir: Optional[str],
+    data_dir: str | None,
+    results_dir: str | None,
     initial_capital: float,
     save: bool,
     show_results: bool,
@@ -1977,6 +1733,7 @@ def optimize(
     from trader.optimization import Optimizer, save_optimization
 
     logger = ctx.obj["logger"]
+    as_json = _get_json_flag(ctx)
 
     try:
         start_date = datetime.strptime(start, "%Y-%m-%d")
@@ -2006,14 +1763,22 @@ def optimize(
                 result,
                 data_dir=Path(results_dir) if results_dir else None,
             )
-            console.print(f"[green]Optimization saved with ID: {result.id}[/green]")
+            if not as_json:
+                console.print(f"[green]Optimization saved with ID: {result.id}[/green]")
 
-        if show_results:
+        if as_json:
+            from trader.schemas.optimization import OptimizeResponse
+            _json_output(OptimizeResponse.from_domain(result))
+        elif show_results:
             _display_optimization_result(result)
 
     except Exception as exc:
         logger.error(f"Optimization failed: {exc}", exc_info=True)
-        console.print(f"[red]Error running optimization: {exc}[/red]")
+        if as_json:
+            err = {"error": "OPTIMIZATION_FAILED", "message": str(exc)}
+            console.print(json_lib.dumps(err, indent=2))
+        else:
+            console.print(f"[red]Error running optimization: {exc}[/red]")
 
 
 @backtest.command("run")
@@ -2031,7 +1796,10 @@ def optimize(
     default="csv",
     help="Data source",
 )
-@click.option("--data-dir", type=click.Path(exists=True), help="Directory containing CSV data files")
+@click.option(
+    "--data-dir", type=click.Path(exists=True),
+    help="Directory containing CSV data files",
+)
 @click.option("--initial-capital", type=float, default=100000.0, help="Starting capital")
 @click.option("--save/--no-save", default=True, help="Save backtest results")
 @click.option("--chart", type=click.Path(dir_okay=False), help="Save chart to HTML file")
@@ -2051,127 +1819,98 @@ def backtest_run(
     start: str,
     end: str,
     qty: int,
-    trailing_pct: Optional[float],
-    take_profit: Optional[float],
-    stop_loss: Optional[float],
+    trailing_pct: float | None,
+    take_profit: float | None,
+    stop_loss: float | None,
     data_source: str,
-    data_dir: Optional[str],
+    data_dir: str | None,
     initial_capital: float,
     save: bool,
-    chart: Optional[str],
+    chart: str | None,
     show: bool,
     theme: str,
 ) -> None:
     """Run a backtest for a strategy."""
-    from trader.backtest import (
-        BacktestEngine,
-        HistoricalBroker,
-        load_data_for_backtest,
-        save_backtest,
-    )
-    from trader.strategies.models import StrategyType
+    from trader.app.backtests import run_backtest
+    from trader.schemas.backtests import BacktestRequest
 
     logger = ctx.obj["logger"]
+    as_json = _get_json_flag(ctx)
 
     try:
-        # Parse dates
-        start_date = datetime.strptime(start, "%Y-%m-%d")
-        end_date = datetime.strptime(end, "%Y-%m-%d")
-
-        # Validate parameters
-        if strategy_type == "trailing-stop":
-            if trailing_pct is None:
-                console.print("[red]Error: --trailing-pct is required for trailing-stop strategy[/red]")
-                return
-            strategy_config = {
-                "symbol": symbol,
-                "strategy_type": "trailing_stop",
-                "quantity": qty,
-                "trailing_stop_pct": str(trailing_pct),
-            }
-        elif strategy_type == "bracket":
-            if take_profit is None or stop_loss is None:
-                console.print("[red]Error: --take-profit and --stop-loss are required for bracket strategy[/red]")
-                return
-            strategy_config = {
-                "symbol": symbol,
-                "strategy_type": "bracket",
-                "quantity": qty,
-                "take_profit_pct": str(take_profit),
-                "stop_loss_pct": str(stop_loss),
-            }
-        else:
-            console.print(f"[red]Strategy type {strategy_type} not implemented yet[/red]")
-            return
-
-        # Load historical data
-        console.print(f"[cyan]Loading historical data for {symbol}...[/cyan]")
-
-        if data_dir is None:
-            data_dir_path = Path.cwd() / "data" / "historical"
-        else:
-            data_dir_path = Path(data_dir)
-
-        historical_data = load_data_for_backtest(
-            symbols=[symbol],
-            start_date=start_date,
-            end_date=end_date,
+        request = BacktestRequest(
+            strategy_type=strategy_type,
+            symbol=symbol,
+            start=start,
+            end=end,
+            qty=qty,
+            trailing_pct=trailing_pct,
+            take_profit=take_profit,
+            stop_loss=stop_loss,
             data_source=data_source,
-            data_dir=data_dir_path,
+            data_dir=data_dir,
+            initial_capital=initial_capital,
+            save=save,
         )
 
-        # Create broker and engine
-        broker = HistoricalBroker(
-            historical_data=historical_data,
-            initial_cash=Decimal(str(initial_capital)),
-        )
+        if not as_json:
+            console.print(f"[cyan]Loading historical data for {symbol}...[/cyan]")
+            console.print("[cyan]Running backtest...[/cyan]")
 
-        engine = BacktestEngine(
-            broker=broker,
-            strategy_config=strategy_config,
-            start_date=start_date,
-            end_date=end_date,
-        )
+        result = run_backtest(ctx.obj["config"], request)
 
-        # Run backtest
-        console.print(f"[cyan]Running backtest...[/cyan]")
-        result = engine.run()
+        if as_json:
+            _json_output(result)
+        else:
+            if save:
+                console.print(f"[green]Backtest saved with ID: {result.id}[/green]")
+            _display_backtest_result_from_schema(result)
 
-        # Save if requested
-        if save:
-            save_backtest(result)
-            console.print(f"[green]Backtest saved with ID: {result.id}[/green]")
+            # Load domain result for charting
+            if chart or show:
+                from trader.backtest import load_backtest as _load_bt
+                try:
+                    domain_result = _load_bt(result.id)
+                    data_dir_path = (
+                        Path(data_dir) if data_dir
+                        else Path.cwd() / "data" / "historical"
+                    )
+                    _render_backtest_chart(
+                        result=domain_result,
+                        data_source=data_source,
+                        historical_dir=str(data_dir_path),
+                        chart_path=chart,
+                        show=show,
+                        theme=theme,
+                    )
+                except Exception:
+                    pass
 
-        # Display results
-        _display_backtest_result(result)
-        _render_backtest_chart(
-            result=result,
-            data_source=data_source,
-            historical_dir=str(data_dir_path),
-            chart_path=chart,
-            show=show,
-            theme=theme,
-        )
-
-    except FileNotFoundError as e:
-        console.print(f"[red]Error: {e}[/red]")
-        console.print(f"[yellow]Make sure CSV file exists at: {data_dir_path}/{symbol}.csv[/yellow]")
+    except AppError as e:
+        _handle_error(e, as_json)
     except Exception as e:
         logger.error(f"Backtest failed: {e}", exc_info=True)
-        console.print(f"[red]Error running backtest: {e}[/red]")
+        if as_json:
+            console.print(json_lib.dumps({"error": "BACKTEST_FAILED", "message": str(e)}, indent=2))
+        else:
+            console.print(f"[red]Error running backtest: {e}[/red]")
 
 
 @backtest.command("list")
 @click.option("--data-dir", type=click.Path(exists=True), help="Data directory")
 @click.pass_context
-def backtest_list(ctx: click.Context, data_dir: Optional[str]) -> None:
+def backtest_list(ctx: click.Context, data_dir: str | None) -> None:
     """List all saved backtests."""
-    from trader.backtest import list_backtests
+    from trader.app.backtests import list_backtests_app
 
-    data_dir_path = Path(data_dir) if data_dir else None
+    as_json = _get_json_flag(ctx)
 
     try:
-        backtests = list_backtests(data_dir=data_dir_path)
+        backtests = list_backtests_app(data_dir=data_dir)
+
+        if as_json:
+            _json_output([bt.model_dump() for bt in backtests])
+            return
 
         if not backtests:
             console.print("[yellow]No backtests found[/yellow]")
@@ -2188,28 +1927,28 @@ def backtest_list(ctx: click.Context, data_dir: Optional[str]) -> None:
         table.add_column("Max DD %", style="red")
 
         for bt in backtests:
-            return_pct = Decimal(bt["total_return_pct"])
-            return_color = "green" if return_pct > 0 else "red"
-            return_str = f"[{return_color}]{return_pct:+.2f}%[/{return_color}]"
-
-            win_rate = Decimal(bt["win_rate"])
-            date_range = f"{bt['start_date'][:10]} to {bt['end_date'][:10]}"
+            return_color = "green" if bt.total_return_pct > 0 else "red"
+            return_str = f"[{return_color}]{bt.total_return_pct:+.2f}%[/{return_color}]"
+            date_range = f"{bt.start_date[:10]} to {bt.end_date[:10]}"
 
             table.add_row(
-                bt["id"],
-                bt["symbol"],
-                bt["strategy_type"],
+                bt.id,
+                bt.symbol,
+                bt.strategy_type,
                 date_range,
                 return_str,
-                f"{win_rate:.1f}%",
-                str(bt["total_trades"]),
-                f"{Decimal(bt['max_drawdown_pct']):.2f}%",
+                f"{bt.win_rate:.1f}%",
+                str(bt.total_trades),
+                f"{bt.max_drawdown_pct:.2f}%",
             )
 
         console.print(table)
 
     except Exception as e:
-        console.print(f"[red]Error listing backtests: {e}[/red]")
+        if as_json:
+            console.print(json_lib.dumps({"error": "UNEXPECTED", "message": str(e)}, indent=2))
+        else:
+            console.print(f"[red]Error listing backtests: {e}[/red]")
 
 
 @backtest.command("show")
@@ -2239,66 +1978,79 @@ def backtest_list(ctx: click.Context, data_dir: Optional[str]) -> None:
 def backtest_show(
     ctx: click.Context,
     backtest_id: str,
-    data_dir: Optional[str],
-    historical_dir: Optional[str],
+    data_dir: str | None,
+    historical_dir: str | None,
     data_source: str,
-    chart: Optional[str],
+    chart: str | None,
     show: bool,
     theme: str,
 ) -> None:
     """Show detailed results for a backtest."""
+    from trader.app.backtests import show_backtest
     from trader.backtest import load_backtest
 
-    data_dir_path = Path(data_dir) if data_dir else None
+    as_json = _get_json_flag(ctx)
 
     try:
-        result = load_backtest(backtest_id, data_dir=data_dir_path)
-        _display_backtest_result(result, detailed=True)
-        _render_backtest_chart(
-            result=result,
-            data_source=data_source,
-            historical_dir=historical_dir,
-            chart_path=chart,
-            show=show,
-            theme=theme,
-        )
+        result = show_backtest(backtest_id, data_dir=data_dir)
+        if as_json:
+            _json_output(result)
+        else:
+            _display_backtest_result_from_schema(result, detailed=True)
 
-    except FileNotFoundError:
-        console.print(f"[red]Backtest {backtest_id} not found[/red]")
+            if chart or show:
+                data_dir_path = Path(data_dir) if data_dir else None
+                try:
+                    domain_result = load_backtest(backtest_id, data_dir=data_dir_path)
+                    _render_backtest_chart(
+                        result=domain_result,
+                        data_source=data_source,
+                        historical_dir=historical_dir,
+                        chart_path=chart,
+                        show=show,
+                        theme=theme,
+                    )
+                except Exception:
+                    pass
+
+    except AppError as e:
+        _handle_error(e, as_json)
     except Exception as e:
-        console.print(f"[red]Error loading backtest: {e}[/red]")
+        if as_json:
+            console.print(json_lib.dumps({"error": "UNEXPECTED", "message": str(e)}, indent=2))
+        else:
+            console.print(f"[red]Error loading backtest: {e}[/red]")
 
 
 @backtest.command("compare")
 @click.argument("backtest_ids", nargs=-1, required=True)
 @click.option("--data-dir", type=click.Path(exists=True), help="Data directory")
 @click.pass_context
-def backtest_compare(ctx: click.Context, backtest_ids: tuple[str, ...], data_dir: Optional[str]) -> None:
+def backtest_compare(
+    ctx: click.Context, backtest_ids: tuple[str, ...],
+    data_dir: str | None,
+) -> None:
     """Compare multiple backtests side-by-side."""
-    from trader.backtest import load_backtest
+    from trader.app.backtests import compare_backtests
 
-    data_dir_path = Path(data_dir) if data_dir else None
+    as_json = _get_json_flag(ctx)
 
     try:
-        results = []
-        for bt_id in backtest_ids:
-            try:
-                result = load_backtest(bt_id, data_dir=data_dir_path)
-                results.append(result)
-            except FileNotFoundError:
-                console.print(f"[yellow]Warning: Backtest {bt_id} not found, skipping[/yellow]")
+        results = compare_backtests(list(backtest_ids), data_dir=data_dir)
+
+        if as_json:
+            _json_output([r.model_dump() for r in results])
+            return
 
         if not results:
             console.print("[red]No backtests found to compare[/red]")
             return
 
-        # Comparison table
         table = Table(title="Backtest Comparison")
         table.add_column("Metric", style="cyan")
         for result in results:
             table.add_column(f"{result.id[:6]}...", style="white")
 
-        # Add rows for key metrics
         metrics = [
             ("Symbol", lambda r: r.symbol),
             ("Strategy", lambda r: r.strategy_type),
@@ -2325,36 +2077,40 @@ def backtest_compare(ctx: click.Context, backtest_ids: tuple[str, ...], data_dir
         console.print(table)
 
     except Exception as e:
-        console.print(f"[red]Error comparing backtests: {e}[/red]")
+        if as_json:
+            console.print(json_lib.dumps({"error": "UNEXPECTED", "message": str(e)}, indent=2))
+        else:
+            console.print(f"[red]Error comparing backtests: {e}[/red]")
 
 
-def _display_backtest_result(result, detailed: bool = False) -> None:
-    """Display backtest result in a formatted table."""
-    # Summary table
+# =============================================================================
+# Display Helpers
+# =============================================================================
+
+
+def _display_backtest_result_from_schema(result, detailed: bool = False) -> None:
+    """Display backtest result from a BacktestResponse schema."""
     table = Table(title=f"Backtest Results - {result.id}")
     table.add_column("Metric", style="cyan")
     table.add_column("Value", style="white")
 
-    # Basic info
     table.add_row("Symbol", result.symbol)
     table.add_row("Strategy", result.strategy_type)
     table.add_row("Date Range", f"{result.start_date.date()} to {result.end_date.date()}")
 
-    # Performance
     return_color = "green" if result.total_return > 0 else "red"
     table.add_row("Initial Capital", f"${result.initial_capital:,.2f}")
     table.add_row("Final Equity", f"${result.initial_capital + result.total_return:,.2f}")
     table.add_row("Total Return", f"[{return_color}]${result.total_return:+,.2f}[/{return_color}]")
     table.add_row("Return %", f"[{return_color}]{result.total_return_pct:+.2f}%[/{return_color}]")
 
-    # Trade stats
     table.add_row("Total Trades", str(result.total_trades))
     table.add_row("Winning Trades", f"{result.winning_trades} ({result.win_rate:.1f}%)")
     table.add_row("Losing Trades", str(result.losing_trades))
     table.add_row("Profit Factor", f"{result.profit_factor:.2f}")
 
-    # Risk metrics
-    table.add_row("Max Drawdown", f"[red]${result.max_drawdown:,.2f} ({result.max_drawdown_pct:.2f}%)[/red]")
+    dd = f"${result.max_drawdown:,.2f} ({result.max_drawdown_pct:.2f}%)"
+    table.add_row("Max Drawdown", f"[red]{dd}[/red]")
     table.add_row("Avg Win", f"[green]${result.avg_win:,.2f}[/green]")
     table.add_row("Avg Loss", f"[red]${result.avg_loss:,.2f}[/red]")
     table.add_row("Largest Win", f"[green]${result.largest_win:,.2f}[/green]")
@@ -2362,7 +2118,6 @@ def _display_backtest_result(result, detailed: bool = False) -> None:
 
     console.print(table)
 
-    # Show trades if detailed
     if detailed and result.trades:
         console.print("\n[cyan]Trade History:[/cyan]")
         trades_table = Table()
@@ -2388,8 +2143,8 @@ def _display_backtest_result(result, detailed: bool = False) -> None:
 def _render_backtest_chart(
     result,
     data_source: str,
-    historical_dir: Optional[str],
-    chart_path: Optional[str],
+    historical_dir: str | None,
+    chart_path: str | None,
     show: bool,
     theme: str,
 ) -> None:
@@ -2459,7 +2214,10 @@ def _validate_optimization_params(strategy_type: str, param_grid: dict[str, list
             raise ValueError("trailing_stop_pct is required for trailing-stop optimization")
     elif strategy_type == "bracket":
         if "take_profit_pct" not in param_grid or "stop_loss_pct" not in param_grid:
-            raise ValueError("take_profit_pct and stop_loss_pct are required for bracket optimization")
+            raise ValueError(
+                "take_profit_pct and stop_loss_pct are required"
+                " for bracket optimization"
+            )
 
 
 def _display_optimization_result(result) -> None:

@@ -6,9 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- **Shared error hierarchy** (`trader/errors.py`): `AppError` base with typed subclasses (`ValidationError`, `NotFoundError`, `ConfigurationError`, `BrokerError`, `SafetyError`, `EngineError`) used by both CLI and future MCP server
+- **Pydantic v2 schema layer** (`trader/schemas/`): 11 modules defining typed contracts for all API inputs/outputs — portfolio, orders, strategies, backtests, analysis, optimization, indicators, engine status, common types, and error responses
+- **Application service layer** (`trader/app/`): 10 modules providing shared business logic that both CLI and future MCP server will call — indicators, engine, strategies, portfolio, orders, analysis, backtests, optimization, and data/safety
+- **`--json` global CLI flag**: All commands now support `--json` for structured JSON output, enabling machine-readable responses for AI agents
+- **50 new tests**: Comprehensive test coverage for errors, schemas, and app service layer (`test_errors.py`, `test_schemas.py`, `test_app_services.py`)
+
+### Changed
+- **CLI refactored to use app layer**: All Click commands now delegate to `trader/app/` service functions instead of directly calling domain modules. CLI is now a thin presentation adapter.
+- Added `pydantic>=2.0.0` as a project dependency
+
 ### Documentation
 - Added `MCP-PLAN.md` with MCP + CLI dual-interface roadmap
 - Linked MCP roadmap from `README.md` and `PLAN.md`
+- Updated `MCP-PLAN.md` Phase 0 status to complete
 
 ## [0.3.0] - 2026-02-07
 

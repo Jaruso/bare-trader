@@ -164,11 +164,14 @@ For each feature:
 
 ## Implementation Phases
 
-### Phase 0: Groundwork (Design + Scaffolding)
-- Add `MCP-PLAN.md` and cross-links from `PLAN.md` and `README.md`.
-- Define module split (`cli/`, `mcp/`, `trader/`).
-- Add `trader/app` service layer and shared schemas.
-- Introduce shared error model and JSON output conventions.
+### Phase 0: Groundwork (Design + Scaffolding) ✅ COMPLETE
+- ✅ Add `MCP-PLAN.md` and cross-links from `PLAN.md` and `README.md`.
+- ✅ Define module split (`cli/`, `mcp/`, `trader/`).
+- ✅ Add `trader/app/` service layer (10 modules: indicators, engine, strategies, portfolio, orders, analysis, backtests, optimization, data).
+- ✅ Add `trader/schemas/` Pydantic v2 models (11 modules: common, errors, portfolio, orders, strategies, backtests, analysis, optimization, indicators, engine).
+- ✅ Add `trader/errors.py` shared error hierarchy (AppError, ValidationError, NotFoundError, ConfigurationError, BrokerError, SafetyError, EngineError).
+- ✅ Refactor CLI (`trader/cli/main.py`) to delegate to app layer with `--json` flag support.
+- ✅ 115 tests passing, lint clean, type check clean.
 
 ### Phase 1: MCP Server Skeleton
 - Create `mcp/` package and FastAPI app.
