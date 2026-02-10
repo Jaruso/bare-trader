@@ -14,3 +14,5 @@ class EngineStatus(BaseModel):
     service: str
     base_url: str
     api_key_configured: bool
+    active_strategies: int = 0
+    hint: str | None = None

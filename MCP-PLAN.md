@@ -108,18 +108,20 @@ trader/
 
 ## MCP Server Design
 
-- **Framework**: FastAPI
-- **Transport**: HTTP (MCP tools over REST)
-- **Entry point**: `mcp/app.py`
-- **Tool registry**: `mcp/tools.py` exposing tool metadata + handlers
-- **Auth**: API key (env var) or local-only default
-- **Output**: MCP-compliant responses with structured JSON
+- **SDK**: `modelcontextprotocol/python-sdk` (official MCP Python SDK)
+- **Transport**: stdio + streamable HTTP (SSE optional, HTTPS for Claude Desktop)
+- **Entry point**: `mcp/server.py`
+- **Tool registration**: Decorator-based via MCP SDK (`@server.tool()`)
+- **Auth**: None for Phase 1 (stdio is local-only); network auth deferred to Phase 3
+- **Output**: MCP-compliant JSON-RPC responses (handled by SDK)
 
 ### Tool Design Template
 
+Each tool is registered via the MCP SDK and automatically exposed through `tools/list`:
+
 - `name`
 - `description`
-- `parameters` (JSON schema)
+- `parameters` (JSON schema, derived from Pydantic models)
 - `returns` (JSON schema)
 - `examples`
 
@@ -173,17 +175,29 @@ For each feature:
 - ✅ Refactor CLI (`trader/cli/main.py`) to delegate to app layer with `--json` flag support.
 - ✅ 115 tests passing, lint clean, type check clean.
 
-### Phase 1: MCP Server Skeleton
-- Create `mcp/` package and FastAPI app.
-- Implement health endpoint and tool registry endpoint.
-- Add config + auth for MCP requests.
-- Add basic tool: `get_status()`.
+### Phase 1: MCP Server Skeleton ✅ COMPLETE
+- ✅ Add `mcp>=1.0.0` SDK dependency (official MCP Python SDK via `mcp.server.fastmcp.FastMCP`).
+- ✅ Create `trader/mcp/` package with server setup (stdio transport).
+- ✅ Register first tool: `get_status()` calling `trader/app/engine.get_engine_status()`.
+- ✅ Add `trader mcp serve` CLI command to launch the server.
+- ✅ Add streamable HTTP transport for remote MCP clients (e.g. Claude Desktop).
+- ✅ Add 9 tests for tool registration, responses, and CLI integration.
+- ✅ 124 tests passing, lint clean, type check clean.
+- 🔄 Next: Phase 2 — Core Tool Parity.
 
-### Phase 2: Core Tool Parity
-- Backtest, analyze, optimize, visualize.
-- Strategy CRUD and engine controls.
-- Data providers and indicator tools.
-- Ensure outputs are consistent with CLI JSON mode.
+### Phase 2: Core Tool Parity ✅ COMPLETE
+- ✅ 28 tools registered covering full CLI feature parity.
+- ✅ Engine: `get_status`, `stop_engine`.
+- ✅ Portfolio: `get_balance`, `get_positions`, `get_portfolio`, `get_quote`.
+- ✅ Orders: `place_order`, `list_orders`, `cancel_order`.
+- ✅ Strategies: `list_strategies`, `get_strategy`, `create_strategy`, `remove_strategy`, `pause_strategy`, `resume_strategy`, `set_strategy_enabled`.
+- ✅ Backtests: `run_backtest`, `list_backtests`, `show_backtest`, `compare_backtests`, `delete_backtest`.
+- ✅ Analysis: `analyze_performance`, `get_trade_history`, `get_today_pnl`.
+- ✅ Indicators: `list_indicators`, `describe_indicator`.
+- ✅ Optimization: `run_optimization`.
+- ✅ Safety: `get_safety_status`.
+- ✅ 142 tests passing (27 MCP tests), lint clean, type check clean.
+- 🔄 Next: Phase 3 — Safety, Auditing, and Rate Controls.
 
 ### Phase 3: Safety, Auditing, and Rate Controls
 - Central audit log for CLI and MCP actions.
@@ -195,10 +209,13 @@ For each feature:
 - Add MCP contract tests for tool schemas.
 - Add parity tests to ensure CLI and MCP return equivalent data.
 
+## Decisions
+
+- **Synchronous tool responses**: All MCP tools return results synchronously.
+  Async job patterns deferred unless specific tools prove too slow in Phase 2.
+- **Claude Desktop connection**: Use streamable HTTP at `/mcp` on a local host/port.
+
 ## Open Questions
 
-- Should MCP tools use synchronous responses for long-running jobs, or return
-  job IDs with polling endpoints?
 - Should the CLI JSON mode be default for all commands, or opt-in via `--json`?
-- Should the MCP server run locally only by default (no network bind)?
 

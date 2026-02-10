@@ -252,12 +252,23 @@ class HistoricalBroker(Broker):
         return True
 
     def _process_pending_orders(self) -> None:
-        """Process pending orders and check for fills."""
+        """Process pending orders and check for fills.
+
+        Only one order per symbol fills per bar to simulate OCO behavior.
+        If both a limit and stop could fill on the same bar, only the first
+        (by order ID) will fill. The strategy evaluator then cancels the other.
+        """
+        filled_symbols: set[str] = set()
+
         for order in list(self._orders.values()):
             if order.status not in (OrderStatus.NEW, OrderStatus.PENDING):
                 continue
 
             if order.symbol not in self.data:
+                continue
+
+            # Only one fill per symbol per bar (OCO simulation)
+            if order.symbol in filled_symbols:
                 continue
 
             df = self.data[order.symbol]
@@ -295,14 +306,15 @@ class HistoricalBroker(Broker):
                         fill_price = order.stop_price
 
             elif order.order_type == OrderType.TRAILING_STOP:
-                # Update high watermark
+                # Update high watermark using bar high (not close)
                 if order.id in self._trailing_stop_highs:
                     current_high = self._trailing_stop_highs[order.id]
-                    if close > current_high:
-                        self._trailing_stop_highs[order.id] = close
-                        current_high = close
+                    if high > current_high:
+                        self._trailing_stop_highs[order.id] = high
+                        current_high = high
 
                     # Calculate trail stop price
+                    # trail_percent is already in percentage form (e.g., 5.0 for 5%)
                     trail_pct = order.trail_percent / Decimal("100")
                     trail_stop_price = current_high * (Decimal("1") - trail_pct)
 
@@ -315,6 +327,7 @@ class HistoricalBroker(Broker):
                 order.status = OrderStatus.FILLED
                 order.filled_qty = order.qty
                 order.filled_avg_price = fill_price
+                filled_symbols.add(order.symbol)
 
                 self._update_position(order)
 

@@ -4,23 +4,40 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.4.0] - 2026-02-10
 
 ### Added
-- **Shared error hierarchy** (`trader/errors.py`): `AppError` base with typed subclasses (`ValidationError`, `NotFoundError`, `ConfigurationError`, `BrokerError`, `SafetyError`, `EngineError`) used by both CLI and future MCP server
+- **MCP server with full tool parity** (`trader/mcp/`): MCP-compliant server using the official `mcp` Python SDK with stdio transport, 28 tools covering all CLI features
+  - Engine: `get_status`, `stop_engine`
+  - Portfolio: `get_balance`, `get_positions`, `get_portfolio`, `get_quote`
+  - Orders: `place_order`, `list_orders`, `cancel_order`
+  - Strategies: `list_strategies`, `get_strategy`, `create_strategy`, `remove_strategy`, `pause_strategy`, `resume_strategy`, `set_strategy_enabled`
+  - Backtests: `run_backtest`, `list_backtests`, `show_backtest`, `compare_backtests`, `delete_backtest`
+  - Analysis: `analyze_performance`, `get_trade_history`, `get_today_pnl`
+  - Indicators: `list_indicators`, `describe_indicator`
+  - Optimization: `run_optimization`
+  - Safety: `get_safety_status`
+  - `trader mcp serve` CLI command to launch the server
+  - 27 tests for server setup, tool registration, tool responses, and CLI integration
+- **Shared error hierarchy** (`trader/errors.py`): `AppError` base with typed subclasses (`ValidationError`, `NotFoundError`, `ConfigurationError`, `BrokerError`, `SafetyError`, `EngineError`) used by both CLI and MCP server
 - **Pydantic v2 schema layer** (`trader/schemas/`): 11 modules defining typed contracts for all API inputs/outputs — portfolio, orders, strategies, backtests, analysis, optimization, indicators, engine status, common types, and error responses
-- **Application service layer** (`trader/app/`): 10 modules providing shared business logic that both CLI and future MCP server will call — indicators, engine, strategies, portfolio, orders, analysis, backtests, optimization, and data/safety
+- **Application service layer** (`trader/app/`): 10 modules providing shared business logic that both CLI and MCP server call — indicators, engine, strategies, portfolio, orders, analysis, backtests, optimization, and data/safety
 - **`--json` global CLI flag**: All commands now support `--json` for structured JSON output, enabling machine-readable responses for AI agents
-- **50 new tests**: Comprehensive test coverage for errors, schemas, and app service layer (`test_errors.py`, `test_schemas.py`, `test_app_services.py`)
+- **59 new tests**: Comprehensive test coverage for MCP server, errors, schemas, and app service layer
 
 ### Changed
 - **CLI refactored to use app layer**: All Click commands now delegate to `trader/app/` service functions instead of directly calling domain modules. CLI is now a thin presentation adapter.
-- Added `pydantic>=2.0.0` as a project dependency
+- Added `pydantic>=2.0.0` and `mcp>=1.0.0` as project dependencies
+
+### Fixed
+- **BacktestEngine indentation bug**: Fixed critical bug where `_execute_action` and helper methods were incorrectly indented inside `_align_datetime_to_index` function, causing `AttributeError` when running backtests
 
 ### Documentation
+- Added `DEVELOPMENT.md` with comprehensive development guide including editable install instructions, MCP server setup, debugging tips, and common issues
+- Updated README.md with correct installation instructions for development vs. production
+- Updated README.md MCP server configuration with Poetry-based development example and clarifications
 - Added `MCP-PLAN.md` with MCP + CLI dual-interface roadmap
-- Linked MCP roadmap from `README.md` and `PLAN.md`
-- Updated `MCP-PLAN.md` Phase 0 status to complete
+- Updated MCP-PLAN.md: Phase 1 complete, switched from FastAPI to official MCP SDK
 
 ## [0.3.0] - 2026-02-07
 

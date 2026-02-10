@@ -12,17 +12,140 @@ AutoTrader is a command-line trading platform for **automated stock trading**. I
 * ✅ Safety & risk controls
 * ✅ **Backtesting** with historical data
 
-## 🤖 MCP Server (Planned)
+## 🤖 MCP Server
 
-AutoTrader is designed to support both CLI users and AI agents via an MCP
-server. The MCP plan outlines how we will expose the same actions available in
-the CLI through a FastAPI MCP-compliant server.
+AutoTrader supports both CLI users and AI agents via an MCP-compliant server.
+For Claude Desktop, run the streamable HTTP transport and connect with the URL
+below.
 
-See `MCP-PLAN.md` for the detailed roadmap.
+### Start the MCP Server (HTTPS)
+
+Claude Desktop requires HTTPS for remote MCP URLs. Provide a TLS cert/key or
+use a tunneling service that terminates HTTPS.
+
+```bash
+trader mcp serve \
+  --transport streamable-http \
+  --host 0.0.0.0 \
+  --port 7331 \
+  --ssl-certfile path/to/cert.pem \
+  --ssl-keyfile path/to/key.pem
+```
+
+Connect Claude to:
+
+```
+https://127.0.0.1:7331/mcp
+```
+
+### Start the MCP Server (stdio)
+
+```bash
+trader mcp serve
+```
+
+This launches an MCP server over stdio. For Claude Desktop on macOS, add a
+local MCP server entry to the config file:
+
+`~/Library/Application Support/Claude/claude_desktop_config.json`
+
+Example (development with Poetry - **recommended for local testing**):
+
+```json
+{
+  "preferences": {},
+  "mcpServers": {
+    "AutoTrader": {
+      "command": "/Users/YOUR_USERNAME/.local/bin/poetry",
+      "args": ["run", "trader", "mcp", "serve"],
+      "cwd": "/Users/YOUR_USERNAME/path/to/auto-trader",
+      "env": {
+        "ALPACA_API_KEY": "your_paper_key",
+        "ALPACA_SECRET_KEY": "your_paper_secret"
+      }
+    }
+  }
+}
+```
+
+**Important**: Replace `/Users/YOUR_USERNAME/.local/bin/poetry` with the output of `which poetry` on your system, and `/Users/YOUR_USERNAME/path/to/auto-trader` with your actual project path.
+
+Example (global install with pipx):
+
+```json
+{
+  "preferences": {},
+  "mcpServers": {
+    "AutoTrader": {
+      "command": "trader",
+      "args": ["mcp", "serve"],
+      "env": {
+        "ALPACA_API_KEY": "your_paper_key",
+        "ALPACA_SECRET_KEY": "your_paper_secret"
+      }
+    }
+  }
+}
+```
+
+**Development tip - Using a wrapper script**:
+
+For the most reliable setup during development, use a wrapper script:
+
+```json
+{
+  "mcpServers": {
+    "AutoTrader": {
+      "command": "/path/to/auto-trader/mcp-wrapper.sh",
+      "args": [],
+      "env": {
+        "ALPACA_API_KEY": "your_paper_key",
+        "ALPACA_SECRET_KEY": "your_paper_secret"
+      }
+    }
+  }
+}
+```
+
+The `mcp-wrapper.sh` script is included in the repo and handles all the setup automatically.
+
+**Applying code changes**:
+- Code changes are automatically picked up due to Poetry's editable install
+- To apply changes: Open a new Claude Desktop conversation (no need to restart the entire app)
+- Or: Use the "Reconnect" button if the server disconnects
+- Only restart Claude Desktop when you change the config file itself
+
+**Important**:
+- After updating the config file, **restart Claude Desktop** for config changes to take effect
+- For code changes, just open a new conversation
+
+**Available tools**: 28 tools including engine control, portfolio management, strategy management, backtesting, optimization, analysis, and indicators.
+
+See `MCP-PLAN.md` for the full roadmap.
 
 ---
 
 ## 📦 Installation
+
+### For Development (Recommended for local testing)
+
+Use Poetry to install in editable mode. This ensures code changes are immediately reflected without reinstalling:
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd auto-trader
+
+# Install dependencies and the package in editable mode
+poetry install --with dev
+
+# Verify installation
+poetry run trader status
+```
+
+With editable mode, any code changes you make will be automatically available when you run `poetry run trader`.
+
+### For Production Use
 
 Install globally using pipx:
 
@@ -35,6 +158,8 @@ Verify:
 ```bash
 trader status
 ```
+
+**Note**: For development, always use `poetry run trader` or `poetry install` in editable mode. Global installation via `pipx` is for production use only and won't reflect local code changes.
 
 ---
 

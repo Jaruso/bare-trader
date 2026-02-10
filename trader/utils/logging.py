@@ -10,6 +10,7 @@ def setup_logging(
     log_dir: Optional[Path] = None,
     level: int = logging.INFO,
     log_to_file: bool = True,
+    console_stream: Optional[object] = None,
 ) -> logging.Logger:
     """Set up logging for the application.
 
@@ -17,6 +18,9 @@ def setup_logging(
         log_dir: Directory for log files. If None, only console logging.
         level: Logging level.
         log_to_file: Whether to log to file in addition to console.
+        console_stream: Stream for console logging. Defaults to sys.stdout.
+            Use sys.stderr for MCP stdio transport to avoid corrupting the
+            protocol stream.
 
     Returns:
         Configured logger instance.
@@ -28,7 +32,8 @@ def setup_logging(
     logger.handlers.clear()
 
     # Console handler
-    console_handler = logging.StreamHandler(sys.stdout)
+    stream = console_stream if console_stream is not None else sys.stdout
+    console_handler = logging.StreamHandler(stream)
     console_handler.setLevel(level)
     console_format = logging.Formatter(
         "%(asctime)s | %(levelname)-8s | %(message)s",

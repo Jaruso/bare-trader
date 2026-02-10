@@ -74,8 +74,10 @@ class BacktestEngine:
         df = self.broker.data[symbol]
         timestamps = df.index
 
-        # Filter to date range
-        timestamps = timestamps[(timestamps >= self.start_date) & (timestamps <= self.end_date)]
+        # Filter to date range (align timezone awareness if needed)
+        start_ts = _align_datetime_to_index(self.start_date, timestamps)
+        end_ts = _align_datetime_to_index(self.end_date, timestamps)
+        timestamps = timestamps[(timestamps >= start_ts) & (timestamps <= end_ts)]
 
         if len(timestamps) == 0:
             raise ValueError(f"No data in date range {self.start_date} to {self.end_date}")
@@ -106,10 +108,17 @@ class BacktestEngine:
                     f"Equity: ${account.equity:,.2f}"
                 )
 
-            # Stop if strategy completed or failed
-            if self.strategy.is_terminal():
+            # If strategy completed, reset for next trade cycle
+            if self.strategy.phase == StrategyPhase.COMPLETED:
                 self.logger.info(
-                    f"Strategy reached terminal state: {self.strategy.phase.value}"
+                    f"Strategy cycle completed, resetting for next trade"
+                )
+                self._reset_strategy()
+
+            # Stop on failure
+            elif self.strategy.phase == StrategyPhase.FAILED:
+                self.logger.info(
+                    f"Strategy failed: {self.strategy.notes or 'unknown reason'}"
                 )
                 break
 
@@ -123,8 +132,8 @@ class BacktestEngine:
             initial_capital=self.broker.initial_cash,
             strategy_type=self.strategy.strategy_type.value,
             symbol=self.strategy.symbol,
-            start_date=self.start_date,
-            end_date=self.end_date,
+            start_date=start_ts,
+            end_date=end_ts,
             strategy_config=self.strategy.to_dict(),
         )
 
@@ -135,6 +144,16 @@ class BacktestEngine:
         )
 
         return result
+
+
+    def _reset_strategy(self) -> None:
+        """Reset strategy state for next trade cycle in backtest."""
+        self.strategy.phase = StrategyPhase.PENDING
+        self.strategy.entry_order_id = None
+        self.strategy.entry_fill_price = None
+        self.strategy.high_watermark = None
+        self.strategy.exit_order_ids = []
+        self.strategy.updated_at = datetime.now()
 
     def _execute_action(self, action: StrategyAction) -> bool:
         """Execute a strategy action in-memory.
@@ -239,3 +258,12 @@ class BacktestEngine:
         self.logger.debug(f"State updated: {action.state_updates}")
 
         return True
+
+
+def _align_datetime_to_index(value: datetime, index: pd.Index) -> pd.Timestamp:
+    """Align a datetime to match a pandas index timezone-awareness."""
+    tz = getattr(index, "tz", None)
+    ts = pd.Timestamp(value)
+    if tz is None:
+        return ts.tz_localize(None) if ts.tzinfo else ts
+    return ts.tz_localize(tz) if ts.tzinfo is None else ts.tz_convert(tz)

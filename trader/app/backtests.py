@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from trader.errors import NotFoundError, ValidationError
 from trader.schemas.backtests import BacktestRequest, BacktestResponse, BacktestSummary
@@ -34,8 +35,8 @@ def run_backtest(config: Config, request: BacktestRequest) -> BacktestResponse:
 
     # Parse dates
     try:
-        start_date = datetime.strptime(request.start, "%Y-%m-%d")
-        end_date = datetime.strptime(request.end, "%Y-%m-%d")
+        start_date = datetime.strptime(request.start, "%Y-%m-%d").replace(tzinfo=ZoneInfo("US/Eastern"))
+        end_date = datetime.strptime(request.end, "%Y-%m-%d").replace(tzinfo=ZoneInfo("US/Eastern"))
     except ValueError as e:
         raise ValidationError(
             message=f"Invalid date format: {e}",

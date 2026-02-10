@@ -7,3 +7,19 @@ orders:
   limit_price: '420'
   external_id: null
   status: filled
+- id: 5a27e1bf-6614-4ec3-8752-e5946d585192
+  symbol: TSLA
+  side: buy
+  qty: '102'
+  order_type: market
+  limit_price: null
+  external_id: null
+  status: new
+- id: 583653ba-8164-4e2e-b456-b0523354dc9a
+  symbol: AAPL
+  side: buy
+  qty: '5'
+  order_type: market
+  limit_price: null
+  external_id: null
+  status: new

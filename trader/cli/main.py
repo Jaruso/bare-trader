@@ -65,14 +65,35 @@ def _get_json_flag(ctx: click.Context) -> bool:
 @click.pass_context
 def cli(ctx: click.Context, prod: bool, as_json: bool) -> None:
     """AutoTrader - CLI-based automated trading system."""
-    ctx.ensure_object(dict)
-    config = load_config(prod=prod)
-    ctx.obj["config"] = config
-    ctx.obj["json"] = as_json
+    import sys
+    import traceback
+    from datetime import datetime
+    from pathlib import Path
 
-    # Set up logging
-    logger = setup_logging(log_dir=config.log_dir, log_to_file=True)
-    ctx.obj["logger"] = logger
+    log_file = Path.home() / "autotrader_mcp_debug.log"
+
+    try:
+        with open(log_file, "a") as f:
+            f.write(f"{datetime.now().isoformat()} | CLI entry point called\n")
+
+        ctx.ensure_object(dict)
+        config = load_config(prod=prod)
+        ctx.obj["config"] = config
+        ctx.obj["json"] = as_json
+
+        # Set up logging
+        logger = setup_logging(log_dir=config.log_dir, log_to_file=True)
+        ctx.obj["logger"] = logger
+
+        with open(log_file, "a") as f:
+            f.write(f"{datetime.now().isoformat()} | CLI setup complete\n")
+    except Exception as e:
+        with open(log_file, "a") as f:
+            f.write(f"{datetime.now().isoformat()} | CLI error: {e}\n")
+            f.write(traceback.format_exc())
+        print(f"CLI initialization error: {e}", file=sys.stderr, flush=True)
+        print(traceback.format_exc(), file=sys.stderr, flush=True)
+        raise
 
 
 # =============================================================================
@@ -2236,6 +2257,104 @@ def _display_optimization_result(result) -> None:
     table.add_row("Best Params", str(result.best_params))
 
     console.print(table)
+
+
+# =============================================================================
+# MCP Server Commands
+# =============================================================================
+
+
+@cli.group()
+@click.pass_context
+def mcp(ctx: click.Context) -> None:
+    """MCP server commands."""
+    import sys
+
+    from trader.utils.logging import setup_logging
+
+    # Redirect logging to stderr immediately so subcommands using stdio
+    # transport don't have their protocol stream corrupted by log output.
+    setup_logging(
+        log_dir=ctx.obj["config"].log_dir,
+        log_to_file=True,
+        console_stream=sys.stderr,
+    )
+
+
+@mcp.command()
+@click.option(
+    "--transport",
+    type=click.Choice(["stdio", "sse", "streamable-http"]),
+    default="stdio",
+    show_default=True,
+    help="Transport protocol",
+)
+@click.option(
+    "--host",
+    default="127.0.0.1",
+    show_default=True,
+    help="Host to bind for HTTP transports",
+)
+@click.option(
+    "--port",
+    type=int,
+    default=8000,
+    show_default=True,
+    help="Port to bind for HTTP transports",
+)
+@click.option("--mount-path", default=None, help="Optional mount path for SSE transport")
+@click.option("--ssl-certfile", default=None, help="TLS certificate file for HTTPS")
+@click.option("--ssl-keyfile", default=None, help="TLS private key file for HTTPS")
+def serve(
+    transport: str,
+    host: str,
+    port: int,
+    mount_path: str | None,
+    ssl_certfile: str | None,
+    ssl_keyfile: str | None,
+) -> None:
+    """Start the MCP server (stdio, SSE, or streamable HTTP).
+
+    Launches an MCP-compliant server, allowing AI agents (e.g. Claude Desktop)
+    to interact with AutoTrader via the MCP protocol.
+    """
+    import asyncio
+    import sys
+    import traceback
+    from datetime import datetime
+    from pathlib import Path
+
+    # Write to log file for debugging
+    log_file = Path.home() / "autotrader_mcp_debug.log"
+
+    def log(msg: str) -> None:
+        with open(log_file, "a") as f:
+            f.write(f"{datetime.now().isoformat()} | {msg}\n")
+        print(msg, file=sys.stderr, flush=True)
+
+    log("MCP serve command started")
+
+    try:
+        log("Importing run_server...")
+        from trader.mcp.server import run_server
+        log("Import successful")
+
+        log(f"Running server with transport={transport}")
+        asyncio.run(
+            run_server(
+                transport=transport,
+                host=host,
+                port=port,
+                mount_path=mount_path,
+                ssl_certfile=ssl_certfile,
+                ssl_keyfile=ssl_keyfile,
+            )
+        )
+        log("Server exited normally")
+    except Exception as e:
+        log(f"MCP server error: {e}")
+        log(traceback.format_exc())
+        raise
 
 
 if __name__ == "__main__":

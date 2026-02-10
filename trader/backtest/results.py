@@ -179,7 +179,11 @@ def calculate_metrics(
     gross_loss = abs(sum(losing_trades, Decimal("0")))
     profit_factor = (
         gross_profit / gross_loss if gross_loss > 0 else Decimal("0")
-    )
+    ).normalize()
+
+    # Ensure clean zero display (avoid "0E+6" artifacts)
+    if profit_factor == 0:
+        profit_factor = Decimal("0")
 
     # Calculate maximum drawdown
     max_drawdown, max_drawdown_pct = _calculate_max_drawdown(equity_curve, initial_capital)
@@ -296,5 +300,11 @@ def _calculate_max_drawdown(
     max_drawdown_pct = (
         (max_drawdown / max_equity) * Decimal("100") if max_equity > 0 else Decimal("0")
     )
+
+    # Ensure clean zero display
+    if max_drawdown == 0:
+        max_drawdown = Decimal("0")
+    if max_drawdown_pct == 0:
+        max_drawdown_pct = Decimal("0")
 
     return max_drawdown, max_drawdown_pct

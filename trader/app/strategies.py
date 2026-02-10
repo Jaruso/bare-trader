@@ -33,6 +33,17 @@ from trader.strategies.models import (
 )
 from trader.utils.config import Config
 
+def _to_pct(value: Decimal) -> Decimal:
+    """Normalize a percentage value.
+
+    Accepts both decimal form (0.05) and percentage form (5.0).
+    Values less than 1 are treated as decimal and converted to percentage.
+    """
+    if value < 1:
+        return value * Decimal("100")
+    return value
+
+
 # Map from CLI-style names to StrategyType enums
 _STRATEGY_TYPE_MAP = {
     "trailing-stop": StrategyType.TRAILING_STOP,
@@ -105,7 +116,7 @@ def create_strategy(config: Config, request: StrategyCreate) -> StrategyResponse
     try:
         if strat_type == StrategyType.TRAILING_STOP:
             trailing = (
-                Decimal(str(request.trailing_pct))
+                _to_pct(Decimal(str(request.trailing_pct)))
                 if request.trailing_pct
                 else defaults.trailing_stop_pct
             )
@@ -120,12 +131,12 @@ def create_strategy(config: Config, request: StrategyCreate) -> StrategyResponse
 
         elif strat_type == StrategyType.BRACKET:
             tp = (
-                Decimal(str(request.take_profit))
+                _to_pct(Decimal(str(request.take_profit)))
                 if request.take_profit
                 else defaults.take_profit_pct
             )
             sl = (
-                Decimal(str(request.stop_loss))
+                _to_pct(Decimal(str(request.stop_loss)))
                 if request.stop_loss
                 else defaults.stop_loss_pct
             )

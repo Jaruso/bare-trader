@@ -139,8 +139,17 @@ def load_config(
     """
     project_root = Path(__file__).parent.parent.parent
 
-    # Load .env file
-    load_dotenv(project_root / ".env")
+    # Load .env file — try project root first, then CWD, then home directory.
+    # When installed via pipx, project_root points into site-packages,
+    # so we fall back to other common locations.
+    for candidate in [
+        project_root / ".env",
+        Path.cwd() / ".env",
+        Path.home() / ".autotrader" / ".env",
+    ]:
+        if candidate.is_file():
+            load_dotenv(candidate)
+            break
 
     # Determine service
     if service:

@@ -20,6 +20,7 @@ def get_engine_status(config: Config) -> EngineStatus:
         Engine status schema.
     """
     from trader.core.engine import get_lock_file_path
+    from trader.strategies.loader import load_strategies
 
     lock_path = get_lock_file_path()
     running = False
@@ -40,13 +41,33 @@ def get_engine_status(config: Config) -> EngineStatus:
         except (ValueError, FileNotFoundError):
             pass
 
+    has_key = bool(config.alpaca_api_key)
+
+    # Count active strategies
+    try:
+        strategies = load_strategies()
+        active_count = sum(1 for s in strategies if s.enabled and s.is_active())
+    except Exception:
+        active_count = 0
+
+    # Build contextual hint for agents
+    hint = None
+    if not has_key:
+        hint = "API key not configured. Set ALPACA_API_KEY and ALPACA_SECRET_KEY environment variables."
+    elif not running and active_count == 0:
+        hint = "Engine not running because no active strategies are configured. Add a strategy first with create_strategy, then start the engine."
+    elif not running:
+        hint = "Engine not running. Start it with the CLI: trader start"
+
     return EngineStatus(
         running=running,
         pid=pid,
         environment=config.env.value.upper(),
         service=config.service.value,
         base_url=config.base_url,
-        api_key_configured=bool(config.alpaca_api_key),
+        api_key_configured=has_key,
+        active_strategies=active_count,
+        hint=hint,
     )
 
 
