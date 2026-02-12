@@ -13,7 +13,7 @@ AutoTrader is a command-line trading platform for **automated stock trading**. I
 * ✅ **Backtesting** with historical data
 * ✅ **Notifications** (Discord webhook, generic webhook) for alerts
 
-**Tools**: 28 MCP tools (engine, portfolio, orders, strategies, backtests, analysis, indicators, optimization, safety).
+**Tools**: 28 MCP tools (engine, portfolio, orders, strategies, backtests, analysis, indicators, optimization, safety). See [CLI and MCP usage by feature](docs/cli-mcp-usage.md) for a full mapping of commands to tools.
 
 ## 🤖 MCP Server Usage
 
