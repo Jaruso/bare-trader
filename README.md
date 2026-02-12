@@ -11,6 +11,7 @@ AutoTrader is a command-line trading platform for **automated stock trading**. I
 * ✅ Portfolio tracking & trade ledger
 * ✅ Safety & risk controls
 * ✅ **Backtesting** with historical data
+* ✅ **Notifications** (Discord webhook, generic webhook) for alerts
 
 **Tools**: 28 MCP tools (engine, portfolio, orders, strategies, backtests, analysis, indicators, optimization, safety).
 
@@ -120,6 +121,18 @@ When using the MCP server, you can tune rate limits and timeouts for long-runnin
 | `MCP_OPTIMIZATION_TIMEOUT_SECONDS` | 600 | Max wall-clock time (seconds) for a single optimization run; 0 = no limit. |
 | `MCP_RATE_LIMIT_LONG_RUNNING_PER_MINUTE` | 10 | Max number of long-running tool calls (backtest + optimization combined) per 60-second window; 0 = no limit. |
 
+### Notifications (optional)
+
+Alerts can be sent to Discord or a custom webhook (e.g. for trade events or manual messages):
+
+| Variable | Description |
+|----------|-------------|
+| `DISCORD_WEBHOOK_URL` | Discord webhook URL (primary channel). |
+| `CUSTOM_WEBHOOK_URL` | Generic HTTP webhook URL (POST JSON with `message`). |
+| `NOTIFICATIONS_ENABLED` | Set to `false` or `0` to disable all notifications. |
+
+Optional YAML: copy `config/notifications.yaml.example` to `config/notifications.yaml` to configure events and channels. CLI: `trader notify test` (test delivery), `trader notify send "message"` (send manual message).
+
 ---
 
 ## ▶️ Usage
@@ -167,6 +180,18 @@ trader analyze
 
 # Filter by symbol and time window
 trader analyze --symbol AAPL --days 7
+```
+
+### Notifications
+
+```bash
+# Test notification delivery (requires DISCORD_WEBHOOK_URL or config)
+trader notify test
+trader notify test --channel discord
+
+# Send a manual message
+trader notify send "Trading paused for maintenance"
+trader notify send "AAPL target hit" --channel discord
 ```
 
 ---
