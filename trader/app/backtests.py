@@ -7,6 +7,7 @@ from decimal import Decimal
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from trader.audit import log_action as audit_log
 from trader.errors import NotFoundError, ValidationError
 from trader.schemas.backtests import BacktestRequest, BacktestResponse, BacktestSummary
 from trader.utils.config import Config
@@ -119,6 +120,17 @@ def run_backtest(config: Config, request: BacktestRequest) -> BacktestResponse:
     if request.save:
         save_backtest(result)
 
+    audit_log(
+        "run_backtest",
+        {
+            "strategy_type": request.strategy_type,
+            "symbol": request.symbol,
+            "start": request.start,
+            "end": request.end,
+            "backtest_id": result.id,
+        },
+        log_dir=config.log_dir,
+    )
     return BacktestResponse.from_domain(result)
 
 

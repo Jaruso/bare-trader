@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from trader.api.broker import OrderSide, OrderStatus, OrderType
 from trader.app import get_broker
+from trader.audit import log_action as audit_log
 from trader.core.safety import SafetyCheck
 from trader.data.ledger import TradeLedger
 from trader.errors import BrokerError, SafetyError
@@ -41,6 +42,12 @@ def place_order(config: Config, request: OrderRequest) -> OrderResponse:
 
     allowed, reason = checker.check_order(symbol, request.qty, check_price, is_buy=is_buy)
     if not allowed:
+        audit_log(
+            "place_order_blocked",
+            {"symbol": symbol, "qty": request.qty, "side": request.side, "reason": reason},
+            error=reason,
+            log_dir=config.log_dir,
+        )
         raise SafetyError(
             message=f"Order blocked by safety checks: {reason}",
             code="ORDER_BLOCKED",
@@ -58,6 +65,12 @@ def place_order(config: Config, request: OrderRequest) -> OrderResponse:
             limit_price=Decimal(str(request.price)),
         )
     except Exception as e:
+        audit_log(
+            "place_order",
+            {"symbol": symbol, "qty": request.qty, "side": request.side},
+            error=str(e),
+            log_dir=config.log_dir,
+        )
         raise BrokerError(
             message=f"Failed to place order: {e}",
             code="ORDER_PLACEMENT_FAILED",
@@ -73,7 +86,11 @@ def place_order(config: Config, request: OrderRequest) -> OrderResponse:
         f"{request.side.upper()} {request.qty} {symbol} | "
         f"Order ID: {order.id} | Status: {order.status.value}"
     )
-
+    audit_log(
+        "place_order",
+        {"symbol": symbol, "qty": request.qty, "side": request.side, "order_id": order.id},
+        log_dir=config.log_dir,
+    )
     return OrderResponse.from_domain(order)
 
 
@@ -119,8 +136,15 @@ def cancel_order(config: Config, order_id: str) -> dict[str, str]:
     success = broker.cancel_order(order_id)
 
     if success:
+        audit_log("cancel_order", {"order_id": order_id}, log_dir=config.log_dir)
         return {"status": "canceled", "order_id": order_id}
     else:
+        audit_log(
+            "cancel_order",
+            {"order_id": order_id},
+            error="Cancel failed",
+            log_dir=config.log_dir,
+        )
         raise BrokerError(
             message=f"Failed to cancel order {order_id}",
             code="CANCEL_FAILED",
