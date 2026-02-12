@@ -110,6 +110,16 @@ export ALPACA_API_KEY=your_paper_key
 export ALPACA_SECRET_KEY=your_paper_secret
 ```
 
+### MCP server (optional)
+
+When using the MCP server, you can tune rate limits and timeouts for long-running tools (`run_backtest`, `run_optimization`):
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MCP_BACKTEST_TIMEOUT_SECONDS` | 300 | Max wall-clock time (seconds) for a single backtest; 0 = no limit. |
+| `MCP_OPTIMIZATION_TIMEOUT_SECONDS` | 600 | Max wall-clock time (seconds) for a single optimization run; 0 = no limit. |
+| `MCP_RATE_LIMIT_LONG_RUNNING_PER_MINUTE` | 10 | Max number of long-running tool calls (backtest + optimization combined) per 60-second window; 0 = no limit. |
+
 ---
 
 ## ▶️ Usage

@@ -40,7 +40,7 @@ Then you can run `trader status` (or `poetry run trader status`) and use the sam
 
 ## MCP for Development
 
-Use the same Claude config as in the README: set `command` to the **full path** to `trader` (run `which trader` and use that path), and `args`: `["mcp", "serve"]`, plus `env` for your Alpaca keys. Claude Desktop often uses a limited PATH and won’t find `trader` if you only use `"command": "trader"`. Install with `pipx install -e .` from the repo root so that path runs your local code. Each new Claude conversation spawns a new MCP process, so code changes are picked up without restarting Claude.
+Use the same Claude config as in the README: set `command` to the **full path** to `trader` (run `which trader` and use that path), and `args`: `["mcp", "serve"]`, plus `env` for your Alpaca keys. Claude Desktop often uses a limited PATH and won’t find `trader` if you only use `"command": "trader"`. Install with `pipx install -e .` from the repo root so that path runs your local code. Each new Claude conversation spawns a new MCP process, so code changes are picked up without restarting Claude. MCP rate limits and timeouts for long-running tools are configured via env (see README Configuration).
 
 ---
 
