@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.6.0] - 2026-02-11
 
 ### Added
 - **CLI + MCP usage docs (MCP Phase 4)** — New `docs/cli-mcp-usage.md` with per-feature mapping of CLI commands to MCP tools (engine, portfolio, orders, strategies, backtest, analysis, indicators, optimization, safety, notifications). Documents MCP-only and CLI-only actions. Linked from README.
