@@ -12,69 +12,43 @@ AutoTrader is a command-line trading platform for **automated stock trading**. I
 * ✅ Safety & risk controls
 * ✅ **Backtesting** with historical data
 
-## 🤖 MCP Server
+**Tools**: 28 MCP tools (engine, portfolio, orders, strategies, backtests, analysis, indicators, optimization, safety).
+
+## 🤖 MCP Server Usage
 
 AutoTrader supports both CLI users and AI agents via an MCP-compliant server.
 For Claude Desktop, run the streamable HTTP transport and connect with the URL
 below.
 
-### Start the MCP Server (HTTPS)
+## 📦 Stdio 
 
-Claude Desktop requires HTTPS for remote MCP URLs. Provide a TLS cert/key or
-use a tunneling service that terminates HTTPS.
+### Installing
+
+**[BREW NOT CURRENTLY AVAILABLE]**
+To run from the CLI using an offical version you can install with the `brew` package manager
+
+Mac:
+```bash
+brew install autotrader
+```
+Public installation not currently available with Windows.
+
+Alternativley you can install globally from the repo using pipx (recommended so `trader` is on PATH for CLI and MCP):
+
+Mac:
+```bash
+sudo pipx install -e . --global
+```
+
+And verify:
 
 ```bash
-trader mcp serve \
-  --transport streamable-http \
-  --host 0.0.0.0 \
-  --port 7331 \
-  --ssl-certfile path/to/cert.pem \
-  --ssl-keyfile path/to/key.pem
+trader status
 ```
 
-Connect Claude to:
-
-```
-https://127.0.0.1:7331/mcp
-```
-
-### Start the MCP Server (stdio)
-
-```bash
-trader mcp serve
-```
-
-This launches an MCP server over stdio. For Claude Desktop on macOS, add a
-local MCP server entry to the config file:
-
-`~/Library/Application Support/Claude/claude_desktop_config.json`
-
-Example (development with Poetry - **recommended for local testing**):
-
+Next you'll need to update the `claude_desktop_config.json` and edit it to connect to the trader installation
 ```json
 {
-  "preferences": {},
-  "mcpServers": {
-    "AutoTrader": {
-      "command": "/Users/YOUR_USERNAME/.local/bin/poetry",
-      "args": ["run", "trader", "mcp", "serve"],
-      "cwd": "/Users/YOUR_USERNAME/path/to/auto-trader",
-      "env": {
-        "ALPACA_API_KEY": "your_paper_key",
-        "ALPACA_SECRET_KEY": "your_paper_secret"
-      }
-    }
-  }
-}
-```
-
-**Important**: Replace `/Users/YOUR_USERNAME/.local/bin/poetry` with the output of `which poetry` on your system, and `/Users/YOUR_USERNAME/path/to/auto-trader` with your actual project path.
-
-Example (global install with pipx):
-
-```json
-{
-  "preferences": {},
   "mcpServers": {
     "AutoTrader": {
       "command": "trader",
@@ -88,69 +62,28 @@ Example (global install with pipx):
 }
 ```
 
-**Development tip - Using a wrapper script**:
+Finally **Restart Claude Desktop** (fully quit and reopen) after saving the config.
 
-For the most reliable setup during development, use a wrapper script:
+#### Troubleshooting
 
-```json
-{
-  "mcpServers": {
-    "AutoTrader": {
-      "command": "/path/to/auto-trader/mcp-wrapper.sh",
-      "args": [],
-      "env": {
-        "ALPACA_API_KEY": "your_paper_key",
-        "ALPACA_SECRET_KEY": "your_paper_secret"
-      }
-    }
-  }
-}
-```
-
-The `mcp-wrapper.sh` script is included in the repo and handles all the setup automatically.
-
-**Applying code changes**:
-- Code changes are automatically picked up due to Poetry's editable install
-- To apply changes: Open a new Claude Desktop conversation (no need to restart the entire app)
-- Or: Use the "Reconnect" button if the server disconnects
-- Only restart Claude Desktop when you change the config file itself
-
-**Important**:
-- After updating the config file, **restart Claude Desktop** for config changes to take effect
-- For code changes, just open a new conversation
-
-**Available tools**: 28 tools including engine control, portfolio management, strategy management, backtesting, optimization, analysis, and indicators.
-
-See `MCP-PLAN.md` for the full roadmap.
+- **"Failed to spawn process: No such file or directory"** or **"trader" not found**: Claude Desktop does not use your shell PATH (e.g. it may not see `~/.local/bin`). Use the **full path** to the `trader` executable as `command`. Run `which trader` (macOS/Linux) or `where trader` (Windows) in a terminal and put that path in the config.
+- **MCP server error**: Check that `ALPACA_API_KEY` and `ALPACA_SECRET_KEY` in the config are correct and that the config file is valid JSON (no trailing commas).
 
 ---
 
-## 📦 Installation
 
-### For Development (Recommended for local testing)
+**Prerequisites**: Python 3.11+ ([python.org](https://www.python.org/downloads/)) and pipx ([pipx.pypa.io](https://pipx.pypa.io/)). On Windows, install Python from python.org and check **Add Python to PATH**; then run `pip install pipx` and ensure pipx’s bin directory is on PATH.
 
-Use Poetry to install in editable mode. This ensures code changes are immediately reflected without reinstalling:
+Install globally using pipx (recommended so `trader` is on PATH for CLI and MCP):
 
+Mac:
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd auto-trader
-
-# Install dependencies and the package in editable mode
-poetry install --with dev
-
-# Verify installation
-poetry run trader status
+sudo pipx install -e . --global
 ```
 
-With editable mode, any code changes you make will be automatically available when you run `poetry run trader`.
-
-### For Production Use
-
-Install globally using pipx:
-
-```bash
-pipx install autotrader
+Windows:
+```
+//TODO
 ```
 
 Verify:
@@ -159,43 +92,22 @@ Verify:
 trader status
 ```
 
-**Note**: For development, always use `poetry run trader` or `poetry install` in editable mode. Global installation via `pipx` is for production use only and won't reflect local code changes.
-
 ---
+
+
+## Streamable HTTP (later)
+
+Remote URL-based MCP (`--transport streamable-http` with optional HTTPS) is implemented but not the default. We’ll document cert setup, URL format, and client config once we lock the base workflow. For now, use **stdio** (above) for all agent and Claude Desktop use.
 
 ## ⚙️ Configuration
 
-Create a `.env` file with your Alpaca credentials:
+To connect with alpaca, environment variables are used: `ALPACA_API_KEY`, `ALPACA_SECRET_KEY`. There are several ways to ensure these are set. If connecting with an stdio just ensure they are setup in the `claude_desktop_config.json`:
 
-```env
-# Paper trading (default)
-ALPACA_API_KEY=your_paper_key
-ALPACA_SECRET_KEY=your_paper_secret
+If using the CLI tool the keys must be availbe to the terminal.
 
-# Production (optional - only needed for live trading)
-ALPACA_PROD_API_KEY=your_live_key
-ALPACA_PROD_SECRET_KEY=your_live_secret
-```
-
-AutoTrader defaults to paper trading.
-
-Optional data settings:
-
-```env
-# Data source: csv, alpaca, cached
-DATA_SOURCE=csv
-
-# CSV data location (used for csv/cached sources)
-HISTORICAL_DATA_DIR=data/historical
-
-# Cache settings (Parquet)
-DATA_CACHE_ENABLED=true
-DATA_CACHE_BACKEND=parquet
-DATA_CACHE_DIR=data/cache
-DATA_CACHE_TTL_MINUTES=60
-
-# Alpaca data feed override (optional)
-ALPACA_DATA_FEED=
+```bash
+export ALPACA_API_KEY=your_paper_key
+export ALPACA_SECRET_KEY=your_paper_secret
 ```
 
 ---

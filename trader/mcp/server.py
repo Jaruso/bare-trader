@@ -663,7 +663,7 @@ mcp = build_server()
 
 
 async def run_server(
-    transport: Literal["stdio", "sse", "streamable-http"] = "stdio",
+    transport: Literal["stdio", "streamable-http"] = "stdio",
     host: str = "127.0.0.1",
     port: int = 8000,
     mount_path: str | None = None,
@@ -671,7 +671,7 @@ async def run_server(
     ssl_certfile: str | None = None,
     ssl_keyfile: str | None = None,
 ) -> None:
-    """Run the MCP server with the selected transport."""
+    """Run the MCP server with the selected transport (stdio or streamable HTTP)."""
     import sys
     import traceback
 
@@ -684,33 +684,30 @@ async def run_server(
             print(f"Starting stdio transport...", file=sys.stderr)
             await server.run_stdio_async()
             return
+
+        if transport == "streamable-http":
+            import uvicorn
+
+            if ssl_certfile or ssl_keyfile:
+                if not ssl_certfile or not ssl_keyfile:
+                    raise ValueError("Both --ssl-certfile and --ssl-keyfile are required for HTTPS")
+                app = server.streamable_http_app()
+                config = uvicorn.Config(
+                    app,
+                    host=host,
+                    port=port,
+                    log_level=log_level.lower(),
+                    ssl_certfile=ssl_certfile,
+                    ssl_keyfile=ssl_keyfile,
+                )
+            else:
+                app = server.streamable_http_app()
+                config = uvicorn.Config(app, host=host, port=port, log_level=log_level.lower())
+            print(f"Starting streamable HTTP at {'https' if ssl_certfile else 'http'}://{host}:{port}...", file=sys.stderr)
+            uvicorn_server = uvicorn.Server(config)
+            await uvicorn_server.serve()
+            return
     except Exception as e:
         print(f"MCP server startup error: {e}", file=sys.stderr)
         print(traceback.format_exc(), file=sys.stderr)
         raise
-    if ssl_certfile or ssl_keyfile:
-        import uvicorn
-
-        if not ssl_certfile or not ssl_keyfile:
-            raise ValueError("Both ssl_certfile and ssl_keyfile are required for HTTPS")
-
-        if transport == "sse":
-            app = server.sse_app(mount_path)
-        else:
-            app = server.streamable_http_app()
-
-        config = uvicorn.Config(
-            app,
-            host=host,
-            port=port,
-            log_level=log_level.lower(),
-            ssl_certfile=ssl_certfile,
-            ssl_keyfile=ssl_keyfile,
-        )
-        uvicorn_server = uvicorn.Server(config)
-        await uvicorn_server.serve()
-        return
-    if transport == "sse":
-        await server.run_sse_async(mount_path=mount_path)
-        return
-    await server.run_streamable_http_async()

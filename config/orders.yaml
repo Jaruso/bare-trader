@@ -14,7 +14,7 @@ orders:
   order_type: market
   limit_price: null
   external_id: null
-  status: new
+  status: filled
 - id: 583653ba-8164-4e2e-b456-b0523354dc9a
   symbol: AAPL
   side: buy
@@ -22,4 +22,4 @@ orders:
   order_type: market
   limit_price: null
   external_id: null
-  status: new
+  status: filled

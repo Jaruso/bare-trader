@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.0] - 2026-02-11
+
+### Documentation
+- Consolidated documentation: merged DEVELOPMENT.md into CONTRIBUTING.md (single place for setup, code style, and how to make changes)
+- Merged MCP-PLAN.md into PLAN.md; product phases and MCP + CLI roadmap now live in one file
+- README: added Prerequisites (Python, pipx) with Mac and Windows notes; MCP section rewritten so Claude Desktop uses `"command": "trader", "args": ["mcp", "serve"]` with no wrapper script; documented config file locations for macOS and Windows; added Troubleshooting
+- CONTRIBUTING: added “What is Poetry,” Mac/Windows prerequisites, MCP-for-development (pipx editable + same Claude config), dual-interface diagram, common issues, release workflow
+- Replaced mcp-wrapper.sh with a stub that points users to pipx install and the README
+- CLAUDE.md reference list now points to PLAN.md and CONTRIBUTING.md only
+
 ## [0.4.0] - 2026-02-10
 
 ### Added

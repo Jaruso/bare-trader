@@ -51,6 +51,7 @@ ENV/
 htmlcov/
 .pytest_cache/
 .mypy_cache/
+certs/
 
 # Logs and data
 logs/

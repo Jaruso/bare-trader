@@ -2284,25 +2284,25 @@ def mcp(ctx: click.Context) -> None:
 @mcp.command()
 @click.option(
     "--transport",
-    type=click.Choice(["stdio", "sse", "streamable-http"]),
+    type=click.Choice(["stdio", "streamable-http"]),
     default="stdio",
     show_default=True,
-    help="Transport protocol",
+    help="Transport: stdio (local Claude) or streamable-http (remote, use --ssl-certfile/--ssl-keyfile for HTTPS)",
 )
 @click.option(
     "--host",
     default="127.0.0.1",
     show_default=True,
-    help="Host to bind for HTTP transports",
+    help="Host to bind for streamable-http",
 )
 @click.option(
     "--port",
     type=int,
     default=8000,
     show_default=True,
-    help="Port to bind for HTTP transports",
+    help="Port to bind for streamable-http",
 )
-@click.option("--mount-path", default=None, help="Optional mount path for SSE transport")
+@click.option("--mount-path", default=None, help="Optional mount path for streamable-http (if supported by SDK)")
 @click.option("--ssl-certfile", default=None, help="TLS certificate file for HTTPS")
 @click.option("--ssl-keyfile", default=None, help="TLS private key file for HTTPS")
 def serve(
@@ -2313,7 +2313,7 @@ def serve(
     ssl_certfile: str | None,
     ssl_keyfile: str | None,
 ) -> None:
-    """Start the MCP server (stdio, SSE, or streamable HTTP).
+    """Start the MCP server (stdio or streamable HTTP).
 
     Launches an MCP-compliant server, allowing AI agents (e.g. Claude Desktop)
     to interact with AutoTrader via the MCP protocol.
