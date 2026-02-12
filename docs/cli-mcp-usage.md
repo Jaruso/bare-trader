@@ -29,7 +29,7 @@ This document maps each AutoTrader feature to its **CLI commands** and **MCP too
 | `trader orders` [--all] | `list_orders(show_all: bool)` | Open orders; `--all` / `show_all` includes filled/canceled |
 | `trader quote SYMBOL` | `get_quote(symbol: str)` | Bid/ask/last for symbol |
 
-Use `--json` on CLI for JSON output comparable to MCP responses.
+Use the **global** `--json` flag before the subcommand for JSON output comparable to MCP responses: `trader --json portfolio`, `trader --json orders`, etc.
 
 ---
 
@@ -140,4 +140,14 @@ Notification MCP tools may be added in a future release.
 - **MCP only**: `delete_backtest`, `get_today_pnl`.
 - **CLI only**: `trader start`, `trader watch`, `trader strategy explain`, `trader kill`, `trader notify test`, `trader notify send`; backtest/visualize options like `--chart`, `--show`, `--data-dir`.
 
-For scripted or agent use, prefer MCP tools and `trader --json` for CLI when you need JSON output.
+For scripted or agent use, prefer MCP tools and `trader --json <command>` for CLI when you need JSON output.
+
+---
+
+## Validation (manual test)
+
+| Date       | CHANGELOG version | Scope |
+|------------|-------------------|--------|
+| 2026-02-11 | 0.6.0             | CLI commands and MCP parity for engine, indicators, safety, backtest list, strategy list. |
+
+**Commands verified**: `trader --json status`, `trader --json indicator list`, `trader --json indicator describe sma`, `trader --json safety`, `trader --json backtest list`, `trader --json strategy list`. **MCP tools verified**: `get_status`, `list_indicators`, `describe_indicator("sma")`, `get_safety_status`, `list_backtests`, `list_strategies`. JSON shapes match between CLI and MCP for these endpoints.
