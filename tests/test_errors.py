@@ -6,7 +6,9 @@ from trader.errors import (
     ConfigurationError,
     EngineError,
     NotFoundError,
+    RateLimitError,
     SafetyError,
+    TaskTimeoutError,
     ValidationError,
 )
 
@@ -94,6 +96,16 @@ class TestSubclasses:
         assert err.code == "ENGINE_ERROR"
         assert isinstance(err, AppError)
 
+    def test_rate_limit_error(self) -> None:
+        err = RateLimitError(message="too many requests")
+        assert err.code == "RATE_LIMIT_EXCEEDED"
+        assert isinstance(err, AppError)
+
+    def test_task_timeout_error(self) -> None:
+        err = TaskTimeoutError(message="task timed out")
+        assert err.code == "TASK_TIMEOUT"
+        assert isinstance(err, AppError)
+
     def test_custom_code_override(self) -> None:
         err = ValidationError(
             message="bad field",
@@ -110,6 +122,8 @@ class TestSubclasses:
             BrokerError("b"),
             SafetyError("s"),
             EngineError("e"),
+            RateLimitError("r"),
+            TaskTimeoutError("t"),
         ]
         for e in errors:
             try:

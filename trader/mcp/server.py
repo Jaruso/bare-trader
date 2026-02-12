@@ -332,6 +332,8 @@ def run_backtest(
 ) -> str:
     """Run a backtest on historical data.
 
+    Subject to MCP rate limits and timeout (see MCP_BACKTEST_TIMEOUT_SECONDS).
+
     Args:
         strategy_type: "trailing-stop" or "bracket".
         symbol: Stock ticker (e.g. "AAPL").
@@ -346,9 +348,15 @@ def run_backtest(
         save: Whether to save results to disk.
     """
     from trader.app.backtests import run_backtest as _run_backtest
+    from trader.mcp.limits import (
+        check_rate_limit,
+        get_backtest_timeout_seconds,
+        run_with_timeout,
+    )
     from trader.schemas.backtests import BacktestRequest
 
     try:
+        check_rate_limit("long_running")
         request = BacktestRequest(
             strategy_type=strategy_type,
             symbol=symbol.upper(),
@@ -362,7 +370,13 @@ def run_backtest(
             initial_capital=initial_capital,
             save=save,
         )
-        return _ok(_run_backtest(_config(), request))
+        timeout = get_backtest_timeout_seconds()
+        result = run_with_timeout(
+            lambda: _run_backtest(_config(), request),
+            timeout_seconds=timeout,
+            task_name="run_backtest",
+        )
+        return _ok(result)
     except AppError as e:
         return _err(e)
 
@@ -538,6 +552,8 @@ def run_optimization(
 ) -> str:
     """Run parameter optimization over a grid of strategy parameters.
 
+    Subject to MCP rate limits and timeout (see MCP_OPTIMIZATION_TIMEOUT_SECONDS).
+
     Args:
         strategy_type: "trailing-stop" or "bracket".
         symbol: Stock ticker (e.g. "AAPL").
@@ -552,9 +568,15 @@ def run_optimization(
         save: Whether to save results to disk.
     """
     from trader.app.optimization import run_optimization as _run_opt
+    from trader.mcp.limits import (
+        check_rate_limit,
+        get_optimization_timeout_seconds,
+        run_with_timeout,
+    )
     from trader.schemas.optimization import OptimizeRequest
 
     try:
+        check_rate_limit("long_running")
         request = OptimizeRequest(
             strategy_type=strategy_type,
             symbol=symbol.upper(),
@@ -568,7 +590,13 @@ def run_optimization(
             initial_capital=initial_capital,
             save=save,
         )
-        return _ok(_run_opt(_config(), request))
+        timeout = get_optimization_timeout_seconds()
+        result = run_with_timeout(
+            lambda: _run_opt(_config(), request),
+            timeout_seconds=timeout,
+            task_name="run_optimization",
+        )
+        return _ok(result)
     except AppError as e:
         return _err(e)
 

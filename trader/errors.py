@@ -119,3 +119,29 @@ class EngineError(AppError):
         suggestion: str | None = None,
     ) -> None:
         super().__init__(message, code, details, suggestion)
+
+
+class RateLimitError(AppError):
+    """Request rejected due to rate limit (e.g. too many long-running tasks)."""
+
+    def __init__(
+        self,
+        message: str,
+        code: str = "RATE_LIMIT_EXCEEDED",
+        details: dict[str, Any] | None = None,
+        suggestion: str | None = None,
+    ) -> None:
+        super().__init__(message, code, details, suggestion)
+
+
+class TaskTimeoutError(AppError):
+    """Long-running task was aborted because it exceeded the allowed time."""
+
+    def __init__(
+        self,
+        message: str,
+        code: str = "TASK_TIMEOUT",
+        details: dict[str, Any] | None = None,
+        suggestion: str | None = None,
+    ) -> None:
+        super().__init__(message, code, details, suggestion)

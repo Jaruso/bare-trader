@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 - **Central audit log (MCP Phase 3)** — `trader/audit.py` appends structured JSONL to `logs/audit.log` for sensitive actions from both CLI and MCP. Logged actions: `place_order`, `place_order_blocked`, `cancel_order`, `create_strategy`, `remove_strategy`, `run_backtest`, `stop_engine`. Each record includes timestamp (UTC), source (`cli` or `mcp`), action, details, and optional error. Audit source is set via context (CLI sets at startup; MCP sets per tool call).
+- **MCP rate limits and timeouts (Phase 3)** — Long-running MCP tools (`run_backtest`, `run_optimization`) are now subject to configurable rate limits and per-call timeouts. New module `trader/mcp/limits.py`; env vars: `MCP_BACKTEST_TIMEOUT_SECONDS` (default 300), `MCP_OPTIMIZATION_TIMEOUT_SECONDS` (default 600), `MCP_RATE_LIMIT_LONG_RUNNING_PER_MINUTE` (default 10). New error types: `RateLimitError`, `TaskTimeoutError` in `trader/errors.py`. See README Configuration for details.
 
 ## [0.5.0] - 2026-02-11
 
