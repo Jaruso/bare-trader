@@ -12,7 +12,8 @@ from trader.optimization.results import OptimizationResult
 def get_optimizations_dir(data_dir: Optional[Path] = None) -> Path:
     """Get the optimizations directory, creating if needed."""
     if data_dir is None:
-        data_dir = Path.cwd() / "data"
+        from trader.utils.paths import get_data_dir
+        data_dir = get_data_dir()
 
     optimizations_dir = data_dir / "optimizations"
     optimizations_dir.mkdir(parents=True, exist_ok=True)

@@ -10,7 +10,8 @@ from trader.notifications.manager import NotificationManager
 
 
 def _config_dir() -> Path:
-    return Path(__file__).parent.parent.parent / "config"
+    from trader.utils.paths import get_config_dir
+    return get_config_dir()
 
 
 def _load_notifications_config() -> dict[str, Any]:

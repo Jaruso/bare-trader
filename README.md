@@ -18,15 +18,22 @@ AutoTrader is a command-line trading platform for **automated stock trading**. I
 ## 🤖 MCP Server Usage
 
 AutoTrader supports both CLI users and AI agents via an MCP-compliant server.
-For Claude Desktop, run the streamable HTTP transport and connect with the URL
-below.
 
-## 📦 Stdio 
+**Quick Start**: Install → Configure → Use. See [Quick Start Guide](docs/QUICK_START.md) for details.
+
+### Two-Step Setup
+
+1. **Install**: `brew install autotrader` (or `pipx install -e .`)
+2. **Configure**: Add to Claude Desktop/Cursor MCP config (see below)
+
+That's it! AutoTrader is ready to use with Claude Desktop or Cursor.
+
+## 📦 Installation
 
 ### Installing
 
 **[BREW NOT CURRENTLY AVAILABLE]**
-To run from the CLI using an offical version you can install with the `brew` package manager
+To run from the CLI using an official version you can install with the `brew` package manager
 
 Mac:
 ```bash
@@ -34,7 +41,7 @@ brew install autotrader
 ```
 Public installation not currently available with Windows.
 
-Alternativley you can install globally from the repo using pipx (recommended so `trader` is on PATH for CLI and MCP):
+Alternatively you can install globally from the repo using pipx (recommended so `trader` is on PATH for CLI and MCP):
 
 Mac:
 ```bash
@@ -47,7 +54,13 @@ And verify:
 trader status
 ```
 
-Next you'll need to update the `claude_desktop_config.json` and edit it to connect to the trader installation
+**Note**: When installed via **pipx** or Homebrew, AutoTrader uses the same behavior: config, data, and logs go to `~/.autotrader/` (macOS) or `~/.config/autotrader/` (Linux). `trader config set` and all path resolution work identically with pipx. See [Installation Paths](docs/INSTALLATION_PATHS.md) for details.
+
+### Configure MCP Server
+
+Add AutoTrader to your Claude Desktop or Cursor MCP configuration:
+
+**Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
 ```json
 {
   "mcpServers": {
@@ -63,12 +76,17 @@ Next you'll need to update the `claude_desktop_config.json` and edit it to conne
 }
 ```
 
-Finally **Restart Claude Desktop** (fully quit and reopen) after saving the config.
+**Cursor**: Add via Settings → MCP Servers with the same configuration.
+
+**Restart** Claude Desktop or Cursor after saving the config.
 
 #### Troubleshooting
 
-- **"Failed to spawn process: No such file or directory"** or **"trader" not found**: Claude Desktop does not use your shell PATH (e.g. it may not see `~/.local/bin`). Use the **full path** to the `trader` executable as `command`. Run `which trader` (macOS/Linux) or `where trader` (Windows) in a terminal and put that path in the config.
-- **MCP server error**: Check that `ALPACA_API_KEY` and `ALPACA_SECRET_KEY` in the config are correct and that the config file is valid JSON (no trailing commas).
+- **"trader" command not found**: Use the full path to `trader` (run `which trader` and use that path in `command`)
+- **MCP server error**: Check API keys and JSON syntax (no trailing commas)
+- **Test installation**: Run `python3 scripts/test_installation.py` to verify setup
+
+See [Quick Start Guide](docs/QUICK_START.md) for detailed setup instructions.
 
 ---
 
@@ -102,14 +120,25 @@ Remote URL-based MCP (`--transport streamable-http` with optional HTTPS) is impl
 
 ## ⚙️ Configuration
 
-To connect with alpaca, environment variables are used: `ALPACA_API_KEY`, `ALPACA_SECRET_KEY`. There are several ways to ensure these are set. If connecting with an stdio just ensure they are setup in the `claude_desktop_config.json`:
+Configuration is **environment-based**: the app reads from environment variables and, when present, from a `.env` file (project root, CWD, or `~/.autotrader/.env` when installed). You can view and set values via the CLI; secrets are never shown in full when listing.
 
-If using the CLI tool the keys must be availbe to the terminal.
-
+**Set API keys (persisted to `.env`):**
 ```bash
-export ALPACA_API_KEY=your_paper_key
-export ALPACA_SECRET_KEY=your_paper_secret
+trader config set ALPACA_API_KEY your_paper_key
+trader config set ALPACA_SECRET_KEY your_paper_secret
 ```
+
+**View current config (secrets redacted):**
+```bash
+trader config list
+trader config get ALPACA_API_KEY          # redacted
+trader config get ALPACA_API_KEY --show-secret   # full value
+trader config keys   # list all available keys
+```
+
+**Schedule (cron):** Use `trader schedule enable` to install a cron job that runs one cycle on a schedule; `trader schedule disable` to remove it. See "Schedule (cron) mode" above.
+
+For MCP/stdio, set keys in your `claude_desktop_config.json` `env` block so they are available to the subprocess. For CLI-only use, `trader config set` writes to the appropriate `.env` file.
 
 ### MCP server (optional)
 
@@ -161,6 +190,19 @@ trader --prod start
 ```bash
 trader stop
 ```
+
+### Schedule (cron) mode
+
+Instead of running the engine as a long-lived loop, you can run one evaluation cycle on a schedule. Use **`trader schedule enable`** to add a cron job that runs `trader run-once` (e.g. every 5 minutes); use **`trader schedule disable`** to remove it.
+
+```bash
+trader schedule enable          # every 5 minutes (default)
+trader schedule enable --every 1 # every minute
+trader schedule status          # show whether enabled and the cron line
+trader schedule disable         # remove the cron job
+```
+
+Supported on macOS and Linux only. The job is added to your user crontab.
 
 ### View Portfolio
 

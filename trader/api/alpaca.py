@@ -3,6 +3,7 @@
 from decimal import Decimal
 from typing import Optional
 
+import requests
 from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide as AlpacaOrderSide
 from alpaca.trading.enums import OrderStatus as AlpacaOrderStatus
@@ -43,6 +44,8 @@ class AlpacaBroker(Broker):
             paper: Use paper trading (default True).
         """
         self.paper = paper
+        self.api_key = api_key
+        self.secret_key = secret_key
         self.trading_client = TradingClient(
             api_key=api_key,
             secret_key=secret_key,
@@ -194,6 +197,43 @@ class AlpacaBroker(Broker):
         """Check if market is currently open."""
         clock = self.trading_client.get_clock()
         return clock.is_open
+
+    def get_top_movers(self, market_type: str = "stocks", limit: int = 10) -> dict:
+        """Get top market movers (gainers and losers).
+
+        Args:
+            market_type: Market type ('stocks' or 'crypto'). Defaults to 'stocks'.
+            limit: Maximum number of gainers/losers to return. Defaults to 10.
+
+        Returns:
+            Dictionary with 'gainers' and 'losers' lists, each containing
+            dictionaries with symbol, change_pct, price, volume, etc.
+        """
+        # Alpaca data API base URL (same for paper and prod)
+        base_url = "https://data.alpaca.markets/v1beta1/screener"
+        url = f"{base_url}/{market_type}/movers"
+
+        # Use API credentials for authentication
+        headers = {
+            "APCA-API-KEY-ID": self.api_key,
+            "APCA-API-SECRET-KEY": self.secret_key,
+        }
+
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+
+            # Extract gainers and losers, limit results
+            gainers = data.get("gainers", [])[:limit]
+            losers = data.get("losers", [])[:limit]
+
+            return {
+                "gainers": gainers,
+                "losers": losers,
+            }
+        except requests.exceptions.RequestException as e:
+            raise ConnectionError(f"Failed to fetch top movers from Alpaca: {e}") from e
 
     def _convert_position(self, position: object) -> Position:
         """Convert Alpaca position to our Position model."""

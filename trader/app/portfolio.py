@@ -210,3 +210,24 @@ def watch_strategies(config: Config) -> list[dict[str, Any]]:
             })
 
     return results
+
+
+def get_top_movers(config: Config, market_type: str = "stocks", limit: int = 10) -> dict[str, Any]:
+    """Get top market movers (gainers and losers).
+
+    Args:
+        config: Application configuration.
+        market_type: Market type ('stocks' or 'crypto'). Defaults to 'stocks'.
+        limit: Maximum number of gainers/losers to return. Defaults to 10.
+
+    Returns:
+        Dictionary with 'gainers' and 'losers' lists.
+    """
+    broker = get_broker(config)
+    # Type check: ensure broker has get_top_movers method
+    if not hasattr(broker, "get_top_movers"):
+        raise BrokerError(
+            message="Top movers not supported by this broker",
+            code="FEATURE_NOT_SUPPORTED",
+        )
+    return broker.get_top_movers(market_type=market_type, limit=limit)

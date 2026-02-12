@@ -693,7 +693,7 @@ def start(ctx: click.Context, dry_run: bool, interval: int, once: bool, force: b
 
     try:
         if once:
-            order_ids = engine.run_once()
+            order_ids = engine.run_once(acquire_lock=True)
             if order_ids:
                 console.print(f"[green]Executed {len(order_ids)} strategy actions[/green]")
             else:
@@ -703,6 +703,148 @@ def start(ctx: click.Context, dry_run: bool, interval: int, once: bool, force: b
     except EngineAlreadyRunningError as e:
         console.print(f"[red]Error: {e}[/red]")
         console.print("[dim]Use --force to override (use with caution)[/dim]")
+
+
+@cli.command("run-once")
+@click.option("--dry-run", is_flag=True, help="Evaluate strategies but don't execute trades")
+@click.option("--force", is_flag=True, help="Force run even if another engine might be running")
+@click.pass_context
+def run_once_cmd(ctx: click.Context, dry_run: bool, force: bool) -> None:
+    """Run one evaluation cycle and exit (for schedule/cron).
+
+    Does the same work as one loop iteration: scheduled strategy checks,
+    market open check, then evaluate all active strategies. Use with
+    'trader schedule enable' so cron runs this on a schedule.
+
+    Examples:
+
+        Single cycle (paper):
+        trader run-once
+
+        Dry run:
+        trader run-once --dry-run
+
+        In crontab (every 5 minutes):
+        */5 * * * * trader run-once
+    """
+    from trader.app import get_broker
+    from trader.core.engine import EngineAlreadyRunningError, TradingEngine, get_lock_file_path
+    from trader.strategies.loader import load_strategies
+
+    config = ctx.obj["config"]
+
+    if not config.alpaca_api_key:
+        env_var = "ALPACA_PROD_API_KEY" if config.is_prod else "ALPACA_API_KEY"
+        console.print(f"[red]Error: {env_var} not configured[/red]")
+        return
+
+    if force:
+        lock_path = get_lock_file_path()
+        if lock_path.exists():
+            try:
+                lock_path.unlink()
+            except Exception as e:
+                console.print(f"[red]Error removing lock file: {e}[/red]")
+                return
+
+    broker = get_broker(config)
+    engine = TradingEngine(
+        broker,
+        poll_interval=60,
+        dry_run=dry_run,
+        strategy_defaults=config.strategy_defaults,
+    )
+
+    try:
+        order_ids = engine.run_once(acquire_lock=True)
+        if order_ids:
+            console.print(f"[green]Executed {len(order_ids)} strategy actions[/green]")
+        else:
+            console.print("[dim]No strategies triggered[/dim]")
+    except EngineAlreadyRunningError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        console.print("[dim]Another cycle is running or the daemon is active. Use --force to override.[/dim]")
+
+
+# =============================================================================
+# Schedule (cron) Commands
+# =============================================================================
+
+
+@cli.group("schedule")
+def schedule_group() -> None:
+    """Enable or disable a cron job that runs one trading cycle on a schedule.
+
+    When enabled, the system runs 'trader run-once' at the interval you choose
+    (e.g. every 5 minutes). No long-running daemon is needed.
+
+    Supported on macOS and Linux only.
+    """
+    pass
+
+
+@schedule_group.command("enable")
+@click.option("--every", type=int, default=5, help="Run every N minutes (1-60, default 5)")
+def schedule_enable(every: int) -> None:
+    """Install a cron job that runs 'trader run-once' on a schedule.
+
+    The job is added to your user crontab. Use 'trader schedule disable' to remove it.
+
+    Examples:
+
+        Every 5 minutes (default):
+        trader schedule enable
+
+        Every minute:
+        trader schedule enable --every 1
+
+        Every 15 minutes:
+        trader schedule enable --every 15
+    """
+    from trader.utils.schedule_cron import enable_schedule, get_trader_path
+
+    try:
+        enable_schedule(every_minutes=every)
+        path = get_trader_path() or "trader"
+        console.print(f"[green]Schedule enabled.[/green] Cron will run [bold]{path} run-once[/bold] every {every} minute(s).")
+        console.print("[dim]View with: crontab -l. Remove with: trader schedule disable[/dim]")
+    except (RuntimeError, ValueError) as e:
+        console.print(f"[red]Error: {e}[/red]")
+
+
+@schedule_group.command("disable")
+def schedule_disable() -> None:
+    """Remove the AutoTrader cron job from your crontab."""
+    from trader.utils.schedule_cron import disable_schedule, is_schedule_enabled
+
+    if not is_schedule_enabled():
+        console.print("[yellow]Schedule was not enabled (no AutoTrader cron job found).[/yellow]")
+        return
+    try:
+        disable_schedule()
+        console.print("[green]Schedule disabled.[/green] Cron job removed.")
+    except RuntimeError as e:
+        console.print(f"[red]Error: {e}[/red]")
+
+
+@schedule_group.command("status")
+def schedule_status() -> None:
+    """Show whether the schedule is enabled and the current cron line."""
+    from trader.utils.schedule_cron import get_schedule_status
+
+    status = get_schedule_status()
+    if not status["supported"]:
+        console.print("[yellow]Schedule (cron) is only supported on macOS and Linux.[/yellow]")
+        return
+    if status["enabled"]:
+        console.print("[green]Schedule: enabled[/green]")
+        console.print(f"  [dim]{status['line']}[/dim]")
+    else:
+        console.print("[dim]Schedule: disabled[/dim]")
+        if status["trader_path"]:
+            console.print(f"  Enable with: [bold]trader schedule enable[/bold] (default: every 5 minutes)")
+        else:
+            console.print("  [yellow]'trader' not on PATH; install with pipx so 'trader schedule enable' can add the cron job.[/yellow]")
 
 
 @cli.command()
@@ -1099,6 +1241,139 @@ def scan(ctx: click.Context, symbols: tuple[str, ...]) -> None:
 
 
 # =============================================================================
+# Config Commands (CLI-only: set/list/get env-based config; secrets redacted)
+# =============================================================================
+
+
+@cli.group("config")
+def config_group() -> None:
+    """View and set environment-based configuration (API keys, URLs, etc.).
+
+    Values are read from environment variables; use 'trader config set' to
+    persist them to a .env file. Secrets are never shown in full when listing.
+    """
+    pass
+
+
+@config_group.command("list")
+@click.option("--show-secrets", is_flag=True, help="Show secret values in full (use with care)")
+@click.pass_context
+def config_list(ctx: click.Context, show_secrets: bool) -> None:
+    """List current configuration (secrets redacted by default)."""
+    from trader.utils.env_config import (
+        CONFIG_KEYS,
+        load_dotenv_for_config,
+        get_config_value,
+        get_display_value,
+        get_env_file_path,
+    )
+
+    load_dotenv_for_config()
+    as_json = _get_json_flag(ctx)
+
+    rows = []
+    for key in sorted(CONFIG_KEYS.keys()):
+        desc = CONFIG_KEYS[key][1]
+        value = get_config_value(key)
+        display = get_display_value(key, value, redact_secrets=not show_secrets)
+        rows.append({"key": key, "value": display, "description": desc})
+
+    if as_json:
+        _json_output(rows)
+        return
+
+    table = Table(title="Configuration")
+    table.add_column("Key", style="cyan")
+    table.add_column("Value", style="green")
+    table.add_column("Description", style="dim")
+    for r in rows:
+        table.add_row(r["key"], r["value"], r["description"])
+    console.print(table)
+    env_path = get_env_file_path()
+    console.print(f"\n[dim]Config file: {env_path}[/dim]")
+
+
+@config_group.command("get")
+@click.argument("key", required=True)
+@click.option("--show-secret", is_flag=True, help="Show secret value in full")
+@click.pass_context
+def config_get(ctx: click.Context, key: str, show_secret: bool) -> None:
+    """Get a single config value (secret redacted unless --show-secret)."""
+    from trader.utils.env_config import (
+        load_dotenv_for_config,
+        get_config_value,
+        get_display_value,
+        CONFIG_KEYS,
+    )
+
+    load_dotenv_for_config()
+    as_json = _get_json_flag(ctx)
+    key = key.strip()
+    # Normalize to known key if present (e.g. alpaca_api_key -> ALPACA_API_KEY)
+    lookup_key = key.upper() if key.upper() in CONFIG_KEYS else key
+    value = get_config_value(lookup_key)
+    display = get_display_value(lookup_key, value, redact_secrets=not show_secret)
+
+    if as_json:
+        _json_output({"key": lookup_key, "value": display})
+        return
+    console.print(display)
+
+
+@config_group.command("set")
+@click.argument("key", required=True)
+@click.argument("value", required=True)
+@click.pass_context
+def config_set(ctx: click.Context, key: str, value: str) -> None:
+    """Set a config value (persisted to .env in config directory)."""
+    from trader.utils.env_config import (
+        load_dotenv_for_config,
+        set_config_value,
+        CONFIG_KEYS,
+        get_env_file_path,
+    )
+
+    load_dotenv_for_config()
+    key = key.strip()
+    key_upper = key.upper()
+    if key_upper in CONFIG_KEYS:
+        key = key_upper  # normalize to known key
+    try:
+        set_config_value(key, value)
+    except ValueError as e:
+        if not ctx.obj.get("json"):
+            console.print(f"[red]Error: {e}[/red]")
+        raise SystemExit(1)
+
+    as_json = _get_json_flag(ctx)
+    if as_json:
+        _json_output({"ok": True, "key": key, "message": "Value set"})
+    else:
+        console.print(f"[green]Set {key}[/green]")
+        console.print(f"[dim]Saved to {get_env_file_path()}[/dim]")
+
+
+@config_group.command("keys")
+@click.pass_context
+def config_keys(ctx: click.Context) -> None:
+    """List available config keys and descriptions (no values)."""
+    from trader.utils.env_config import CONFIG_KEYS
+
+    as_json = _get_json_flag(ctx)
+    rows = [{"key": k, "description": CONFIG_KEYS[k][1], "secret": CONFIG_KEYS[k][0]} for k in sorted(CONFIG_KEYS)]
+    if as_json:
+        _json_output(rows)
+        return
+    table = Table(title="Available config keys")
+    table.add_column("Key", style="cyan")
+    table.add_column("Description", style="green")
+    table.add_column("Secret", justify="center")
+    for r in rows:
+        table.add_row(r["key"], r["description"], "yes" if r["secret"] else "no")
+    console.print(table)
+
+
+# =============================================================================
 # Strategy Commands
 # =============================================================================
 
@@ -1160,6 +1435,22 @@ Example:
     Creates a grid with 5 buy levels below current price and
     5 sell levels above. Profits from price oscillation.
 """,
+    "pullback-trailing": """
+PULLBACK-TRAILING STRATEGY
+
+Wait for a pullback (price drops X% from the recent high), then buy at market.
+Once in the position, manage the exit with a trailing stop. Holistic
+"buy the dip + trail gains" strategy.
+
+Best for: Names you want to own but prefer to buy on weakness
+
+Example:
+    trader strategy add pullback-trailing SOFI --qty 300 --pullback-pct 5 --trailing-pct 5
+
+    Watches SOFI; on first run sets reference = current price. Each cycle
+    reference = max(reference, current price). When price drops 5%% from
+    reference, buys 300 shares at market. Then a 5%% trailing stop manages the exit.
+""",
 }
 
 
@@ -1174,6 +1465,7 @@ def strategy() -> None:
     Available strategies:
     - trailing-stop: Ride trends, lock in gains with trailing stop
     - bracket: Defined risk/reward with take-profit and stop-loss
+    - pullback-trailing: Wait for X% pullback, then buy; exit with trailing stop
     - scale-out: Sell portions at progressive profit targets
     - grid: Profit from sideways volatility
 
@@ -1269,10 +1561,11 @@ def notify_test(ctx: click.Context, channel: str) -> None:
     """Send a test notification to verify channel configuration."""
     from trader.app.notifications import get_notification_manager, send_test_notification
     from trader.errors import ConfigurationError
+    from trader.utils.paths import get_config_dir
 
     config = ctx.obj["config"]
     as_json = _get_json_flag(ctx)
-    config_dir = config.data_dir.parent / "config"
+    config_dir = get_config_dir()
 
     manager = get_notification_manager(config_dir=config_dir)
     if not manager.enabled:
@@ -1308,9 +1601,11 @@ def notify_send(ctx: click.Context, message: str, channel: str) -> None:
     """Send a manual notification message."""
     from trader.app.notifications import get_notification_manager, send_notification
 
+    from trader.utils.paths import get_config_dir
+
     config = ctx.obj["config"]
     as_json = _get_json_flag(ctx)
-    config_dir = config.data_dir.parent / "config"
+    config_dir = get_config_dir()
 
     manager = get_notification_manager(config_dir=config_dir)
     if not manager.enabled:
@@ -1379,6 +1674,11 @@ def strategy_list(ctx: click.Context) -> None:
             details.append(f"trail: {s.trailing_stop_pct}%")
             if s.high_watermark:
                 details.append(f"high: ${s.high_watermark:.2f}")
+        elif stype == "pullback_trailing":
+            details.append(f"pullback: {s.pullback_pct}%")
+            details.append(f"trail: {s.trailing_stop_pct}%")
+            if getattr(s, "pullback_reference_price", None):
+                details.append(f"ref: ${float(s.pullback_reference_price):.2f}")
         elif stype == "bracket":
             details.append(f"TP: +{s.take_profit_pct}%")
             details.append(f"SL: -{s.stop_loss_pct}%")
@@ -1404,11 +1704,12 @@ def strategy_list(ctx: click.Context) -> None:
 
 @strategy.command("add")
 @click.argument("strategy_type", type=click.Choice([
-    "trailing-stop", "bracket", "scale-out", "grid",
+    "trailing-stop", "bracket", "scale-out", "grid", "pullback-trailing",
 ]))
 @click.argument("symbol")
 @click.option("--qty", type=int, default=1, help="Number of shares (default: 1)")
-@click.option("--trailing-pct", type=float, help="Trailing stop percentage (for trailing-stop)")
+@click.option("--trailing-pct", type=float, help="Trailing stop percentage (for trailing-stop and pullback-trailing)")
+@click.option("--pullback-pct", type=float, help="Pullback % from high to trigger buy (for pullback-trailing, default: 5)")
 @click.option("--take-profit", type=float, help="Take profit percentage (for bracket)")
 @click.option("--stop-loss", type=float, help="Stop loss percentage (for bracket)")
 @click.option("--limit", "-L", type=float, help="Limit price for entry (default: market order)")
@@ -1420,6 +1721,7 @@ def strategy_add(
     symbol: str,
     qty: int,
     trailing_pct: float | None,
+    pullback_pct: float | None,
     take_profit: float | None,
     stop_loss: float | None,
     limit: float | None,
@@ -1430,15 +1732,17 @@ def strategy_add(
     STRATEGY TYPES:
 
     \b
-    trailing-stop  Ride trends, lock in gains with a trailing stop
-    bracket        Take-profit AND stop-loss (OCO style)
-    scale-out      Sell portions at progressive profit targets
-    grid           Buy low intervals, sell high intervals
+    trailing-stop     Ride trends, lock in gains with a trailing stop
+    bracket           Take-profit AND stop-loss (OCO style)
+    scale-out         Sell portions at progressive profit targets
+    grid              Buy low intervals, sell high intervals
+    pullback-trailing Wait for X% pullback from high, then buy; exit with trailing stop
 
     \b
     EXAMPLES:
         trader strategy add trailing-stop AAPL --qty 10 --trailing-pct 5
         trader strategy add bracket TSLA --qty 5 --take-profit 10 --stop-loss 5
+        trader strategy add pullback-trailing SOFI --qty 300 --pullback-pct 5 --trailing-pct 5
         trader strategy add scale-out GOOGL --qty 20
         trader strategy add grid NVDA --levels 5
 
@@ -1456,6 +1760,7 @@ def strategy_add(
             symbol=symbol,
             qty=qty,
             trailing_pct=trailing_pct,
+            pullback_pct=pullback_pct,
             take_profit=take_profit,
             stop_loss=stop_loss,
             entry_price=limit,
@@ -1486,6 +1791,9 @@ def strategy_add(
                 gc = result.grid_config
                 lo, hi, lvl = gc['low'], gc['high'], gc['levels']
                 console.print(f"[dim]range: ${lo:.2f}-${hi:.2f}, {lvl} levels[/dim]")
+            elif stype == "pullback_trailing":
+                console.print(f"[dim]pullback: {result.pullback_pct}%, trailing stop: {result.trailing_stop_pct}%[/dim]")
+                console.print("[dim]Entry: market when price pulls back from reference high[/dim]")
 
             console.print()
             console.print("Start the engine to activate: [cyan]trader start[/cyan]")
@@ -1533,6 +1841,15 @@ def strategy_show(ctx: click.Context, strategy_id: str) -> None:
                     console.print(f"  High Watermark: ${strat.high_watermark:.2f}")
                     stop_price = strat.high_watermark * (1 - strat.trailing_stop_pct / 100)
                     console.print(f"  Current Stop: ${stop_price:.2f}")
+            elif strat.strategy_type == "pullback_trailing":
+                console.print(f"  Pullback: {strat.pullback_pct}% (buy when price drops from reference)")
+                console.print(f"  Trailing Stop: {strat.trailing_stop_pct}%")
+                if strat.pullback_reference_price:
+                    console.print(f"  Reference (high): ${strat.pullback_reference_price:.2f}")
+                    threshold = strat.pullback_reference_price * (1 - strat.pullback_pct / 100)
+                    console.print(f"  Buy Trigger: price <= ${threshold:.2f}")
+                if strat.high_watermark:
+                    console.print(f"  High Watermark: ${strat.high_watermark:.2f}")
             elif strat.strategy_type == "bracket":
                 console.print(f"  Take Profit: +{strat.take_profit_pct}%")
                 console.print(f"  Stop Loss: -{strat.stop_loss_pct}%")
@@ -1662,12 +1979,192 @@ def strategy_resume(ctx: click.Context, strategy_id: str) -> None:
 
 @strategy.command("explain")
 @click.argument("strategy_type", type=click.Choice([
-    "trailing-stop", "bracket", "scale-out", "grid",
+    "trailing-stop", "bracket", "scale-out", "grid", "pullback-trailing",
 ]))
 def strategy_explain(strategy_type: str) -> None:
     """Explain how a strategy type works."""
     help_text = STRATEGY_HELP.get(strategy_type, "No help available")
     console.print(help_text)
+
+
+@strategy.group()
+def schedule() -> None:
+    """Schedule strategies to start at specific times."""
+    pass
+
+
+@schedule.command("add")
+@click.argument("strategy_id")
+@click.argument("schedule_at", type=str)
+@click.pass_context
+def schedule_add(ctx: click.Context, strategy_id: str, schedule_at: str) -> None:
+    """Schedule a strategy to start at a specific time.
+
+    SCHEDULE_AT format: ISO datetime string or relative time
+    Examples:
+        "2026-02-13T09:30:00"  (9:30 AM on Feb 13)
+        "2026-02-13 09:30:00"   (alternative format)
+        "tomorrow 09:30"        (9:30 AM tomorrow)
+        "+2h"                   (2 hours from now)
+
+    The strategy will be disabled until the schedule time arrives.
+    Once the time arrives, the engine will automatically enable it.
+
+    Examples:
+        trader strategy schedule add abc123 "2026-02-13T09:30:00"
+        trader strategy schedule add abc123 "tomorrow 09:30"
+    """
+    from datetime import datetime, timedelta
+    from trader.app.strategies import schedule_strategy
+
+    as_json = _get_json_flag(ctx)
+
+    try:
+        # Parse schedule_at string
+        schedule_dt = _parse_schedule_time(schedule_at)
+        
+        result = schedule_strategy(strategy_id, schedule_dt)
+        
+        if as_json:
+            _json_output(result)
+        else:
+            console.print(f"[green]Strategy {strategy_id} scheduled[/green]")
+            console.print(f"[dim]Will start at: {schedule_dt.strftime('%Y-%m-%d %H:%M:%S')}[/dim]")
+            console.print(f"[dim]Strategy is now disabled until schedule time[/dim]")
+    except AppError as e:
+        _handle_error(e, as_json)
+    except ValueError as e:
+        if as_json:
+            _json_output({"error": "INVALID_SCHEDULE", "message": str(e)})
+        else:
+            console.print(f"[red]Error parsing schedule time: {e}[/red]")
+            console.print("[dim]Use ISO format: '2026-02-13T09:30:00' or '2026-02-13 09:30:00'[/dim]")
+
+
+@schedule.command("list")
+@click.pass_context
+def schedule_list(ctx: click.Context) -> None:
+    """List all scheduled strategies."""
+    from trader.app.strategies import list_scheduled_strategies
+
+    as_json = _get_json_flag(ctx)
+    result = list_scheduled_strategies()
+
+    if as_json:
+        _json_output(result)
+        return
+
+    if not result["scheduled"]:
+        console.print("[yellow]No scheduled strategies[/yellow]")
+        return
+
+    table = Table(title="Scheduled Strategies")
+    table.add_column("ID", style="dim")
+    table.add_column("Symbol", style="cyan")
+    table.add_column("Type")
+    table.add_column("Schedule Time")
+    table.add_column("Status")
+
+    for s in result["scheduled"]:
+        from datetime import datetime
+        schedule_dt = datetime.fromisoformat(s["schedule_at"])
+        time_str = schedule_dt.strftime("%Y-%m-%d %H:%M:%S")
+        status = "[green]Enabled[/green]" if s["enabled"] else "[yellow]Disabled[/yellow]"
+        table.add_row(
+            s["id"],
+            s["symbol"],
+            s["strategy_type"].replace("_", "-"),
+            time_str,
+            status,
+        )
+
+    console.print(table)
+
+
+@schedule.command("cancel")
+@click.argument("strategy_id")
+@click.pass_context
+def schedule_cancel(ctx: click.Context, strategy_id: str) -> None:
+    """Cancel a scheduled strategy.
+
+    This clears the schedule and leaves the strategy in its current state
+    (enabled or disabled).
+    """
+    from trader.app.strategies import cancel_schedule
+
+    as_json = _get_json_flag(ctx)
+
+    try:
+        result = cancel_schedule(strategy_id)
+        if as_json:
+            _json_output(result)
+        else:
+            if result.get("status") == "no_schedule":
+                console.print(f"[yellow]{result.get('message', 'No schedule found')}[/yellow]")
+            else:
+                console.print(f"[green]Schedule canceled for strategy {strategy_id}[/green]")
+    except AppError as e:
+        _handle_error(e, as_json)
+
+
+def _parse_schedule_time(schedule_str: str) -> datetime:
+    """Parse schedule time string to datetime.
+
+    Supports:
+    - ISO format: "2026-02-13T09:30:00" or "2026-02-13 09:30:00"
+    - Relative: "+2h" (2 hours), "+30m" (30 minutes), "+1d" (1 day)
+    - Tomorrow: "tomorrow 09:30"
+    """
+    from datetime import datetime, timedelta
+
+    schedule_str = schedule_str.strip().lower()
+
+    # Relative time: +2h, +30m, +1d
+    if schedule_str.startswith("+"):
+        now = datetime.now()
+        time_str = schedule_str[1:]
+        
+        if time_str.endswith("h"):
+            hours = int(time_str[:-1])
+            return now + timedelta(hours=hours)
+        elif time_str.endswith("m"):
+            minutes = int(time_str[:-1])
+            return now + timedelta(minutes=minutes)
+        elif time_str.endswith("d"):
+            days = int(time_str[:-1])
+            return now + timedelta(days=days)
+        else:
+            raise ValueError(f"Invalid relative time format: {schedule_str}")
+
+    # Tomorrow format: "tomorrow 09:30"
+    if schedule_str.startswith("tomorrow"):
+        now = datetime.now()
+        tomorrow = now + timedelta(days=1)
+        time_part = schedule_str.replace("tomorrow", "").strip()
+        
+        if time_part:
+            try:
+                hour, minute = map(int, time_part.split(":"))
+                return tomorrow.replace(hour=hour, minute=minute, second=0, microsecond=0)
+            except ValueError:
+                raise ValueError(f"Invalid time format in 'tomorrow {time_part}'")
+        else:
+            return tomorrow.replace(hour=9, minute=30, second=0, microsecond=0)  # Default 9:30 AM
+
+    # ISO format: try parsing as ISO datetime
+    try:
+        # Try with T separator first
+        if "T" in schedule_str:
+            return datetime.fromisoformat(schedule_str)
+        # Try with space separator
+        elif " " in schedule_str:
+            return datetime.strptime(schedule_str, "%Y-%m-%d %H:%M:%S")
+        else:
+            # Try date only, default to 9:30 AM
+            date_part = datetime.strptime(schedule_str, "%Y-%m-%d")
+            return date_part.replace(hour=9, minute=30, second=0, microsecond=0)
+    except ValueError:
+        raise ValueError(f"Invalid datetime format: {schedule_str}. Use ISO format: '2026-02-13T09:30:00'")
 
 
 # ============================================================================

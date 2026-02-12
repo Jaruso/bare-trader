@@ -15,7 +15,8 @@ from trader.strategies.models import Strategy
 def get_strategies_file(config_dir: Optional[Path] = None) -> Path:
     """Get path to strategies file."""
     if config_dir is None:
-        config_dir = Path(__file__).parent.parent.parent / "config"
+        from trader.utils.paths import get_config_dir
+        config_dir = get_config_dir()
     config_dir.mkdir(parents=True, exist_ok=True)
     return config_dir / "strategies.yaml"
 
@@ -147,11 +148,33 @@ def enable_strategy(strategy_id: str, enabled: bool = True, config_dir: Optional
 def get_active_strategies(config_dir: Optional[Path] = None) -> list[Strategy]:
     """Get all active (non-terminal, enabled) strategies.
 
+    Excludes strategies that are scheduled but haven't reached their schedule time yet.
+
     Args:
         config_dir: Config directory path.
 
     Returns:
         List of active strategies.
     """
+    from datetime import datetime
+
     strategies = load_strategies(config_dir)
-    return [s for s in strategies if s.enabled and s.is_active()]
+    now = datetime.now()
+    
+    active = []
+    for s in strategies:
+        # Skip if not enabled
+        if not s.enabled:
+            continue
+        
+        # Skip if scheduled but schedule time hasn't arrived
+        if s.schedule_enabled and s.schedule_at and s.schedule_at > now:
+            continue
+        
+        # Skip if in terminal phase
+        if not s.is_active():
+            continue
+        
+        active.append(s)
+    
+    return active

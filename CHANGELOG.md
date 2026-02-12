@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+- **Schedule (cron) commands** — `trader schedule enable` installs a user crontab job that runs `trader run-once` on a schedule (default every 5 minutes; `--every N` for 1–60 minutes). `trader schedule disable` removes the job; `trader schedule status` shows whether it is enabled and the cron line. Supported on macOS and Linux. No environment variable; the schedule is enabled or disabled by adding/removing the cron job.
+- **Pullback-trailing strategy** — New strategy type `pullback-trailing`: wait for price to pull back X% from the observed high, then buy at market; after entry, exit is managed with a trailing stop. Holistic "buy the dip + trail gains" strategy. CLI: `trader strategy add pullback-trailing SYMBOL --qty N --pullback-pct 5 --trailing-pct 5`. MCP: `create_strategy(strategy_type="pullback-trailing", symbol=..., qty=..., pullback_pct=5, trailing_pct=5)`. Engine sets reference price on first run and raises it when price makes new highs; when price drops pullback_pct from reference, places market buy, then runs trailing stop.
+- **Config CLI (CLI-only)** — `trader config list`, `trader config get KEY`, `trader config set KEY VALUE`, `trader config keys`. Environment-based config is the default (env vars and `.env`); values can be viewed and set via CLI. Secrets (API keys, webhook URLs) are redacted when listing or getting unless `--show-secrets` / `--show-secret` is used. Optional base URL overrides: `ALPACA_PAPER_BASE_URL`, `ALPACA_PROD_BASE_URL`. No MCP tools for config (by design, to avoid exposing secrets to agents).
+- **Top market movers** — New `get_top_movers()` MCP tool and app function to fetch today's top gainers and losers from Alpaca's screener API. Supports both stocks and crypto markets with configurable limit. Added to `AlpacaBroker` class, exposed via `trader/app/portfolio.py`, and registered as MCP tool. Useful for strategy discovery workflow to identify active trading opportunities.
+- **Autonomous research prompts** — Three new research workflows for systematic market exploration:
+  - `research-large-caps.md` — Autonomous research of major large-cap stocks (AAPL, GOOGL, MSFT, NVDA, TSLA, etc.) with systematic strategy testing and documentation
+  - `research-sectors.md` — Sector-based equity discovery identifying sector-specific patterns and optimal strategies per sector
+  - `explore-opportunities.md` — Autonomous discovery workflow using top movers, sector rotation, and pattern recognition to find new trading opportunities
+  - All prompts enable agents to research autonomously, document findings in CONTEXTS.md, and build on past research without user direction
+  - Corresponding Cursor commands created for easy access: `/research-large-caps`, `/research-sectors`, `/explore-opportunities`
+
 ## [0.6.0] - 2026-02-11
 
 ### Added

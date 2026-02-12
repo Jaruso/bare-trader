@@ -12,7 +12,7 @@ from typing import Any, Literal
 
 from mcp.server.fastmcp import FastMCP
 
-from trader.errors import AppError
+from trader.errors import AppError, ValidationError
 
 # =============================================================================
 # Helpers
@@ -125,6 +125,22 @@ def get_quote(symbol: str) -> str:
         return _err(e)
 
 
+def get_top_movers(market_type: str = "stocks", limit: int = 10) -> str:
+    """Get top market movers (gainers and losers).
+
+    Args:
+        market_type: Market type ('stocks' or 'crypto'). Defaults to 'stocks'.
+        limit: Maximum number of gainers/losers to return. Defaults to 10.
+    """
+    from trader.app.portfolio import get_top_movers as _get_top_movers
+
+    try:
+        result = _get_top_movers(_config(), market_type=market_type, limit=limit)
+        return json.dumps(result, indent=2, default=str)
+    except AppError as e:
+        return _err(e)
+
+
 # =============================================================================
 # Order Tools
 # =============================================================================
@@ -219,6 +235,7 @@ def create_strategy(
     symbol: str,
     qty: int = 1,
     trailing_pct: float | None = None,
+    pullback_pct: float | None = None,
     take_profit: float | None = None,
     stop_loss: float | None = None,
     entry_price: float | None = None,
@@ -227,10 +244,11 @@ def create_strategy(
     """Create a new trading strategy.
 
     Args:
-        strategy_type: One of "trailing-stop", "bracket", "scale-out", "grid".
+        strategy_type: One of "trailing-stop", "bracket", "scale-out", "grid", "pullback-trailing".
         symbol: Stock ticker (e.g. "AAPL").
         qty: Number of shares per trade.
-        trailing_pct: Trailing stop percentage (for trailing-stop strategy).
+        trailing_pct: Trailing stop percentage (for trailing-stop and pullback-trailing).
+        pullback_pct: Pullback % from high to trigger buy (for pullback-trailing, default 5).
         take_profit: Take profit percentage (for bracket strategy).
         stop_loss: Stop loss percentage (for bracket strategy).
         entry_price: Limit entry price. If omitted, uses market order.
@@ -245,6 +263,7 @@ def create_strategy(
             symbol=symbol.upper(),
             qty=qty,
             trailing_pct=trailing_pct,
+            pullback_pct=pullback_pct,
             take_profit=take_profit,
             stop_loss=stop_loss,
             entry_price=entry_price,
@@ -308,6 +327,63 @@ def set_strategy_enabled(strategy_id: str, enabled: bool) -> str:
 
     try:
         return _ok(_set_enabled(strategy_id, enabled))
+    except AppError as e:
+        return _err(e)
+
+
+def schedule_strategy(strategy_id: str, schedule_at: str) -> str:
+    """Schedule a strategy to start at a specific time.
+
+    The strategy will be disabled until the schedule time arrives.
+    Once the time arrives, the engine will automatically enable it.
+
+    Args:
+        strategy_id: The strategy ID to schedule.
+        schedule_at: ISO datetime string (e.g., "2026-02-13T09:30:00").
+    """
+    from datetime import datetime
+    from trader.app.strategies import schedule_strategy as _schedule_strategy
+
+    try:
+        # Parse ISO datetime string
+        schedule_dt = datetime.fromisoformat(schedule_at)
+        return _ok(_schedule_strategy(strategy_id, schedule_dt))
+    except ValueError as e:
+        return _err(
+            ValidationError(
+                message=f"Invalid datetime format: {schedule_at}. Use ISO format: '2026-02-13T09:30:00'",
+                code="INVALID_DATETIME_FORMAT",
+            )
+        )
+    except AppError as e:
+        return _err(e)
+
+
+def cancel_schedule(strategy_id: str) -> str:
+    """Cancel a scheduled strategy.
+
+    This clears the schedule and leaves the strategy in its current state.
+
+    Args:
+        strategy_id: The strategy ID to cancel schedule for.
+    """
+    from trader.app.strategies import cancel_schedule as _cancel_schedule
+
+    try:
+        return _ok(_cancel_schedule(strategy_id))
+    except AppError as e:
+        return _err(e)
+
+
+def list_scheduled_strategies() -> str:
+    """List all strategies with active schedules.
+
+    Returns a list of strategies that are scheduled to start at a future time.
+    """
+    from trader.app.strategies import list_scheduled_strategies as _list_scheduled
+
+    try:
+        return _ok(_list_scheduled())
     except AppError as e:
         return _err(e)
 
@@ -647,6 +723,7 @@ _ALL_TOOLS = [
     get_positions,
     get_portfolio,
     get_quote,
+    get_top_movers,
     # Orders
     place_order,
     list_orders,
@@ -659,6 +736,9 @@ _ALL_TOOLS = [
     pause_strategy,
     resume_strategy,
     set_strategy_enabled,
+    schedule_strategy,
+    cancel_schedule,
+    list_scheduled_strategies,
     # Backtests
     run_backtest,
     list_backtests,

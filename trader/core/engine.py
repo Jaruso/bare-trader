@@ -26,8 +26,8 @@ class EngineAlreadyRunningError(Exception):
 def get_lock_file_path() -> Path:
     """Get the path to the engine lock file."""
     # Store in config directory alongside strategies.yaml
-    config_dir = Path(__file__).parent.parent.parent / "config"
-    config_dir.mkdir(parents=True, exist_ok=True)
+    from trader.utils.paths import get_config_dir
+    config_dir = get_config_dir()
     return config_dir / ".engine.lock"
 
 
@@ -211,12 +211,15 @@ class TradingEngine:
             if sleep_time > 0 and not self._stop_requested:
                 time.sleep(sleep_time)
 
-    def _run_cycle(self) -> None:
-        """Run a single evaluation cycle."""
+    def _run_cycle(self) -> list[str]:
+        """Run a single evaluation cycle. Returns list of strategy IDs that had actions."""
+        # Check scheduled strategies and enable them if time has arrived
+        self._check_scheduled_strategies()
+
         # Check if market is open
         if not self.broker.is_market_open():
             self.logger.debug("Market closed, skipping cycle")
-            return
+            return []
 
         # Evaluate strategies
         strategies = get_active_strategies()
@@ -225,27 +228,49 @@ class TradingEngine:
             strategy_ids = self.strategy_evaluator.run_once(strategies, dry_run=self.dry_run)
             if strategy_ids:
                 self.logger.info(f"Strategy actions executed: {strategy_ids}")
-        else:
-            self.logger.debug("No active strategies")
+            return strategy_ids or []
+        self.logger.debug("No active strategies")
+        return []
 
-    def run_once(self) -> list[str]:
-        """Run a single evaluation cycle manually.
+    def _check_scheduled_strategies(self) -> None:
+        """Check scheduled strategies and enable them when schedule time arrives."""
+        from trader.strategies.loader import load_strategies, save_strategy
+
+        strategies = load_strategies()
+        now = datetime.now()
+
+        for strategy in strategies:
+            if strategy.schedule_enabled and strategy.schedule_at:
+                if strategy.schedule_at <= now:
+                    # Schedule time has arrived - enable strategy
+                    self.logger.info(
+                        f"Scheduled strategy {strategy.id} ({strategy.symbol}) "
+                        f"enabled at scheduled time {strategy.schedule_at}"
+                    )
+                    strategy.enabled = True
+                    strategy.schedule_enabled = False
+                    strategy.schedule_at = None
+                    save_strategy(strategy)
+
+    def run_once(self, acquire_lock: bool = False) -> list[str]:
+        """Run a single evaluation cycle (scheduled strategies check + market check + evaluate).
+
+        Args:
+            acquire_lock: If True, acquire engine lock for the duration of the cycle
+                         to prevent overlap when run by cron. Release when done.
 
         Returns:
-            List of strategy IDs from executed trades.
+            List of strategy IDs that had actions executed.
         """
         self.logger.info("Running single evaluation cycle")
 
-        if not self.broker.is_market_open():
-            self.logger.warning("Market is closed")
-            return []
-
-        # Run strategies
-        strategies = get_active_strategies()
-        if strategies:
-            return self.strategy_evaluator.run_once(strategies, dry_run=self.dry_run)
-
-        return []
+        if acquire_lock:
+            self._acquire_lock()
+        try:
+            return self._run_cycle()
+        finally:
+            if acquire_lock:
+                self._release_lock()
 
     @property
     def is_running(self) -> bool:

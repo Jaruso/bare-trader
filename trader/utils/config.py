@@ -139,17 +139,17 @@ def load_config(
     """
     project_root = Path(__file__).parent.parent.parent
 
-    # Load .env file — try project root first, then CWD, then home directory.
-    # When installed via pipx, project_root points into site-packages,
-    # so we fall back to other common locations.
+    # Load .env files: project root, CWD, then config .env (so CLI-set values are used).
+    from trader.utils.paths import get_config_dir
+    config_parent = get_config_dir().parent
     for candidate in [
         project_root / ".env",
         Path.cwd() / ".env",
+        config_parent / ".env",
         Path.home() / ".autotrader" / ".env",
     ]:
         if candidate.is_file():
             load_dotenv(candidate)
-            break
 
     # Determine service
     if service:
@@ -163,8 +163,12 @@ def load_config(
     # Determine environment
     environment = Environment.PROD if prod else Environment.PAPER
 
-    # Get URL for this service/environment
+    # Get URL for this service/environment (env override for Alpaca)
     base_url = SERVICE_URLS[svc][environment]
+    if svc == Service.ALPACA:
+        override = os.getenv("ALPACA_PAPER_BASE_URL" if environment == Environment.PAPER else "ALPACA_PROD_BASE_URL")
+        if override and override.strip():
+            base_url = override.strip()
 
     # Get API credentials - use different env vars for prod vs paper
     if prod:
@@ -174,9 +178,20 @@ def load_config(
         alpaca_api_key = os.getenv("ALPACA_API_KEY", "")
         alpaca_secret_key = os.getenv("ALPACA_SECRET_KEY", "")
 
-    # Set up directories
-    data_dir = project_root / "data"
-    log_dir = project_root / "logs"
+    # Set up directories - use user directories when installed, project dirs in dev
+    from trader.utils.paths import get_config_dir, get_data_dir, get_log_dir
+    
+    # Check if we're in development mode (config dir exists in project root)
+    is_dev_mode = (project_root / "config" / "strategies.yaml").exists() or (project_root / "pyproject.toml").exists()
+    
+    if is_dev_mode:
+        # Development mode - use project directories
+        data_dir = project_root / "data"
+        log_dir = project_root / "logs"
+    else:
+        # Installed mode - use user directories
+        data_dir = get_data_dir()
+        log_dir = get_log_dir()
 
     # Data provider config
     data_source = os.getenv("DATA_SOURCE", "csv")

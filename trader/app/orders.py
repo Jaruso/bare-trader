@@ -136,6 +136,14 @@ def cancel_order(config: Config, order_id: str) -> dict[str, str]:
     success = broker.cancel_order(order_id)
 
     if success:
+        # Update local order status to canceled
+        try:
+            canceled_order = broker.get_order(order_id)
+            if canceled_order:
+                save_order(canceled_order)
+        except Exception:
+            logger.debug(f"Failed to update local order {order_id} after cancellation")
+        
         audit_log("cancel_order", {"order_id": order_id}, log_dir=config.log_dir)
         return {"status": "canceled", "order_id": order_id}
     else:

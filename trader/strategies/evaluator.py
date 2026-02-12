@@ -114,10 +114,15 @@ class StrategyEvaluator:
     def _evaluate_pending(self, strategy: Strategy) -> Optional[StrategyAction]:
         """Evaluate a strategy waiting for entry.
 
+        For pullback-trailing: wait for price to pull back X% from reference, then buy.
         For market entries, immediately place the order.
         For limit entries, check if price condition is met.
         For conditional entries, check the condition.
         """
+        # Pullback-trailing: wait for pullback, then place market entry; exit via trailing stop
+        if strategy.strategy_type == StrategyType.PULLBACK_TRAILING:
+            return self._evaluate_pullback_pending(strategy)
+
         if strategy.entry_type == EntryType.MARKET:
             # Place market entry immediately
             return StrategyAction(
@@ -200,6 +205,55 @@ class StrategyEvaluator:
 
         return None
 
+    def _evaluate_pullback_pending(self, strategy: Strategy) -> Optional[StrategyAction]:
+        """Evaluate pullback-trailing in PENDING: update reference high, trigger buy on pullback."""
+        if strategy.pullback_pct is None or strategy.trailing_stop_pct is None:
+            return StrategyAction(
+                strategy_id=strategy.id,
+                action_type=ActionType.FAIL,
+                reason="Pullback-trailing requires pullback_pct and trailing_stop_pct",
+            )
+
+        quote = self.broker.get_quote(strategy.symbol)
+        current_price = (quote.bid + quote.ask) / 2
+
+        # Initialize or update reference (high-water mark while waiting)
+        if strategy.pullback_reference_price is None:
+            return StrategyAction(
+                strategy_id=strategy.id,
+                action_type=ActionType.UPDATE_STATE,
+                state_updates={"pullback_reference_price": Decimal(str(current_price))},
+                reason=f"Pullback reference set to ${current_price:.2f}; waiting for {strategy.pullback_pct}% pullback",
+            )
+
+        reference = strategy.pullback_reference_price
+        # Reference tracks the high; if price goes higher, raise the reference
+        if current_price > float(reference):
+            return StrategyAction(
+                strategy_id=strategy.id,
+                action_type=ActionType.UPDATE_STATE,
+                state_updates={"pullback_reference_price": Decimal(str(current_price))},
+                reason=f"Pullback reference updated to ${current_price:.2f}",
+            )
+
+        # Check if we've had a pullback: current <= reference * (1 - pullback_pct/100)
+        threshold = float(reference) * (1 - float(strategy.pullback_pct) / 100)
+        if current_price <= threshold:
+            # Pullback reached — place market entry
+            return StrategyAction(
+                strategy_id=strategy.id,
+                action_type=ActionType.PLACE_ENTRY_ORDER,
+                order_params={
+                    "symbol": strategy.symbol,
+                    "qty": Decimal(str(strategy.quantity)),
+                    "side": OrderSide.BUY,
+                    "order_type": OrderType.MARKET,
+                },
+                reason=f"Pullback of {strategy.pullback_pct}% reached (price ${current_price:.2f} <= ${threshold:.2f}); placing market buy",
+            )
+
+        return None
+
     def _evaluate_entry_active(self, strategy: Strategy) -> Optional[StrategyAction]:
         """Check if entry order has filled."""
         if not strategy.entry_order_id:
@@ -245,6 +299,9 @@ class StrategyEvaluator:
     def _evaluate_position_open(self, strategy: Strategy) -> Optional[StrategyAction]:
         """Evaluate an open position based on strategy type."""
         if strategy.strategy_type == StrategyType.TRAILING_STOP:
+            return self._evaluate_trailing_stop(strategy)
+        elif strategy.strategy_type == StrategyType.PULLBACK_TRAILING:
+            # After entry, same exit logic as trailing stop
             return self._evaluate_trailing_stop(strategy)
         elif strategy.strategy_type == StrategyType.BRACKET:
             return self._evaluate_bracket(strategy)

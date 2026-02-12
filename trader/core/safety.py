@@ -4,9 +4,9 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Optional
 
-from trader.api.broker import Broker
+from trader.api.broker import Broker, OrderStatus as BrokerOrderStatus, OrderSide as BrokerOrderSide
 from trader.data.ledger import TradeLedger
-from trader.oms.store import load_orders
+from trader.oms.store import load_orders, save_order
 from trader.models.order import OrderSide as LocalOrderSide, OrderStatus as LocalOrderStatus
 from pathlib import Path
 from trader.utils.logging import get_logger
@@ -118,37 +118,87 @@ class SafetyCheck:
         if order_value > self.limits.max_order_value:
             return False, f"Order value ${order_value:.2f} exceeds limit ${self.limits.max_order_value}"
 
-        # Consider pending orders saved in orders file as reserved quantity/value
+        # Get actual pending orders from broker (source of truth)
+        # Also reconcile local orders.yaml with broker to keep it in sync
         try:
-            pending = load_orders(self.orders_dir)
-        except Exception:
-            pending = []
+            broker_orders = self.broker.get_orders()
+            # Filter to only pending orders for this symbol
+            pending_broker_orders = [
+                o for o in broker_orders
+                if o.symbol == symbol
+                and o.status in (
+                    BrokerOrderStatus.NEW,
+                    BrokerOrderStatus.PENDING,
+                    BrokerOrderStatus.ACCEPTED,
+                    BrokerOrderStatus.PARTIALLY_FILLED,
+                )
+            ]
+            
+            # Reconcile local orders.yaml with broker (update statuses)
+            try:
+                local_orders = load_orders(self.orders_dir)
+                for local_order in local_orders:
+                    if local_order.symbol != symbol:
+                        continue
+                    # Skip if already in final state
+                    if local_order.status in (LocalOrderStatus.FILLED, LocalOrderStatus.CANCELED):
+                        continue
+                    
+                    # Find matching broker order
+                    broker_order = None
+                    for bo in broker_orders:
+                        if (bo.id == local_order.id or 
+                            bo.id == local_order.external_id or
+                            (local_order.external_id and bo.id == local_order.external_id)):
+                            broker_order = bo
+                            break
+                    
+                    # Update local order if broker shows different status
+                    if broker_order:
+                        broker_status = broker_order.status
+                        local_status = local_order.status
+                        # Compare status values
+                        broker_status_str = broker_status.value if hasattr(broker_status, 'value') else str(broker_status)
+                        local_status_str = local_status.value if hasattr(local_status, 'value') else str(local_status)
+                        
+                        if broker_status_str != local_status_str:
+                            try:
+                                # Save updated broker order to sync status
+                                save_order(broker_order, self.orders_dir)
+                                self.logger.debug(f"Reconciled order {local_order.id}: {local_status_str} -> {broker_status_str}")
+                            except Exception as e:
+                                self.logger.debug(f"Failed to reconcile order {local_order.id}: {e}")
+            except Exception as e:
+                self.logger.debug(f"Failed to reconcile local orders: {e}")
+        except Exception as e:
+            self.logger.debug(f"Failed to get broker orders, falling back to local: {e}")
+            pending_broker_orders = []
 
+        # Calculate pending quantities from broker orders (source of truth)
         pending_buy_qty = 0
         pending_buy_value = Decimal("0")
         pending_sell_qty = 0
         midpoint = None
-        for o in pending:
-            if o.symbol != symbol:
-                continue
-            # treat NEW or SUBMITTED as pending
-            if o.status in (LocalOrderStatus.NEW, LocalOrderStatus.SUBMITTED):
-                if o.side == LocalOrderSide.BUY:
-                    pending_buy_qty += int(o.qty)
-                    # estimate value
-                    if o.limit_price is not None:
-                        pending_buy_value += o.limit_price * o.qty
-                    else:
-                        # lazy fetch midpoint once
-                        if midpoint is None:
-                            try:
-                                q = self.broker.get_quote(symbol)
-                                midpoint = (q.bid + q.ask) / 2
-                            except Exception:
-                                midpoint = Decimal("0")
-                        pending_buy_value += (midpoint or Decimal("0")) * o.qty
+        for o in pending_broker_orders:
+            is_buy_order = o.side == BrokerOrderSide.BUY
+            qty = int(o.qty)
+            
+            if is_buy_order:
+                pending_buy_qty += qty
+                # estimate value
+                if o.limit_price is not None:
+                    pending_buy_value += Decimal(str(o.limit_price)) * qty
                 else:
-                    pending_sell_qty += int(o.qty)
+                    # lazy fetch midpoint once
+                    if midpoint is None:
+                        try:
+                            q = self.broker.get_quote(symbol)
+                            midpoint = (q.bid + q.ask) / 2
+                        except Exception:
+                            midpoint = Decimal("0")
+                    pending_buy_value += (midpoint or Decimal("0")) * qty
+            else:
+                pending_sell_qty += qty
 
         # Check against current position quantity as well
         current_position = self.broker.get_position(symbol)

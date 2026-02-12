@@ -8,7 +8,8 @@ from trader.models.order import Order
 
 def get_orders_file(config_dir: Optional[Path] = None) -> Path:
     if config_dir is None:
-        config_dir = Path(__file__).parent.parent.parent / "config"
+        from trader.utils.paths import get_config_dir
+        config_dir = get_config_dir()
     config_dir.mkdir(parents=True, exist_ok=True)
     return config_dir / "orders.yaml"
 

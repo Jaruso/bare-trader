@@ -11,13 +11,14 @@ def get_backtests_dir(data_dir: Optional[Path] = None) -> Path:
     """Get the backtests directory, creating if needed.
 
     Args:
-        data_dir: Base data directory (defaults to ./data).
+        data_dir: Base data directory (defaults to user data dir or ./data in dev).
 
     Returns:
         Path to backtests directory.
     """
     if data_dir is None:
-        data_dir = Path.cwd() / "data"
+        from trader.utils.paths import get_data_dir
+        data_dir = get_data_dir()
 
     backtests_dir = data_dir / "backtests"
     backtests_dir.mkdir(parents=True, exist_ok=True)

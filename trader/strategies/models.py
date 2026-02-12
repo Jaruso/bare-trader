@@ -46,12 +46,14 @@ class StrategyType(Enum):
     - BRACKET: Take-profit OR stop-loss (OCO)
     - SCALE_OUT: Sell portions at profit targets
     - GRID: Buy low intervals, sell high intervals
+    - PULLBACK_TRAILING: Wait for pullback (X% from high), then buy; manage with trailing stop
     """
 
     TRAILING_STOP = "trailing_stop"
     BRACKET = "bracket"
     SCALE_OUT = "scale_out"
     GRID = "grid"
+    PULLBACK_TRAILING = "pullback_trailing"
 
 
 class StrategyPhase(Enum):
@@ -166,6 +168,10 @@ class Strategy:
     # Exit configuration - Trailing Stop
     trailing_stop_pct: Optional[Decimal] = None
 
+    # Pullback-Trailing: wait for pullback, then trailing stop exit
+    pullback_pct: Optional[Decimal] = None  # e.g. 5 = buy when price drops 5% from reference
+    pullback_reference_price: Optional[Decimal] = None  # high-water mark while waiting for pullback
+
     # Exit configuration - Bracket
     take_profit_pct: Optional[Decimal] = None
     stop_loss_pct: Optional[Decimal] = None
@@ -191,6 +197,10 @@ class Strategy:
     # For grid: track grid level states
     # Format: [{"price": 390, "side": "buy", "filled": False, "order_id": None}, ...]
     grid_state: Optional[list[dict]] = None
+
+    # Scheduling
+    schedule_at: Optional[datetime] = None  # Schedule strategy to start at this time
+    schedule_enabled: bool = False  # Enable scheduling (strategy won't execute until schedule_at)
 
     # Metadata
     created_at: datetime = field(default_factory=datetime.now)
@@ -225,6 +235,11 @@ class Strategy:
             if total_pct != 100:
                 raise ValueError(f"Scale targets must sum to 100%, got {total_pct}%")
 
+        elif self.strategy_type == StrategyType.PULLBACK_TRAILING:
+            if self.pullback_pct is None or self.pullback_pct <= 0:
+                raise ValueError("Pullback-trailing strategy requires pullback_pct > 0")
+            if self.trailing_stop_pct is None or self.trailing_stop_pct <= 0:
+                raise ValueError("Pullback-trailing strategy requires trailing_stop_pct > 0")
         elif self.strategy_type == StrategyType.GRID:
             if self.grid_config is None:
                 raise ValueError("Grid strategy requires grid_config")
@@ -245,6 +260,8 @@ class Strategy:
             "entry_price": str(self.entry_price) if self.entry_price else None,
             "entry_condition": self.entry_condition,
             "trailing_stop_pct": str(self.trailing_stop_pct) if self.trailing_stop_pct else None,
+            "pullback_pct": str(self.pullback_pct) if self.pullback_pct else None,
+            "pullback_reference_price": str(self.pullback_reference_price) if self.pullback_reference_price else None,
             "take_profit_pct": str(self.take_profit_pct) if self.take_profit_pct else None,
             "stop_loss_pct": str(self.stop_loss_pct) if self.stop_loss_pct else None,
             "scale_targets": self.scale_targets,
@@ -255,6 +272,8 @@ class Strategy:
             "exit_order_ids": self.exit_order_ids,
             "scale_state": self.scale_state,
             "grid_state": self.grid_state,
+            "schedule_at": self.schedule_at.isoformat() if self.schedule_at else None,
+            "schedule_enabled": self.schedule_enabled,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
             "notes": self.notes,
@@ -274,6 +293,8 @@ class Strategy:
             entry_price=Decimal(data["entry_price"]) if data.get("entry_price") else None,
             entry_condition=data.get("entry_condition"),
             trailing_stop_pct=Decimal(data["trailing_stop_pct"]) if data.get("trailing_stop_pct") else None,
+            pullback_pct=Decimal(data["pullback_pct"]) if data.get("pullback_pct") else None,
+            pullback_reference_price=Decimal(data["pullback_reference_price"]) if data.get("pullback_reference_price") else None,
             take_profit_pct=Decimal(data["take_profit_pct"]) if data.get("take_profit_pct") else None,
             stop_loss_pct=Decimal(data["stop_loss_pct"]) if data.get("stop_loss_pct") else None,
             scale_targets=data.get("scale_targets"),
@@ -284,6 +305,8 @@ class Strategy:
             exit_order_ids=data.get("exit_order_ids", []),
             scale_state=data.get("scale_state"),
             grid_state=data.get("grid_state"),
+            schedule_at=datetime.fromisoformat(data["schedule_at"]) if data.get("schedule_at") else None,
+            schedule_enabled=data.get("schedule_enabled", False),
             created_at=datetime.fromisoformat(data["created_at"]) if data.get("created_at") else datetime.now(),
             updated_at=datetime.fromisoformat(data["updated_at"]) if data.get("updated_at") else datetime.now(),
             notes=data.get("notes"),

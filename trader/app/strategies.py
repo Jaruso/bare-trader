@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 
 from trader.audit import log_action as audit_log
@@ -51,6 +52,7 @@ _STRATEGY_TYPE_MAP = {
     "bracket": StrategyType.BRACKET,
     "scale-out": StrategyType.SCALE_OUT,
     "grid": StrategyType.GRID,
+    "pullback-trailing": StrategyType.PULLBACK_TRAILING,
 }
 
 
@@ -185,6 +187,27 @@ def create_strategy(config: Config, request: StrategyCreate) -> StrategyResponse
                     "qty_per_level": defaults.grid_qty_per_level,
                 },
             )
+
+        elif strat_type == StrategyType.PULLBACK_TRAILING:
+            pullback = (
+                _to_pct(Decimal(str(request.pullback_pct)))
+                if request.pullback_pct is not None
+                else Decimal("5")
+            )
+            trailing = (
+                _to_pct(Decimal(str(request.trailing_pct)))
+                if request.trailing_pct
+                else defaults.trailing_stop_pct
+            )
+            strat = Strategy(
+                symbol=request.symbol.upper(),
+                strategy_type=strat_type,
+                quantity=request.qty,
+                entry_type=EntryType.MARKET,  # Entry is market when pullback triggers
+                pullback_pct=pullback,
+                trailing_stop_pct=trailing,
+            )
+
         else:
             raise ValidationError(
                 message=f"Unknown strategy type: {request.strategy_type}",
@@ -315,3 +338,109 @@ def resume_strategy(strategy_id: str) -> dict[str, str]:
 
     _save_strategy(strat)
     return {"status": "resumed", "strategy_id": strategy_id, "phase": strat.phase.value}
+
+
+def schedule_strategy(strategy_id: str, schedule_at: datetime) -> dict[str, str]:
+    """Schedule a strategy to start at a specific time.
+
+    Args:
+        strategy_id: Strategy ID to schedule.
+        schedule_at: Datetime when strategy should be enabled.
+
+    Returns:
+        Status dict with strategy_id and schedule_at.
+
+    Raises:
+        NotFoundError: If strategy not found.
+        ValidationError: If schedule_at is in the past.
+    """
+    strategy = _get_strategy(strategy_id)
+    if strategy is None:
+        raise NotFoundError(
+            message=f"Strategy {strategy_id} not found",
+            code="STRATEGY_NOT_FOUND",
+        )
+
+    # Validate schedule time is in the future
+    now = datetime.now()
+    if schedule_at <= now:
+        raise ValidationError(
+            message=f"Schedule time must be in the future. Got {schedule_at}, current time is {now}",
+            code="INVALID_SCHEDULE_TIME",
+        )
+
+    # Disable strategy and set schedule
+    strategy.enabled = False
+    strategy.schedule_enabled = True
+    strategy.schedule_at = schedule_at
+    _save_strategy(strategy)
+
+    audit_log(
+        "schedule_strategy",
+        {"strategy_id": strategy_id, "schedule_at": schedule_at.isoformat()},
+    )
+
+    return {
+        "status": "scheduled",
+        "strategy_id": strategy_id,
+        "schedule_at": schedule_at.isoformat(),
+    }
+
+
+def cancel_schedule(strategy_id: str) -> dict[str, str]:
+    """Cancel a scheduled strategy.
+
+    Args:
+        strategy_id: Strategy ID to cancel schedule for.
+
+    Returns:
+        Status dict with strategy_id.
+
+    Raises:
+        NotFoundError: If strategy not found.
+    """
+    strategy = _get_strategy(strategy_id)
+    if strategy is None:
+        raise NotFoundError(
+            message=f"Strategy {strategy_id} not found",
+            code="STRATEGY_NOT_FOUND",
+        )
+
+    if not strategy.schedule_enabled:
+        # No schedule to cancel
+        return {
+            "status": "no_schedule",
+            "strategy_id": strategy_id,
+            "message": "Strategy has no active schedule",
+        }
+
+    # Clear schedule
+    strategy.schedule_enabled = False
+    strategy.schedule_at = None
+    _save_strategy(strategy)
+
+    audit_log("cancel_schedule", {"strategy_id": strategy_id})
+
+    return {"status": "schedule_canceled", "strategy_id": strategy_id}
+
+
+def list_scheduled_strategies() -> dict[str, list]:
+    """List all strategies with active schedules.
+
+    Returns:
+        Dict with 'scheduled' list of scheduled strategies.
+    """
+    strategies = load_strategies()
+    scheduled = [
+        {
+            "id": s.id,
+            "symbol": s.symbol,
+            "strategy_type": s.strategy_type.value,
+            "schedule_at": s.schedule_at.isoformat() if s.schedule_at else None,
+            "enabled": s.enabled,
+        }
+        for s in strategies
+        if s.schedule_enabled and s.schedule_at
+    ]
+
+    return {"scheduled": scheduled, "count": len(scheduled)}

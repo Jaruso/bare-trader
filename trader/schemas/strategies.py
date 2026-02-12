@@ -15,10 +15,11 @@ if TYPE_CHECKING:
 class StrategyCreate(BaseModel):
     """Input for creating a strategy."""
 
-    strategy_type: str  # trailing-stop, bracket, scale-out, grid
+    strategy_type: str  # trailing-stop, bracket, scale-out, grid, pullback-trailing
     symbol: str
     qty: int = Field(ge=1, default=1)
     trailing_pct: float | None = None
+    pullback_pct: float | None = None  # for pullback-trailing: buy when price drops this % from high
     take_profit: float | None = None
     stop_loss: float | None = None
     entry_price: float | None = None  # limit entry
@@ -40,6 +41,8 @@ class StrategyResponse(BaseModel):
     entry_condition: str | None = None
     # Exit config
     trailing_stop_pct: Decimal | None = None
+    pullback_pct: Decimal | None = None
+    pullback_reference_price: Decimal | None = None
     take_profit_pct: Decimal | None = None
     stop_loss_pct: Decimal | None = None
     scale_targets: list[dict[str, Any]] | None = None
@@ -51,6 +54,9 @@ class StrategyResponse(BaseModel):
     exit_order_ids: list[str] = []
     scale_state: list[dict[str, Any]] | None = None
     grid_state: list[dict[str, Any]] | None = None
+    # Scheduling
+    schedule_at: datetime | None = None
+    schedule_enabled: bool = False
     # Metadata
     created_at: datetime
     updated_at: datetime
@@ -69,6 +75,8 @@ class StrategyResponse(BaseModel):
             entry_price=s.entry_price,
             entry_condition=s.entry_condition,
             trailing_stop_pct=s.trailing_stop_pct,
+            pullback_pct=s.pullback_pct,
+            pullback_reference_price=s.pullback_reference_price,
             take_profit_pct=s.take_profit_pct,
             stop_loss_pct=s.stop_loss_pct,
             scale_targets=s.scale_targets,
@@ -79,6 +87,8 @@ class StrategyResponse(BaseModel):
             exit_order_ids=s.exit_order_ids,
             scale_state=s.scale_state,
             grid_state=s.grid_state,
+            schedule_at=s.schedule_at,
+            schedule_enabled=s.schedule_enabled,
             created_at=s.created_at,
             updated_at=s.updated_at,
             notes=s.notes,
