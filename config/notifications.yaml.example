@@ -1,0 +1,21 @@
+# Copy to notifications.yaml and set env vars (e.g. DISCORD_WEBHOOK_URL).
+# Notifications are optional; env vars alone work: DISCORD_WEBHOOK_URL, CUSTOM_WEBHOOK_URL.
+
+notifications:
+  enabled: true
+
+  events:
+    trade_opened: true
+    trade_closed: true
+    strategy_started: true
+    strategy_stopped: true
+    error: true
+    daily_summary: true
+
+  channels:
+    discord:
+      enabled: true
+      webhook_url: ${DISCORD_WEBHOOK_URL}
+    webhook:
+      enabled: false
+      url: https://example.com/webhook

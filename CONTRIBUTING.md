@@ -51,7 +51,7 @@ Use the same Claude config as in the README: set `command` to the **full path** 
 - **trader/mcp/** — MCP server (agent-friendly, JSON)
 - **trader/schemas/** — Pydantic models (contracts)
 - **trader/errors.py** — Shared error hierarchy
-- **trader/core/**, **trader/backtest/**, **trader/strategies/**, **trader/api/**, **trader/data/**, **trader/indicators/**, **trader/oms/**, **trader/utils/** — Domain and infra
+- **trader/core/**, **trader/backtest/**, **trader/strategies/**, **trader/api/**, **trader/data/**, **trader/indicators/**, **trader/notifications/**, **trader/oms/**, **trader/utils/** — Domain and infra
 
 **Dual-interface architecture**: CLI and MCP are thin adapters; both call `trader/app` and use `trader/schemas`. One core, two adapters — no logic duplication.
 

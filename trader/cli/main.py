@@ -1243,6 +1243,90 @@ def indicator_describe(ctx: click.Context, name: str) -> None:
         _handle_error(e, as_json)
 
 
+# =============================================================================
+# Notify Commands
+# =============================================================================
+
+
+@cli.group()
+def notify() -> None:
+    """Send and test notifications (Discord, webhook).
+
+    Configure via DISCORD_WEBHOOK_URL or config/notifications.yaml.
+    """
+    pass
+
+
+@notify.command("test")
+@click.option(
+    "--channel",
+    type=click.Choice(["discord", "webhook", "all"]),
+    default="all",
+    help="Channel to test (default: all enabled)",
+)
+@click.pass_context
+def notify_test(ctx: click.Context, channel: str) -> None:
+    """Send a test notification to verify channel configuration."""
+    from trader.app.notifications import get_notification_manager, send_test_notification
+    from trader.errors import ConfigurationError
+
+    config = ctx.obj["config"]
+    as_json = _get_json_flag(ctx)
+    config_dir = config.data_dir.parent / "config"
+
+    manager = get_notification_manager(config_dir=config_dir)
+    if not manager.enabled:
+        if as_json:
+            _json_output({"ok": False, "message": "No notification channels configured"})
+        else:
+            console.print(
+                "[yellow]No notification channels configured.[/yellow]\n"
+                "Set DISCORD_WEBHOOK_URL or CUSTOM_WEBHOOK_URL, or add config/notifications.yaml"
+            )
+        return
+
+    ok = send_test_notification(channel=channel, config_dir=config_dir)
+    if as_json:
+        _json_output({"ok": ok, "channel": channel})
+    else:
+        if ok:
+            console.print(f"[green]Test notification sent to {channel}[/green]")
+        else:
+            console.print(f"[red]Failed to send test to {channel}[/red]")
+
+
+@notify.command("send")
+@click.argument("message", required=True)
+@click.option(
+    "--channel",
+    type=click.Choice(["discord", "webhook", "all"]),
+    default="all",
+    help="Channel to send to (default: all)",
+)
+@click.pass_context
+def notify_send(ctx: click.Context, message: str, channel: str) -> None:
+    """Send a manual notification message."""
+    from trader.app.notifications import get_notification_manager, send_notification
+
+    config = ctx.obj["config"]
+    as_json = _get_json_flag(ctx)
+    config_dir = config.data_dir.parent / "config"
+
+    manager = get_notification_manager(config_dir=config_dir)
+    if not manager.enabled:
+        if as_json:
+            _json_output({"ok": False, "message": "No channels configured"})
+        else:
+            console.print("[yellow]No notification channels configured.[/yellow]")
+        return
+
+    send_notification(message, channel=channel, config_dir=config_dir)
+    if as_json:
+        _json_output({"ok": True, "channel": channel})
+    else:
+        console.print(f"[green]Message sent to {channel}[/green]")
+
+
 @strategy.command("list")
 @click.pass_context
 def strategy_list(ctx: click.Context) -> None:
