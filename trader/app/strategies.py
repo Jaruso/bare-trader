@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from trader.audit import log_action as audit_log
 from trader.errors import NotFoundError, ValidationError
 from trader.schemas.strategies import (
     StrategyCreate,
@@ -197,6 +198,11 @@ def create_strategy(config: Config, request: StrategyCreate) -> StrategyResponse
         )
 
     _save_strategy(strat)
+    audit_log(
+        "create_strategy",
+        {"strategy_type": request.strategy_type, "symbol": strat.symbol, "strategy_id": strat.id},
+        log_dir=config.log_dir,
+    )
     return StrategyResponse.from_domain(strat)
 
 
@@ -217,6 +223,9 @@ def remove_strategy(strategy_id: str) -> dict[str, str]:
             message=f"Strategy {strategy_id} not found",
             code="STRATEGY_NOT_FOUND",
         )
+    from trader.utils.config import load_config
+
+    audit_log("remove_strategy", {"strategy_id": strategy_id}, log_dir=load_config().log_dir)
     return {"status": "removed", "strategy_id": strategy_id}
 
 

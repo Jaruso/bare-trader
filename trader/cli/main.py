@@ -18,6 +18,7 @@ from rich.console import Console
 from rich.table import Table
 
 from trader import __version__
+from trader.audit import set_audit_source
 from trader.errors import AppError
 from trader.utils.config import Environment, load_config
 from trader.utils.logging import setup_logging
@@ -77,6 +78,7 @@ def cli(ctx: click.Context, prod: bool, as_json: bool) -> None:
             f.write(f"{datetime.now().isoformat()} | CLI entry point called\n")
 
         ctx.ensure_object(dict)
+        set_audit_source("cli")
         config = load_config(prod=prod)
         ctx.obj["config"] = config
         ctx.obj["json"] = as_json

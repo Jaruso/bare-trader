@@ -467,7 +467,7 @@ AutoTrader enforces multiple layers of protection:
 * Position size limits
 * Daily loss limits
 * Kill switch available
-* Immutable audit logs
+* Immutable audit logs — `logs/audit.log` (JSONL) records place_order, cancel_order, create_strategy, remove_strategy, run_backtest, stop_engine from both CLI and MCP, with source and timestamp
 
 **Never deploy to production without extensive paper testing.**
 

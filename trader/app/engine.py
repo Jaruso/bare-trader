@@ -135,6 +135,14 @@ def stop_engine(force: bool = False) -> dict[str, str]:
 
     try:
         os.kill(pid, sig)
+        from trader.audit import log_action as audit_log
+        from trader.utils.config import load_config
+
+        audit_log(
+            "stop_engine",
+            {"pid": pid, "force": force},
+            log_dir=load_config().log_dir,
+        )
         if force:
             try:
                 lock_path.unlink()

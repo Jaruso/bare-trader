@@ -596,6 +596,20 @@ def get_safety_status() -> str:
 # =============================================================================
 
 
+def _with_mcp_audit(fn: Any) -> Any:
+    """Wrap a tool so audit source is set to 'mcp' for the duration of the call."""
+    import functools
+
+    @functools.wraps(fn)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        from trader.audit import set_audit_source
+
+        set_audit_source("mcp")
+        return fn(*args, **kwargs)
+
+    return wrapper
+
+
 _ALL_TOOLS = [
     # Engine
     get_status,
@@ -640,7 +654,7 @@ _ALL_TOOLS = [
 def register_tools(server: FastMCP) -> None:
     """Register all MCP tools on the provided server."""
     for tool_fn in _ALL_TOOLS:
-        server.tool()(tool_fn)  # type: ignore[arg-type]
+        server.tool()(_with_mcp_audit(tool_fn))  # type: ignore[arg-type]
 
 
 # =============================================================================

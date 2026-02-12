@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+- **Central audit log (MCP Phase 3)** — `trader/audit.py` appends structured JSONL to `logs/audit.log` for sensitive actions from both CLI and MCP. Logged actions: `place_order`, `place_order_blocked`, `cancel_order`, `create_strategy`, `remove_strategy`, `run_backtest`, `stop_engine`. Each record includes timestamp (UTC), source (`cli` or `mcp`), action, details, and optional error. Audit source is set via context (CLI sets at startup; MCP sets per tool call).
+
 ## [0.5.0] - 2026-02-11
 
 ### Documentation
