@@ -37,7 +37,7 @@ def describe_indicator(name: str) -> IndicatorInfo:
         raise NotFoundError(
             message=f"Unknown indicator: {name}",
             code="INDICATOR_NOT_FOUND",
-            suggestion="Use list_all_indicators() to see available indicators",
+            suggestion="Use list_indicators (MCP) or 'trader indicator list' (CLI) to see available indicators",
         )
 
     return IndicatorInfo.from_domain(indicator_obj.spec)

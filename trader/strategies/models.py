@@ -281,10 +281,14 @@ class Strategy:
     @classmethod
     def from_dict(cls, data: dict) -> "Strategy":
         """Create strategy from dictionary."""
+        raw = data["strategy_type"]
+        # Normalize CLI-style hyphen to enum value (e.g. pullback-trailing -> pullback_trailing)
+        if raw == "pullback-trailing":
+            raw = "pullback_trailing"
         return cls(
             id=data.get("id", str(uuid.uuid4())[:8]),
             symbol=data["symbol"],
-            strategy_type=StrategyType(data["strategy_type"]),
+            strategy_type=StrategyType(raw),
             phase=StrategyPhase(data.get("phase", "pending")),
             quantity=int(data["quantity"]),
             enabled=data.get("enabled", True),
