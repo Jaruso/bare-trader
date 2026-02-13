@@ -296,3 +296,30 @@ strategies:
   created_at: '2026-02-12T15:19:23.523539'
   updated_at: '2026-02-12T15:19:23.528723'
   notes: null
+- id: e44ef288
+  symbol: TEST
+  strategy_type: pullback_trailing
+  phase: pending
+  quantity: 10
+  enabled: true
+  entry_type: market
+  entry_price: null
+  entry_condition: null
+  trailing_stop_pct: '5.0'
+  pullback_pct: '5.0'
+  pullback_reference_price: null
+  take_profit_pct: null
+  stop_loss_pct: null
+  scale_targets: null
+  grid_config: null
+  entry_order_id: null
+  entry_fill_price: null
+  high_watermark: null
+  exit_order_ids: []
+  scale_state: null
+  grid_state: null
+  schedule_at: null
+  schedule_enabled: false
+  created_at: '2026-02-13T14:37:45.783765'
+  updated_at: '2026-02-13T14:37:45.790240'
+  notes: null

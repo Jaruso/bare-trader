@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.1.0] - 2026-02-13
+
+### Fixed
+- **Strategy loading with hyphen format** — `Strategy.from_dict()` now normalizes `"pullback-trailing"` (hyphen) to `"pullback_trailing"` (underscore) enum value, fixing failures when `strategies.yaml` contains hyphen-formatted strategy types. All strategy operations (`list_strategies`, `create_strategy`, `get_strategy`) now work correctly regardless of config format.
+- **Optimization parameter normalization** — `run_optimization` now accepts both short parameter names (`take_profit`, `stop_loss`) and canonical names (`take_profit_pct`, `stop_loss_pct`). Short names are automatically normalized to canonical format before validation, fixing "Missing required parameters" errors when using CLI/MCP-friendly names.
+
+### Changed
+- **CSV data path documentation** — Enhanced README with comprehensive "Backtesting with CSV Data" section explaining CSV file format, directory setup, environment variable (`HISTORICAL_DATA_DIR`), and default paths. Improved error messages in CSV provider and backtest app layer to include setup instructions and links to documentation.
+- **MCP tool visibility documentation** — Added troubleshooting note in README and CONTRIBUTING about tool visibility in MCP clients. Created helper script `scripts/list_mcp_tools.py` to list all registered tools for debugging. Updated MCP server docstring for `run_optimization` to document parameter name normalization.
+
+### Added
+- **Test coverage** — Added `test_strategy_load_with_hyphen_format()` to verify strategy loading with hyphen format. Added `tests/test_optimization_params.py` with tests for parameter normalization (`test_normalize_param_keys_take_profit`, `test_normalize_param_keys_canonical_preserved`, `test_normalize_param_keys_mixed`, `test_optimization_with_short_param_names`).
+
 ## [1.0.0] - 2026-02-13
 
 ### Added

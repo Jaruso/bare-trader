@@ -636,7 +636,10 @@ def run_optimization(
         symbol: Stock ticker (e.g. "AAPL").
         start: Start date (YYYY-MM-DD).
         end: End date (YYYY-MM-DD).
-        params: Parameter grid, e.g. {"trailing_pct": [0.02, 0.03, 0.05]}.
+        params: Parameter grid. Accepts both short and canonical names:
+            - For trailing-stop: "trailing_pct" or "trailing_stop_pct"
+            - For bracket: "take_profit"/"take_profit_pct" and "stop_loss"/"stop_loss_pct"
+            Example: {"take_profit": [0.02, 0.05], "stop_loss": [0.01, 0.02]}
         objective: Metric to optimize ("total_return_pct", "sharpe_ratio", "win_rate", etc.).
         method: "grid" for exhaustive search or "random" for sampling.
         num_samples: Number of random samples (only for method="random").

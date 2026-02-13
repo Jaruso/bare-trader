@@ -1,5 +1,6 @@
 """Tests for the app service layer."""
 
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -87,6 +88,29 @@ class TestStrategyServices:
         """Should raise NotFoundError for unknown strategy."""
         with pytest.raises(NotFoundError):
             remove_strategy("nonexistent-strategy-id-12345")
+
+    def test_strategy_load_with_hyphen_format(self) -> None:
+        """Test that strategies.yaml with pullback-trailing (hyphen) loads correctly."""
+        from trader.strategies.models import Strategy, StrategyType
+
+        # Test that hyphen format normalizes to underscore enum value
+        data = {
+            "id": "test-123",
+            "symbol": "AAPL",
+            "strategy_type": "pullback-trailing",  # Hyphen format
+            "phase": "pending",
+            "quantity": 10,
+            "enabled": True,
+            "entry_type": "market",
+            "pullback_pct": "5",
+            "trailing_stop_pct": "5",
+            "created_at": "2024-01-01T00:00:00",
+            "updated_at": "2024-01-01T00:00:00",
+        }
+        strategy = Strategy.from_dict(data)
+        assert strategy.strategy_type == StrategyType.PULLBACK_TRAILING
+        assert strategy.pullback_pct == Decimal("5")
+        assert strategy.trailing_stop_pct == Decimal("5")
 
 
 class TestAppInit:

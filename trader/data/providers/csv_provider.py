@@ -66,9 +66,14 @@ class CSVDataProvider(DataProvider):
 
         # Validate directory
         if not self.data_dir.exists():
+            default_dir = Path.home() / ".autotrader" / "data" / "historical"
+            suggestion = (
+                f"Set HISTORICAL_DATA_DIR environment variable or create {self.data_dir}. "
+                f"Default location: {default_dir}. "
+                f"See README.md 'Backtesting with CSV Data' section for setup instructions."
+            )
             raise FileNotFoundError(
-                f"Data directory not found: {self.data_dir}. "
-                "Create the directory and add CSV files in format: {SYMBOL}.csv"
+                f"Data directory not found: {self.data_dir}. {suggestion}"
             )
 
         # Load data for each symbol
@@ -107,9 +112,15 @@ class CSVDataProvider(DataProvider):
             ValueError: If CSV format is invalid.
         """
         if not file_path.exists():
+            default_dir = Path.home() / ".autotrader" / "data" / "historical"
+            suggestion = (
+                f"Expected format: {self.data_dir}/{{SYMBOL}}.csv. "
+                f"Set HISTORICAL_DATA_DIR environment variable or create CSV files. "
+                f"Default location: {default_dir}. "
+                f"See README.md 'Backtesting with CSV Data' section for setup instructions."
+            )
             raise FileNotFoundError(
-                f"CSV file not found: {file_path}. "
-                f"Expected format: {self.data_dir}/{{SYMBOL}}.csv"
+                f"CSV file not found: {file_path}. {suggestion}"
             )
 
         try:

@@ -44,6 +44,8 @@ Use the same Claude config as in the README: set `command` to the **full path** 
 
 **Agents**: Use MCP tools as the primary interface for all operations. Run CLI commands only when testing or verifying human-facing output (e.g. `trader status` or `trader backtest list --json`).
 
+**Note on tool visibility**: All 32+ MCP tools are registered in the server (`trader/mcp/server.py`). Some MCP clients may filter or not display all tools. For testing, if a tool isn't visible in your client, you can import it directly: `from trader.mcp.server import <tool_name>`. To list all registered tools programmatically: `python3 -c "from trader.mcp.server import mcp; [print(f'{t.name}') for t in mcp.list_tools()]"`.
+
 ---
 
 ## Project Layout

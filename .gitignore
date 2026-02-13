@@ -5,7 +5,8 @@ CLAUDE.md
 
 # Changes
 .changes/
-PLAN.md
+PLAN-TEST*.md
+PLAN*.md
 
 # Python
 __pycache__/

@@ -94,10 +94,17 @@ def run_backtest(config: Config, request: BacktestRequest) -> BacktestResponse:
             data_dir=data_dir_path,
         )
     except FileNotFoundError as e:
+        default_dir = Path.home() / ".autotrader" / "data" / "historical"
+        suggestion = (
+            f"CSV file not found: {data_dir_path}/{request.symbol}.csv. "
+            f"Set HISTORICAL_DATA_DIR environment variable or create CSV files. "
+            f"Default location: {default_dir}. "
+            f"See README.md 'Backtesting with CSV Data' section for setup instructions."
+        )
         raise NotFoundError(
             message=str(e),
             code="DATA_NOT_FOUND",
-            suggestion=f"Make sure CSV file exists at: {data_dir_path}/{request.symbol}.csv",
+            suggestion=suggestion,
         )
 
     # Create broker and engine

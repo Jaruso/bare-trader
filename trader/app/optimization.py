@@ -23,6 +23,27 @@ _PARAM_ALIAS_MAP = {
 }
 
 
+def _normalize_param_keys(params: dict[str, Any]) -> dict[str, Any]:
+    """Normalize CLI/MCP-friendly param names to internal format.
+
+    Converts short names like 'take_profit' and 'stop_loss' to their
+    canonical '_pct' forms expected by validation and optimization.
+
+    Args:
+        params: Parameter dictionary with potentially aliased keys.
+
+    Returns:
+        Normalized parameter dictionary with canonical keys.
+    """
+    normalized = {}
+    for key, value in params.items():
+        canonical_key = _PARAM_ALIAS_MAP.get(key, key)
+        # If both alias and canonical exist, prefer canonical
+        if canonical_key not in normalized:
+            normalized[canonical_key] = value
+    return normalized
+
+
 def run_optimization(config: Config, request: OptimizeRequest) -> OptimizeResponse:
     """Run strategy parameter optimization.
 
@@ -49,8 +70,11 @@ def run_optimization(config: Config, request: OptimizeRequest) -> OptimizeRespon
             suggestion="Use YYYY-MM-DD format",
         )
 
+    # Normalize param keys before validation (e.g. take_profit -> take_profit_pct)
+    normalized_params = _normalize_param_keys(request.params)
+
     # Validate param grid
-    _validate_optimization_params(request.strategy_type, request.params)
+    _validate_optimization_params(request.strategy_type, normalized_params)
 
     # Create optimizer
     optimizer = Optimizer(
@@ -66,7 +90,7 @@ def run_optimization(config: Config, request: OptimizeRequest) -> OptimizeRespon
 
     try:
         result = optimizer.optimize(
-            param_grid=request.params,
+            param_grid=normalized_params,
             method=request.method,
             num_samples=request.num_samples,
         )

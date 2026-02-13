@@ -335,3 +335,11 @@ orders:
   limit_price: '89.61'
   external_id: null
   status: new
+- id: b082b720-9616-435b-ad20-7d1620df87e3
+  symbol: AAPL
+  side: buy
+  qty: '1'
+  order_type: limit
+  limit_price: '0.01'
+  external_id: null
+  status: new

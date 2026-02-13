@@ -85,6 +85,7 @@ Add AutoTrader to your Claude Desktop or Cursor MCP configuration:
 - **"trader" command not found**: Use the full path to `trader` (run `which trader` and use that path in `command`)
 - **MCP server error**: Check API keys and JSON syntax (no trailing commas)
 - **Test installation**: Run `python3 scripts/test_installation.py` to verify setup
+- **Tool not visible in MCP client**: All 32+ tools are registered in the server. If a tool doesn't appear in your MCP client (e.g., Cursor), it may be filtered by the client. For testing, you can import tools directly: `from trader.mcp.server import <tool_name>`. To list all registered tools, run: `python3 -c "from trader.mcp.server import mcp; [print(f'{t.name}: {t.description[:60]}...') for t in mcp.list_tools()]"`
 
 See the Configure MCP Server and Troubleshooting sections above for setup details.
 
@@ -321,13 +322,39 @@ Test your trading strategies against historical data before risking real capital
 
 ### Prepare Historical Data
 
-Create CSV files in `data/historical/` with OHLCV data (for `csv` data source):
+For CSV-based backtesting, create CSV files with OHLCV data. The default directory is `data/historical/` (relative to project root) or `~/.autotrader/data/historical/` (when installed via pipx). You can override this with the `HISTORICAL_DATA_DIR` environment variable or the `--data-dir` flag.
 
+**CSV File Format**:
+- File naming: `{SYMBOL}.csv` (e.g., `AAPL.csv`, `MSFT.csv`)
+- Required columns: `timestamp`, `open`, `high`, `low`, `close`, `volume`
+- Timestamp format: ISO format or `YYYY-MM-DD HH:MM:SS`
+
+Example CSV file (`AAPL.csv`):
 ```csv
 timestamp,open,high,low,close,volume
 2024-01-02 09:30:00,185.75,186.50,185.00,185.75,50000000
 2024-01-03 09:30:00,186.50,187.25,186.00,186.75,48000000
 ```
+
+**Setup Steps**:
+```bash
+# Option 1: Use default directory (project root)
+mkdir -p data/historical
+# Add CSV files: data/historical/AAPL.csv, data/historical/MSFT.csv, etc.
+
+# Option 2: Use custom directory via environment variable
+export HISTORICAL_DATA_DIR=/path/to/your/data
+mkdir -p $HISTORICAL_DATA_DIR
+# Add CSV files: $HISTORICAL_DATA_DIR/AAPL.csv, etc.
+
+# Option 3: Use --data-dir flag when running backtests
+trader backtest run trailing-stop AAPL --data-dir /path/to/data ...
+```
+
+**Note**: If you get a "Data directory not found" error, check that:
+1. The directory exists and contains CSV files named `{SYMBOL}.csv`
+2. CSV files have the required columns (timestamp, open, high, low, close, volume)
+3. The `HISTORICAL_DATA_DIR` environment variable is set correctly (if using custom path)
 
 ### Run a Backtest
 
