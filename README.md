@@ -1,6 +1,6 @@
 # 📈 AutoTrader — CLI-Based Automated Trading System
 
-AutoTrader is a command-line trading platform for **automated stock trading**. It supports paper trading and live trading modes via Alpaca, with predefined trading strategies that handle complete trade lifecycles from entry to exit.
+AutoTrader is a command-line trading platform for **automated stock trading**. It supports paper trading and live trading modes via Alpaca, with predefined trading strategies that handle complete trade lifecycles from entry to exit. From 1.0.0 the CLI and MCP tool set are treated as stable; breaking changes will be rare and noted in [CHANGELOG](CHANGELOG.md).
 
 ---
 
@@ -13,13 +13,13 @@ AutoTrader is a command-line trading platform for **automated stock trading**. I
 * ✅ **Backtesting** with historical data
 * ✅ **Notifications** (Discord webhook, generic webhook) for alerts
 
-**Tools**: 28 MCP tools (engine, portfolio, orders, strategies, backtests, analysis, indicators, optimization, safety). See [CLI and MCP usage by feature](docs/cli-mcp-usage.md) for a full mapping of commands to tools.
+**Tools**: 32 MCP tools (engine, portfolio, orders, strategies, backtests, analysis, indicators, optimization, safety, scheduling). CLI commands mirror these; run `trader --help` and `trader <command> --help` for the full CLI surface.
 
 ## 🤖 MCP Server Usage
 
-AutoTrader supports both CLI users and AI agents via an MCP-compliant server.
+AutoTrader supports both CLI users and AI agents via an MCP-compliant server. **For AI agents**: Use the MCP server for all operations (status, strategies, backtests, etc.); the CLI is for human use. Run CLI only when testing or verifying human-facing output (e.g. `trader status` or `trader --json <cmd>`).
 
-**Quick Start**: Install → Configure → Use. See [Quick Start Guide](docs/QUICK_START.md) for details.
+**Quick Start**: Install → Configure → Use. See the Installation and Configure MCP Server sections below.
 
 ### Two-Step Setup
 
@@ -54,7 +54,7 @@ And verify:
 trader status
 ```
 
-**Note**: When installed via **pipx** or Homebrew, AutoTrader uses the same behavior: config, data, and logs go to `~/.autotrader/` (macOS) or `~/.config/autotrader/` (Linux). `trader config set` and all path resolution work identically with pipx. See [Installation Paths](docs/INSTALLATION_PATHS.md) for details.
+**Note**: When installed via **pipx** or Homebrew, AutoTrader uses the same behavior: config, data, and logs go to `~/.autotrader/` (macOS) or `~/.config/autotrader/` (Linux). `trader config set` and all path resolution work identically with pipx. See the Installation section for path behavior.
 
 ### Configure MCP Server
 
@@ -86,7 +86,7 @@ Add AutoTrader to your Claude Desktop or Cursor MCP configuration:
 - **MCP server error**: Check API keys and JSON syntax (no trailing commas)
 - **Test installation**: Run `python3 scripts/test_installation.py` to verify setup
 
-See [Quick Start Guide](docs/QUICK_START.md) for detailed setup instructions.
+See the Configure MCP Server and Troubleshooting sections above for setup details.
 
 ---
 

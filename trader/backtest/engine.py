@@ -2,7 +2,6 @@
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
 
 import pandas as pd
 
@@ -28,7 +27,7 @@ class BacktestEngine:
         strategy_config: dict,
         start_date: datetime,
         end_date: datetime,
-        defaults: Optional[StrategyDefaults] = None,
+        defaults: StrategyDefaults | None = None,
     ) -> None:
         """Initialize backtest engine.
 
@@ -111,7 +110,7 @@ class BacktestEngine:
             # If strategy completed, reset for next trade cycle
             if self.strategy.phase == StrategyPhase.COMPLETED:
                 self.logger.info(
-                    f"Strategy cycle completed, resetting for next trade"
+                    "Strategy cycle completed, resetting for next trade"
                 )
                 self._reset_strategy()
 

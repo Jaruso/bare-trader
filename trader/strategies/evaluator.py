@@ -8,14 +8,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Optional
 
-from trader.api.broker import Broker, OrderSide, OrderType, OrderStatus
-from trader.strategies.models import Strategy, StrategyPhase, StrategyType, EntryType
-from trader.strategies.loader import save_strategy, get_strategy
+from trader.api.broker import Broker, OrderSide, OrderStatus, OrderType
+from trader.oms.store import save_order
+from trader.strategies.loader import get_strategy, save_strategy
+from trader.strategies.models import EntryType, Strategy, StrategyPhase, StrategyType
 from trader.utils.config import StrategyDefaults
 from trader.utils.logging import get_logger
-from trader.oms.store import save_order
 
 
 class ActionType(Enum):
@@ -39,9 +38,9 @@ class StrategyAction:
 
     strategy_id: str
     action_type: ActionType
-    order_params: Optional[dict] = None  # For placing orders
-    state_updates: Optional[dict] = None  # For state updates
-    reason: Optional[str] = None
+    order_params: dict | None = None  # For placing orders
+    state_updates: dict | None = None  # For state updates
+    reason: str | None = None
 
 
 class StrategyEvaluator:
@@ -89,7 +88,7 @@ class StrategyEvaluator:
 
         return actions
 
-    def _evaluate_strategy(self, strategy: Strategy) -> Optional[StrategyAction]:
+    def _evaluate_strategy(self, strategy: Strategy) -> StrategyAction | None:
         """Evaluate a single strategy based on its phase.
 
         Args:
@@ -111,7 +110,7 @@ class StrategyEvaluator:
             return handler(strategy)
         return None
 
-    def _evaluate_pending(self, strategy: Strategy) -> Optional[StrategyAction]:
+    def _evaluate_pending(self, strategy: Strategy) -> StrategyAction | None:
         """Evaluate a strategy waiting for entry.
 
         For pullback-trailing: wait for price to pull back X% from reference, then buy.
@@ -205,7 +204,7 @@ class StrategyEvaluator:
 
         return None
 
-    def _evaluate_pullback_pending(self, strategy: Strategy) -> Optional[StrategyAction]:
+    def _evaluate_pullback_pending(self, strategy: Strategy) -> StrategyAction | None:
         """Evaluate pullback-trailing in PENDING: update reference high, trigger buy on pullback."""
         if strategy.pullback_pct is None or strategy.trailing_stop_pct is None:
             return StrategyAction(
@@ -254,7 +253,7 @@ class StrategyEvaluator:
 
         return None
 
-    def _evaluate_entry_active(self, strategy: Strategy) -> Optional[StrategyAction]:
+    def _evaluate_entry_active(self, strategy: Strategy) -> StrategyAction | None:
         """Check if entry order has filled."""
         if not strategy.entry_order_id:
             return StrategyAction(
@@ -296,7 +295,7 @@ class StrategyEvaluator:
         # Still pending, no action needed
         return None
 
-    def _evaluate_position_open(self, strategy: Strategy) -> Optional[StrategyAction]:
+    def _evaluate_position_open(self, strategy: Strategy) -> StrategyAction | None:
         """Evaluate an open position based on strategy type."""
         if strategy.strategy_type == StrategyType.TRAILING_STOP:
             return self._evaluate_trailing_stop(strategy)
@@ -312,7 +311,7 @@ class StrategyEvaluator:
 
         return None
 
-    def _evaluate_trailing_stop(self, strategy: Strategy) -> Optional[StrategyAction]:
+    def _evaluate_trailing_stop(self, strategy: Strategy) -> StrategyAction | None:
         """Evaluate trailing stop strategy.
 
         Updates high watermark as price rises. When no exit order exists,
@@ -355,7 +354,7 @@ class StrategyEvaluator:
 
         return None
 
-    def _evaluate_bracket(self, strategy: Strategy) -> Optional[StrategyAction]:
+    def _evaluate_bracket(self, strategy: Strategy) -> StrategyAction | None:
         """Evaluate bracket (OCO) strategy.
 
         Places both take-profit and stop-loss orders, cancels the other
@@ -466,7 +465,7 @@ class StrategyEvaluator:
 
         return None
 
-    def _evaluate_scale_out(self, strategy: Strategy) -> Optional[StrategyAction]:
+    def _evaluate_scale_out(self, strategy: Strategy) -> StrategyAction | None:
         """Evaluate scale-out strategy.
 
         Sells portions at progressive profit targets.
@@ -475,7 +474,7 @@ class StrategyEvaluator:
         # Would track tranches and place sell orders at each target
         return None
 
-    def _evaluate_grid(self, strategy: Strategy) -> Optional[StrategyAction]:
+    def _evaluate_grid(self, strategy: Strategy) -> StrategyAction | None:
         """Evaluate grid strategy.
 
         Places buy orders at intervals going down, sell orders going up.
@@ -483,7 +482,7 @@ class StrategyEvaluator:
         # TODO: Implement grid evaluation
         return None
 
-    def _evaluate_exiting(self, strategy: Strategy) -> Optional[StrategyAction]:
+    def _evaluate_exiting(self, strategy: Strategy) -> StrategyAction | None:
         """Check if exit orders have filled.
 
         For bracket strategies with OCO orders, delegate to bracket handler

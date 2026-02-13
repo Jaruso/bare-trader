@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Optional
 
 from trader.api.broker import OrderSide, OrderStatus
 
@@ -22,7 +21,7 @@ class TradeRecord:
     price: Decimal
     total: Decimal
     status: str
-    rule_id: Optional[str]
+    rule_id: str | None
     timestamp: datetime
 
     @property
@@ -37,7 +36,7 @@ class TradeRecord:
 class TradeLedger:
     """SQLite-backed trade ledger."""
 
-    def __init__(self, db_path: Optional[Path] = None) -> None:
+    def __init__(self, db_path: Path | None = None) -> None:
         """Initialize ledger.
 
         Args:
@@ -84,8 +83,8 @@ class TradeLedger:
         quantity: Decimal,
         price: Decimal,
         status: OrderStatus,
-        rule_id: Optional[str] = None,
-        timestamp: Optional[datetime] = None,
+        rule_id: str | None = None,
+        timestamp: datetime | None = None,
     ) -> int:
         """Record a trade.
 
@@ -130,8 +129,8 @@ class TradeLedger:
 
     def get_trades(
         self,
-        symbol: Optional[str] = None,
-        since: Optional[datetime] = None,
+        symbol: str | None = None,
+        since: datetime | None = None,
         limit: int = 100,
     ) -> list[TradeRecord]:
         """Get trade records.
@@ -233,7 +232,7 @@ class TradeLedger:
         """Get number of trades today."""
         return len(self.get_today_trades())
 
-    def export_csv(self, path: Path, since: Optional[datetime] = None) -> int:
+    def export_csv(self, path: Path, since: datetime | None = None) -> int:
         """Export trades to CSV.
 
         Args:

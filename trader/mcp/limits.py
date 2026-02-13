@@ -13,8 +13,10 @@ import os
 import threading
 import time
 from collections import deque
-from concurrent.futures import Future, ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
-from typing import Callable, TypeVar
+from collections.abc import Callable
+from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeoutError
+from typing import TypeVar
 
 from trader.errors import RateLimitError, TaskTimeoutError
 

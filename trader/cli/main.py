@@ -729,7 +729,6 @@ def run_once_cmd(ctx: click.Context, dry_run: bool, force: bool) -> None:
     """
     from trader.app import get_broker
     from trader.core.engine import EngineAlreadyRunningError, TradingEngine, get_lock_file_path
-    from trader.strategies.loader import load_strategies
 
     config = ctx.obj["config"]
 
@@ -842,7 +841,7 @@ def schedule_status() -> None:
     else:
         console.print("[dim]Schedule: disabled[/dim]")
         if status["trader_path"]:
-            console.print(f"  Enable with: [bold]trader schedule enable[/bold] (default: every 5 minutes)")
+            console.print("  Enable with: [bold]trader schedule enable[/bold] (default: every 5 minutes)")
         else:
             console.print("  [yellow]'trader' not on PATH; install with pipx so 'trader schedule enable' can add the cron job.[/yellow]")
 
@@ -1262,10 +1261,10 @@ def config_list(ctx: click.Context, show_secrets: bool) -> None:
     """List current configuration (secrets redacted by default)."""
     from trader.utils.env_config import (
         CONFIG_KEYS,
-        load_dotenv_for_config,
         get_config_value,
         get_display_value,
         get_env_file_path,
+        load_dotenv_for_config,
     )
 
     load_dotenv_for_config()
@@ -1300,10 +1299,10 @@ def config_list(ctx: click.Context, show_secrets: bool) -> None:
 def config_get(ctx: click.Context, key: str, show_secret: bool) -> None:
     """Get a single config value (secret redacted unless --show-secret)."""
     from trader.utils.env_config import (
-        load_dotenv_for_config,
+        CONFIG_KEYS,
         get_config_value,
         get_display_value,
-        CONFIG_KEYS,
+        load_dotenv_for_config,
     )
 
     load_dotenv_for_config()
@@ -1327,10 +1326,10 @@ def config_get(ctx: click.Context, key: str, show_secret: bool) -> None:
 def config_set(ctx: click.Context, key: str, value: str) -> None:
     """Set a config value (persisted to .env in config directory)."""
     from trader.utils.env_config import (
-        load_dotenv_for_config,
-        set_config_value,
         CONFIG_KEYS,
         get_env_file_path,
+        load_dotenv_for_config,
+        set_config_value,
     )
 
     load_dotenv_for_config()
@@ -1560,10 +1559,8 @@ def notify() -> None:
 def notify_test(ctx: click.Context, channel: str) -> None:
     """Send a test notification to verify channel configuration."""
     from trader.app.notifications import get_notification_manager, send_test_notification
-    from trader.errors import ConfigurationError
     from trader.utils.paths import get_config_dir
 
-    config = ctx.obj["config"]
     as_json = _get_json_flag(ctx)
     config_dir = get_config_dir()
 
@@ -1600,10 +1597,8 @@ def notify_test(ctx: click.Context, channel: str) -> None:
 def notify_send(ctx: click.Context, message: str, channel: str) -> None:
     """Send a manual notification message."""
     from trader.app.notifications import get_notification_manager, send_notification
-
     from trader.utils.paths import get_config_dir
 
-    config = ctx.obj["config"]
     as_json = _get_json_flag(ctx)
     config_dir = get_config_dir()
 
@@ -2014,7 +2009,6 @@ def schedule_add(ctx: click.Context, strategy_id: str, schedule_at: str) -> None
         trader strategy schedule add abc123 "2026-02-13T09:30:00"
         trader strategy schedule add abc123 "tomorrow 09:30"
     """
-    from datetime import datetime, timedelta
     from trader.app.strategies import schedule_strategy
 
     as_json = _get_json_flag(ctx)
@@ -2022,15 +2016,15 @@ def schedule_add(ctx: click.Context, strategy_id: str, schedule_at: str) -> None
     try:
         # Parse schedule_at string
         schedule_dt = _parse_schedule_time(schedule_at)
-        
+
         result = schedule_strategy(strategy_id, schedule_dt)
-        
+
         if as_json:
             _json_output(result)
         else:
             console.print(f"[green]Strategy {strategy_id} scheduled[/green]")
             console.print(f"[dim]Will start at: {schedule_dt.strftime('%Y-%m-%d %H:%M:%S')}[/dim]")
-            console.print(f"[dim]Strategy is now disabled until schedule time[/dim]")
+            console.print("[dim]Strategy is now disabled until schedule time[/dim]")
     except AppError as e:
         _handle_error(e, as_json)
     except ValueError as e:
@@ -2123,7 +2117,7 @@ def _parse_schedule_time(schedule_str: str) -> datetime:
     if schedule_str.startswith("+"):
         now = datetime.now()
         time_str = schedule_str[1:]
-        
+
         if time_str.endswith("h"):
             hours = int(time_str[:-1])
             return now + timedelta(hours=hours)
@@ -2141,7 +2135,7 @@ def _parse_schedule_time(schedule_str: str) -> datetime:
         now = datetime.now()
         tomorrow = now + timedelta(days=1)
         time_part = schedule_str.replace("tomorrow", "").strip()
-        
+
         if time_part:
             try:
                 hour, minute = map(int, time_part.split(":"))

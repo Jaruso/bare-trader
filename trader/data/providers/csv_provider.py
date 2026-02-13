@@ -9,7 +9,6 @@ import pytz
 from trader.data.providers.base import DataProvider, TimeFrame
 from trader.utils.logging import get_logger
 
-
 _EASTERN_TZ = pytz.timezone("US/Eastern")
 
 

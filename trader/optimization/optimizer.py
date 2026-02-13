@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 from time import perf_counter
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 
@@ -27,9 +27,9 @@ class Optimizer:
         end_date: datetime,
         objective: str = "total_return_pct",
         data_source: str = "csv",
-        data_dir: Optional[str] = None,
+        data_dir: str | None = None,
         initial_capital: float = 100000.0,
-        historical_data: Optional[dict[str, pd.DataFrame]] = None,
+        historical_data: dict[str, pd.DataFrame] | None = None,
     ) -> None:
         self.strategy_type = strategy_type
         self.symbol = symbol
@@ -46,7 +46,7 @@ class Optimizer:
         self,
         param_grid: dict[str, list[Any]],
         method: str = "grid",
-        num_samples: Optional[int] = None,
+        num_samples: int | None = None,
     ) -> OptimizationResult:
         """Run parameter optimization."""
         if method == "grid":

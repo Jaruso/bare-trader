@@ -1,9 +1,10 @@
 """Alpaca broker implementation."""
 
 from decimal import Decimal
-from typing import Optional
 
 import requests
+from alpaca.data.historical import StockHistoricalDataClient
+from alpaca.data.requests import StockLatestQuoteRequest
 from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide as AlpacaOrderSide
 from alpaca.trading.enums import OrderStatus as AlpacaOrderStatus
@@ -17,8 +18,6 @@ from alpaca.trading.requests import (
     StopOrderRequest,
     TrailingStopOrderRequest,
 )
-from alpaca.data.historical import StockHistoricalDataClient
-from alpaca.data.requests import StockLatestQuoteRequest
 
 from trader.api.broker import (
     Account,
@@ -77,7 +76,7 @@ class AlpacaBroker(Broker):
         positions = self.trading_client.get_all_positions()
         return [self._convert_position(p) for p in positions]
 
-    def get_position(self, symbol: str) -> Optional[Position]:
+    def get_position(self, symbol: str) -> Position | None:
         """Get position for a specific symbol."""
         try:
             position = self.trading_client.get_open_position(symbol)
@@ -105,9 +104,9 @@ class AlpacaBroker(Broker):
         qty: Decimal,
         side: OrderSide,
         order_type: OrderType = OrderType.MARKET,
-        limit_price: Optional[Decimal] = None,
-        stop_price: Optional[Decimal] = None,
-        trail_percent: Optional[Decimal] = None,
+        limit_price: Decimal | None = None,
+        stop_price: Decimal | None = None,
+        trail_percent: Decimal | None = None,
     ) -> Order:
         """Place a trade order."""
         alpaca_side = (
@@ -176,7 +175,7 @@ class AlpacaBroker(Broker):
         except Exception:
             return False
 
-    def get_order(self, order_id: str) -> Optional[Order]:
+    def get_order(self, order_id: str) -> Order | None:
         """Get order by ID."""
         try:
             order = self.trading_client.get_order_by_id(order_id)
@@ -184,7 +183,7 @@ class AlpacaBroker(Broker):
         except Exception:
             return None
 
-    def get_orders(self, status: Optional[OrderStatus] = None) -> list[Order]:
+    def get_orders(self, status: OrderStatus | None = None) -> list[Order]:
         """Get orders, optionally filtered by status."""
         request = GetOrdersRequest()
         if status:

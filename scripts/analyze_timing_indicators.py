@@ -7,9 +7,9 @@ optimal timing signals for strategy entry/exit.
 
 import json
 import sys
-from pathlib import Path
 from datetime import datetime
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -17,8 +17,8 @@ import pandas as pd
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from trader.indicators import get_indicator
 from trader.data.providers import get_data_provider
+from trader.indicators import get_indicator
 from trader.utils.config import Config
 
 
@@ -26,10 +26,10 @@ def load_backtest(backtest_id: str) -> dict[str, Any]:
     """Load a backtest result by ID."""
     backtests_dir = Path(__file__).parent.parent / "data" / "backtests"
     backtest_file = backtests_dir / f"{backtest_id}.json"
-    
+
     if not backtest_file.exists():
         raise FileNotFoundError(f"Backtest {backtest_id} not found")
-    
+
     with open(backtest_file) as f:
         return json.load(f)
 
@@ -39,7 +39,7 @@ def extract_trades(backtest: dict[str, Any]) -> list[dict[str, Any]]:
     trades = backtest.get("trades", [])
     buys = [t for t in trades if t["side"] == "buy"]
     sells = [t for t in trades if t["side"] == "sell"]
-    
+
     matched_trades = []
     for i, buy in enumerate(buys):
         if i < len(sells):
@@ -50,7 +50,7 @@ def extract_trades(backtest: dict[str, Any]) -> list[dict[str, Any]]:
             exit_price = Decimal(sell["price"])
             pnl = (exit_price - entry_price) * Decimal(buy["qty"])
             pnl_pct = ((exit_price - entry_price) / entry_price) * 100
-            
+
             matched_trades.append({
                 "entry_time": entry_time,
                 "exit_time": exit_time,
@@ -62,7 +62,7 @@ def extract_trades(backtest: dict[str, Any]) -> list[dict[str, Any]]:
                 "duration_days": (exit_time - entry_time).days,
                 "is_win": pnl > 0,
             })
-    
+
     return matched_trades
 
 
@@ -75,7 +75,7 @@ def calculate_indicators_at_date(
     """Calculate indicators at a specific date."""
     end_date = date
     start_date = date - pd.Timedelta(days=lookback_days)
-    
+
     try:
         # Get historical data
         data = data_provider.get_historical_data(
@@ -84,18 +84,18 @@ def calculate_indicators_at_date(
             end_date=end_date,
             timeframe="1Day",
         )
-        
+
         if data is None or len(data) == 0:
             return {}
-        
+
         # Ensure we have OHLCV columns
         required_cols = ["open", "high", "low", "close", "volume"]
         if not all(col in data.columns for col in required_cols):
             return {}
-        
+
         # Calculate indicators
         indicators = {}
-        
+
         # RSI
         try:
             rsi = get_indicator("rsi", period=14)
@@ -104,7 +104,7 @@ def calculate_indicators_at_date(
                 indicators["rsi"] = float(rsi_values.iloc[-1])
         except Exception:
             pass
-        
+
         # MACD
         try:
             macd = get_indicator("macd")
@@ -115,7 +115,7 @@ def calculate_indicators_at_date(
                 indicators["macd_histogram"] = float(macd_values["HISTOGRAM"].iloc[-1])
         except Exception:
             pass
-        
+
         # Bollinger Bands
         try:
             bb = get_indicator("bbands", period=20, stddev=2.0)
@@ -130,7 +130,7 @@ def calculate_indicators_at_date(
                 ) if (indicators["bb_upper"] - indicators["bb_lower"]) > 0 else 0.5
         except Exception:
             pass
-        
+
         # Moving Averages
         try:
             sma20 = get_indicator("sma", period=20)
@@ -145,7 +145,7 @@ def calculate_indicators_at_date(
                 indicators["price_vs_sma50"] = (current_price - indicators["sma50"]) / indicators["sma50"] * 100
         except Exception:
             pass
-        
+
         # ATR
         try:
             atr = get_indicator("atr", period=14)
@@ -155,21 +155,21 @@ def calculate_indicators_at_date(
                 indicators["atr_pct"] = (indicators["atr"] / float(data["close"].iloc[-1])) * 100
         except Exception:
             pass
-        
+
         # Volume
         if "volume" in data.columns:
             recent_volume = data["volume"].tail(20).mean()
             current_volume = float(data["volume"].iloc[-1])
             indicators["volume_ratio"] = current_volume / recent_volume if recent_volume > 0 else 1.0
-        
+
         # Price change
         if len(data) >= 2:
             current_price = float(data["close"].iloc[-1])
             prev_price = float(data["close"].iloc[-2])
             indicators["price_change_pct"] = ((current_price - prev_price) / prev_price) * 100
-        
+
         return indicators
-    
+
     except Exception as e:
         print(f"Error calculating indicators for {symbol} at {date}: {e}")
         return {}
@@ -179,17 +179,17 @@ def analyze_backtest_timing(backtest_id: str) -> dict[str, Any]:
     """Analyze timing indicators for a backtest."""
     backtest = load_backtest(backtest_id)
     symbol = backtest["symbol"]
-    
+
     # Extract matched trades
     matched_trades = extract_trades(backtest)
-    
+
     if not matched_trades:
         return {"error": "No matched trades found"}
-    
+
     # Get data provider
     config = Config()
     data_provider = get_data_provider(config.data_source, config=config)
-    
+
     # Calculate indicators for each trade
     trade_analysis = []
     for trade in matched_trades:
@@ -199,17 +199,17 @@ def analyze_backtest_timing(backtest_id: str) -> dict[str, Any]:
         exit_indicators = calculate_indicators_at_date(
             symbol, trade["exit_time"], data_provider
         )
-        
+
         trade_analysis.append({
             **trade,
             "entry_indicators": entry_indicators,
             "exit_indicators": exit_indicators,
         })
-    
+
     # Aggregate statistics
     winning_trades = [t for t in trade_analysis if t["is_win"]]
     losing_trades = [t for t in trade_analysis if not t["is_win"]]
-    
+
     # Analyze entry indicators for winners vs losers
     winner_entry_rsi = [
         t["entry_indicators"].get("rsi")
@@ -221,7 +221,7 @@ def analyze_backtest_timing(backtest_id: str) -> dict[str, Any]:
         for t in losing_trades
         if "rsi" in t["entry_indicators"]
     ]
-    
+
     winner_entry_bb_pos = [
         t["entry_indicators"].get("bb_position")
         for t in winning_trades
@@ -232,7 +232,7 @@ def analyze_backtest_timing(backtest_id: str) -> dict[str, Any]:
         for t in losing_trades
         if "bb_position" in t["entry_indicators"]
     ]
-    
+
     return {
         "symbol": symbol,
         "strategy_type": backtest["strategy_type"],
@@ -256,7 +256,7 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python analyze_timing_indicators.py <backtest_id>")
         sys.exit(1)
-    
+
     backtest_id = sys.argv[1]
     result = analyze_backtest_timing(backtest_id)
     print(json.dumps(result, indent=2, default=str))

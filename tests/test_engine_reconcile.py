@@ -2,10 +2,11 @@
 from decimal import Decimal
 from pathlib import Path
 
-from trader.core.engine import TradingEngine
-from trader.api.broker import Order as BrokerOrder, OrderSide, OrderType, OrderStatus as BrokerOrderStatus
-from trader.oms.store import save_orders, load_orders
+from trader.api.broker import Order as BrokerOrder
+from trader.api.broker import OrderSide, OrderType
+from trader.api.broker import OrderStatus as BrokerOrderStatus
 from trader.models.order import Order as LocalOrder
+from trader.oms.store import load_orders, save_orders
 
 
 class MockBroker:
@@ -44,7 +45,6 @@ def test_reconcile_updates_persisted_order(tmp_path: Path):
 
     # Reconcile using tmp_path as config dir by setting engine attribute orders_dir via monkeypatching load_orders
     # We'll temporarily monkeypatch trader.oms.store.load_orders and save_order to use tmp_path
-    from trader import oms
     # direct import path
     import trader.oms.store as store
 

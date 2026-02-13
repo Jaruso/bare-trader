@@ -2,7 +2,6 @@
 
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import pandas as pd
 
@@ -64,10 +63,10 @@ def load_data_for_backtest(
     start_date: datetime,
     end_date: datetime,
     data_source: str = "csv",
-    data_dir: Optional[Path] = None,
+    data_dir: Path | None = None,
     timeframe: TimeFrame = TimeFrame.DAY_1,
-    provider: Optional[DataProvider] = None,
-    config: Optional[Config] = None,
+    provider: DataProvider | None = None,
+    config: Config | None = None,
 ) -> dict[str, pd.DataFrame]:
     """Load historical data for backtesting.
 
@@ -104,7 +103,7 @@ def _load_from_csv(
     symbols: list[str],
     start_date: datetime,
     end_date: datetime,
-    data_dir: Optional[Path] = None,
+    data_dir: Path | None = None,
 ) -> dict[str, pd.DataFrame]:
     """Load data from CSV files.
 

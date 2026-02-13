@@ -26,17 +26,17 @@ def test_path_resolution():
     print("=" * 60)
     print("Testing Path Resolution")
     print("=" * 60)
-    
+
     from trader.utils.paths import get_config_dir, get_data_dir, get_log_dir
-    
+
     config_dir = get_config_dir()
     data_dir = get_data_dir()
     log_dir = get_log_dir()
-    
+
     print(f"✓ Config dir: {config_dir}")
     print(f"✓ Data dir: {data_dir}")
     print(f"✓ Log dir: {log_dir}")
-    
+
     # Verify directories exist and are writable
     for name, path in [("Config", config_dir), ("Data", data_dir), ("Log", log_dir)]:
         if not path.exists():
@@ -46,18 +46,18 @@ def test_path_resolution():
             print(f"✗ {name} directory is not writable: {path}")
             return False
         print(f"✓ {name} directory exists and is writable")
-    
+
     # Check if we're in dev or installed mode
     project_root = Path(__file__).resolve().parent.parent
     is_dev = (project_root / "config" / "strategies.yaml").exists() or (project_root / "pyproject.toml").exists()
-    
+
     if is_dev:
-        print(f"\n✓ Running in DEVELOPMENT mode")
+        print("\n✓ Running in DEVELOPMENT mode")
         print(f"  Project root: {project_root}")
     else:
-        print(f"\n✓ Running in INSTALLED mode")
-        print(f"  Config: ~/.autotrader/config/ (macOS) or ~/.config/autotrader/ (Linux)")
-    
+        print("\n✓ Running in INSTALLED mode")
+        print("  Config: ~/.autotrader/config/ (macOS) or ~/.config/autotrader/ (Linux)")
+
     return True
 
 
@@ -66,11 +66,11 @@ def test_config_loading():
     print("\n" + "=" * 60)
     print("Testing Config Loading")
     print("=" * 60)
-    
+
     try:
         from trader.utils.config import load_config
         config = load_config()
-        print(f"✓ Config loaded successfully")
+        print("✓ Config loaded successfully")
         print(f"  Environment: {config.env.value}")
         print(f"  Service: {config.service.value}")
         print(f"  Data dir: {config.data_dir}")
@@ -88,12 +88,12 @@ def test_strategy_loader():
     print("\n" + "=" * 60)
     print("Testing Strategy Loader")
     print("=" * 60)
-    
+
     try:
-        from trader.strategies.loader import load_strategies, get_strategies_file
+        from trader.strategies.loader import get_strategies_file, load_strategies
         strategies_file = get_strategies_file()
         print(f"✓ Strategies file: {strategies_file}")
-        
+
         strategies = load_strategies()
         print(f"✓ Loaded {len(strategies)} strategies")
         return True
@@ -109,15 +109,15 @@ def test_mcp_server_import():
     print("\n" + "=" * 60)
     print("Testing MCP Server Import")
     print("=" * 60)
-    
+
     try:
-        from trader.mcp.server import build_server, run_server
+        from trader.mcp.server import build_server
         print("✓ MCP server imports successful")
-        
+
         # Try building server (don't actually run it)
-        server = build_server()
+        build_server()
         print("✓ MCP server can be built")
-        
+
         # Check that tools are registered
         # The server should have tools registered via register_tools()
         print("✓ MCP server ready")
@@ -134,7 +134,7 @@ def test_cli_command():
     print("\n" + "=" * 60)
     print("Testing CLI Command")
     print("=" * 60)
-    
+
     try:
         import subprocess
         result = subprocess.run(
@@ -163,7 +163,7 @@ def main():
     print("=" * 60)
     print("\nThis script verifies that AutoTrader is properly installed")
     print("and ready to use with Claude Desktop or Cursor.\n")
-    
+
     tests = [
         ("Path Resolution", test_path_resolution),
         ("Config Loading", test_config_loading),
@@ -171,7 +171,7 @@ def main():
         ("MCP Server Import", test_mcp_server_import),
         ("CLI Command", test_cli_command),
     ]
-    
+
     results = []
     for name, test_func in tests:
         try:
@@ -182,18 +182,18 @@ def main():
             import traceback
             traceback.print_exc()
             results.append((name, False))
-    
+
     print("\n" + "=" * 60)
     print("Test Results Summary")
     print("=" * 60)
-    
+
     all_passed = True
     for name, result in results:
         status = "✓ PASS" if result else "✗ FAIL"
         print(f"{status}: {name}")
         if not result:
             all_passed = False
-    
+
     print("\n" + "=" * 60)
     if all_passed:
         print("✓ All tests passed! AutoTrader is ready to use.")

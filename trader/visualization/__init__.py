@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import pandas as pd
 
@@ -24,9 +23,9 @@ def default_historical_data_dir() -> Path:
 def load_price_data(
     result: BacktestResult,
     data_source: str = "csv",
-    data_dir: Optional[Path] = None,
+    data_dir: Path | None = None,
     timeframe: TimeFrame = TimeFrame.DAY_1,
-) -> Optional[pd.DataFrame]:
+) -> pd.DataFrame | None:
     """Load OHLCV data for a backtest result.
 
     Returns None if data cannot be loaded.
@@ -53,7 +52,7 @@ def load_price_data(
 def build_backtest_chart(
     result: BacktestResult,
     data_source: str = "csv",
-    data_dir: Optional[Path] = None,
+    data_dir: Path | None = None,
     theme: str = "dark",
     include_price: bool = True,
 ) -> ChartBuilder:

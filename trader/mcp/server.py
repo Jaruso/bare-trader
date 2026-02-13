@@ -342,13 +342,14 @@ def schedule_strategy(strategy_id: str, schedule_at: str) -> str:
         schedule_at: ISO datetime string (e.g., "2026-02-13T09:30:00").
     """
     from datetime import datetime
+
     from trader.app.strategies import schedule_strategy as _schedule_strategy
 
     try:
         # Parse ISO datetime string
         schedule_dt = datetime.fromisoformat(schedule_at)
         return _ok(_schedule_strategy(strategy_id, schedule_dt))
-    except ValueError as e:
+    except ValueError:
         return _err(
             ValidationError(
                 message=f"Invalid datetime format: {schedule_at}. Use ISO format: '2026-02-13T09:30:00'",
@@ -800,10 +801,10 @@ async def run_server(
     try:
         print(f"Building MCP server (transport={transport})...", file=sys.stderr)
         server = build_server(host=host, port=port, log_level=log_level)
-        print(f"Server built successfully", file=sys.stderr)
+        print("Server built successfully", file=sys.stderr)
 
         if transport == "stdio":
-            print(f"Starting stdio transport...", file=sys.stderr)
+            print("Starting stdio transport...", file=sys.stderr)
             await server.run_stdio_async()
             return
 

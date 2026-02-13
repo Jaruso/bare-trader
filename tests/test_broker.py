@@ -2,8 +2,6 @@
 
 from decimal import Decimal
 
-import pytest
-
 from trader.api.broker import (
     Account,
     Order,

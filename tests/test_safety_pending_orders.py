@@ -4,8 +4,9 @@ from pathlib import Path
 
 from trader.core.safety import SafetyCheck, SafetyLimits
 from trader.data.ledger import TradeLedger
+from trader.models.order import Order as LocalOrder
+from trader.models.order import OrderSide, OrderType
 from trader.oms.store import save_orders
-from trader.models.order import Order as LocalOrder, OrderSide, OrderType, OrderStatus
 
 
 class MockBroker:

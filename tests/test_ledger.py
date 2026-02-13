@@ -26,7 +26,7 @@ def ledger(temp_db: Path) -> TradeLedger:
 
 def test_ledger_init(temp_db: Path) -> None:
     """Test ledger initialization creates database."""
-    ledger = TradeLedger(db_path=temp_db)
+    _ = TradeLedger(db_path=temp_db)
     assert temp_db.exists()
 
 
@@ -250,6 +250,6 @@ def test_record_trade_with_rule_id(ledger: TradeLedger) -> None:
         status=OrderStatus.FILLED,
         rule_id="rule-abc",
     )
-
+    assert trade_id > 0
     trades = ledger.get_trades()
     assert trades[0].rule_id == "rule-abc"

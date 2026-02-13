@@ -5,7 +5,6 @@ This broker simulates order fills based on historical OHLCV data.
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
 
 import pandas as pd
 
@@ -52,7 +51,7 @@ class HistoricalBroker(Broker):
         self.initial_cash = initial_cash  # Store for metrics calculation
 
         # Current state
-        self.current_timestamp: Optional[datetime] = None
+        self.current_timestamp: datetime | None = None
         self.current_bar_index: dict[str, int] = {symbol: 0 for symbol in historical_data}
 
         # Account state
@@ -103,7 +102,7 @@ class HistoricalBroker(Broker):
         """Get all open positions."""
         return list(self._positions.values())
 
-    def get_position(self, symbol: str) -> Optional[Position]:
+    def get_position(self, symbol: str) -> Position | None:
         """Get position for a specific symbol."""
         return self._positions.get(symbol)
 
@@ -146,9 +145,9 @@ class HistoricalBroker(Broker):
         qty: Decimal,
         side: OrderSide,
         order_type: OrderType = OrderType.MARKET,
-        limit_price: Optional[Decimal] = None,
-        stop_price: Optional[Decimal] = None,
-        trail_percent: Optional[Decimal] = None,
+        limit_price: Decimal | None = None,
+        stop_price: Decimal | None = None,
+        trail_percent: Decimal | None = None,
     ) -> Order:
         """Place a trade order.
 
@@ -233,11 +232,11 @@ class HistoricalBroker(Broker):
                 return True
         return False
 
-    def get_order(self, order_id: str) -> Optional[Order]:
+    def get_order(self, order_id: str) -> Order | None:
         """Get order by ID."""
         return self._orders.get(order_id)
 
-    def get_orders(self, status: Optional[OrderStatus] = None) -> list[Order]:
+    def get_orders(self, status: OrderStatus | None = None) -> list[Order]:
         """Get orders, optionally filtered by status."""
         orders = list(self._orders.values())
         if status:
@@ -280,7 +279,6 @@ class HistoricalBroker(Broker):
             bar = df.iloc[idx]
             low = Decimal(str(bar["low"]))
             high = Decimal(str(bar["high"]))
-            close = Decimal(str(bar["close"]))
 
             fill_price = None
 

@@ -1,8 +1,10 @@
 """Tests for basic order model and lifecycle."""
 
 from decimal import Decimal
+
 import pytest
-from trader.models.order import Order, OrderSide, OrderType, OrderStatus
+
+from trader.models.order import Order, OrderSide, OrderStatus, OrderType
 
 
 def test_order_creation():
@@ -38,7 +40,7 @@ def test_order_validation():
 
 
 def test_order_persistence(tmp_path):
-    from trader.oms.store import save_orders, load_orders
+    from trader.oms.store import load_orders, save_orders
 
     o1 = Order(symbol="AAPL", side=OrderSide.BUY, qty=Decimal("2"), order_type=OrderType.MARKET)
     o2 = Order(symbol="TSLA", side=OrderSide.SELL, qty=Decimal("3"), order_type=OrderType.LIMIT, limit_price=Decimal("400"))

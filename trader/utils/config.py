@@ -180,10 +180,10 @@ def load_config(
 
     # Set up directories - use user directories when installed, project dirs in dev
     from trader.utils.paths import get_config_dir, get_data_dir, get_log_dir
-    
+
     # Check if we're in development mode (config dir exists in project root)
     is_dev_mode = (project_root / "config" / "strategies.yaml").exists() or (project_root / "pyproject.toml").exists()
-    
+
     if is_dev_mode:
         # Development mode - use project directories
         data_dir = project_root / "data"

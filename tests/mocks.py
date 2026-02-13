@@ -1,7 +1,6 @@
 """Mock broker for testing."""
 
 from decimal import Decimal
-from typing import Optional
 
 from trader.api.broker import (
     Account,
@@ -56,7 +55,7 @@ class MockBroker(Broker):
         """Get all mock positions."""
         return list(self._positions.values())
 
-    def get_position(self, symbol: str) -> Optional[Position]:
+    def get_position(self, symbol: str) -> Position | None:
         """Get mock position for symbol."""
         return self._positions.get(symbol)
 
@@ -79,8 +78,8 @@ class MockBroker(Broker):
         qty: Decimal,
         side: OrderSide,
         order_type: OrderType = OrderType.MARKET,
-        limit_price: Optional[Decimal] = None,
-        stop_price: Optional[Decimal] = None,
+        limit_price: Decimal | None = None,
+        stop_price: Decimal | None = None,
     ) -> Order:
         """Place a mock order."""
         order_id = f"mock-{self._next_order_id}"
@@ -112,11 +111,11 @@ class MockBroker(Broker):
             return True
         return False
 
-    def get_order(self, order_id: str) -> Optional[Order]:
+    def get_order(self, order_id: str) -> Order | None:
         """Get mock order by ID."""
         return self._orders.get(order_id)
 
-    def get_orders(self, status: Optional[OrderStatus] = None) -> list[Order]:
+    def get_orders(self, status: OrderStatus | None = None) -> list[Order]:
         """Get mock orders."""
         orders = list(self._orders.values())
         if status:

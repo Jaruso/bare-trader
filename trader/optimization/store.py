@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Optional
 
 from trader.optimization.results import OptimizationResult
 
 
-def get_optimizations_dir(data_dir: Optional[Path] = None) -> Path:
+def get_optimizations_dir(data_dir: Path | None = None) -> Path:
     """Get the optimizations directory, creating if needed."""
     if data_dir is None:
         from trader.utils.paths import get_data_dir
@@ -20,7 +19,7 @@ def get_optimizations_dir(data_dir: Optional[Path] = None) -> Path:
     return optimizations_dir
 
 
-def save_optimization(result: OptimizationResult, data_dir: Optional[Path] = None) -> None:
+def save_optimization(result: OptimizationResult, data_dir: Path | None = None) -> None:
     """Save optimization result to JSON and update index."""
     optimizations_dir = get_optimizations_dir(data_dir)
     result_file = optimizations_dir / f"{result.id}.json"
@@ -31,7 +30,7 @@ def save_optimization(result: OptimizationResult, data_dir: Optional[Path] = Non
 
 
 def load_optimization(
-    optimization_id: str, data_dir: Optional[Path] = None
+    optimization_id: str, data_dir: Path | None = None
 ) -> OptimizationResult:
     """Load an optimization result from JSON."""
     optimizations_dir = get_optimizations_dir(data_dir)
@@ -42,13 +41,13 @@ def load_optimization(
             f"Optimization {optimization_id} not found at {result_file}"
         )
 
-    with open(result_file, "r") as f:
+    with open(result_file) as f:
         data = json.load(f)
 
     return OptimizationResult.from_dict(data)
 
 
-def list_optimizations(data_dir: Optional[Path] = None) -> list[dict]:
+def list_optimizations(data_dir: Path | None = None) -> list[dict]:
     """List all optimization results (metadata only)."""
     optimizations_dir = get_optimizations_dir(data_dir)
     index_file = optimizations_dir / "index.json"
@@ -56,13 +55,13 @@ def list_optimizations(data_dir: Optional[Path] = None) -> list[dict]:
     if not index_file.exists():
         return []
 
-    with open(index_file, "r") as f:
+    with open(index_file) as f:
         index = json.load(f)
 
     return index.get("optimizations", [])
 
 
-def delete_optimization(optimization_id: str, data_dir: Optional[Path] = None) -> bool:
+def delete_optimization(optimization_id: str, data_dir: Path | None = None) -> bool:
     """Delete an optimization result."""
     optimizations_dir = get_optimizations_dir(data_dir)
     result_file = optimizations_dir / f"{optimization_id}.json"
@@ -79,7 +78,7 @@ def _update_index(result: OptimizationResult, optimizations_dir: Path) -> None:
     index_file = optimizations_dir / "index.json"
 
     if index_file.exists():
-        with open(index_file, "r") as f:
+        with open(index_file) as f:
             index = json.load(f)
     else:
         index = {"optimizations": []}
@@ -113,7 +112,7 @@ def _remove_from_index(optimization_id: str, optimizations_dir: Path) -> None:
     if not index_file.exists():
         return
 
-    with open(index_file, "r") as f:
+    with open(index_file) as f:
         index = json.load(f)
 
     index["optimizations"] = [

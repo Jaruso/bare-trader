@@ -2,13 +2,15 @@
 
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Optional
-
-from trader.api.broker import Broker, OrderStatus as BrokerOrderStatus, OrderSide as BrokerOrderSide
-from trader.data.ledger import TradeLedger
-from trader.oms.store import load_orders, save_order
-from trader.models.order import OrderSide as LocalOrderSide, OrderStatus as LocalOrderStatus
 from pathlib import Path
+
+from trader.api.broker import Broker
+from trader.api.broker import OrderSide as BrokerOrderSide
+from trader.api.broker import OrderStatus as BrokerOrderStatus
+from trader.data.ledger import TradeLedger
+from trader.models.order import OrderSide as LocalOrderSide
+from trader.models.order import OrderStatus as LocalOrderStatus
+from trader.oms.store import load_orders, save_order
 from trader.utils.logging import get_logger
 
 
@@ -30,8 +32,8 @@ class SafetyCheck:
         self,
         broker: Broker,
         ledger: TradeLedger,
-        limits: Optional[SafetyLimits] = None,
-        orders_dir: Optional[Path] = None,
+        limits: SafetyLimits | None = None,
+        orders_dir: Path | None = None,
     ) -> None:
         """Initialize safety checker.
 
@@ -133,7 +135,7 @@ class SafetyCheck:
                     BrokerOrderStatus.PARTIALLY_FILLED,
                 )
             ]
-            
+
             # Reconcile local orders.yaml with broker (update statuses)
             try:
                 local_orders = load_orders(self.orders_dir)
@@ -143,16 +145,16 @@ class SafetyCheck:
                     # Skip if already in final state
                     if local_order.status in (LocalOrderStatus.FILLED, LocalOrderStatus.CANCELED):
                         continue
-                    
+
                     # Find matching broker order
                     broker_order = None
                     for bo in broker_orders:
-                        if (bo.id == local_order.id or 
+                        if (bo.id == local_order.id or
                             bo.id == local_order.external_id or
                             (local_order.external_id and bo.id == local_order.external_id)):
                             broker_order = bo
                             break
-                    
+
                     # Update local order if broker shows different status
                     if broker_order:
                         broker_status = broker_order.status
@@ -160,7 +162,7 @@ class SafetyCheck:
                         # Compare status values
                         broker_status_str = broker_status.value if hasattr(broker_status, 'value') else str(broker_status)
                         local_status_str = local_status.value if hasattr(local_status, 'value') else str(local_status)
-                        
+
                         if broker_status_str != local_status_str:
                             try:
                                 # Save updated broker order to sync status
@@ -182,7 +184,7 @@ class SafetyCheck:
         for o in pending_broker_orders:
             is_buy_order = o.side == BrokerOrderSide.BUY
             qty = int(o.qty)
-            
+
             if is_buy_order:
                 pending_buy_qty += qty
                 # estimate value
@@ -199,6 +201,33 @@ class SafetyCheck:
                     pending_buy_value += (midpoint or Decimal("0")) * qty
             else:
                 pending_sell_qty += qty
+
+        # When broker returned no pending orders (e.g. mock or API failure), use local orders dir so we still reserve buying power / position size
+        if (pending_buy_qty == 0 and pending_sell_qty == 0) and self.orders_dir is not None:
+            try:
+                local_orders = load_orders(self.orders_dir)
+                for local_order in local_orders:
+                    if local_order.symbol != symbol:
+                        continue
+                    if local_order.status in (LocalOrderStatus.FILLED, LocalOrderStatus.CANCELED):
+                        continue
+                    qty = int(local_order.qty)
+                    if local_order.side == LocalOrderSide.BUY:
+                        pending_buy_qty += qty
+                        if local_order.limit_price is not None:
+                            pending_buy_value += local_order.limit_price * qty
+                        else:
+                            if midpoint is None:
+                                try:
+                                    q = self.broker.get_quote(symbol)
+                                    midpoint = (q.bid + q.ask) / 2
+                                except Exception:
+                                    midpoint = Decimal("0")
+                            pending_buy_value += (midpoint or Decimal("0")) * qty
+                    else:
+                        pending_sell_qty += qty
+            except Exception as e:
+                self.logger.debug(f"Failed to load local orders for pending reserve: {e}")
 
         # Check against current position quantity as well
         current_position = self.broker.get_position(symbol)

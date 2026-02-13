@@ -11,7 +11,6 @@ from trader.indicators.trend import EMA, SMA
 from trader.indicators.volatility import ATR, BollingerBands
 from trader.indicators.volume import OBV, VWAP
 
-
 INDICATORS = {
     "sma": SMA,
     "ema": EMA,

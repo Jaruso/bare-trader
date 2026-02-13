@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 from bokeh.embed import json_item
@@ -33,7 +33,7 @@ class ChartBuilder:
     def __init__(
         self,
         result: BacktestResult,
-        price_data: Optional[pd.DataFrame] = None,
+        price_data: pd.DataFrame | None = None,
         theme: str = "dark",
     ) -> None:
         self.result = result
@@ -259,7 +259,7 @@ class ChartBuilder:
             fig.outline_line_color = "#334155"
 
 
-def _parse_trade_timestamp(value: Optional[str]) -> Optional[datetime]:
+def _parse_trade_timestamp(value: str | None) -> datetime | None:
     if value is None:
         return None
     try:

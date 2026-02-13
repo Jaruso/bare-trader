@@ -2,9 +2,6 @@
 from dataclasses import dataclass, field
 from decimal import Decimal
 from enum import Enum
-from typing import Optional
-from pathlib import Path
-from decimal import InvalidOperation
 from typing import Any
 
 
@@ -31,9 +28,9 @@ class Order:
     side: OrderSide
     qty: Decimal
     order_type: OrderType
-    limit_price: Optional[Decimal] = None
+    limit_price: Decimal | None = None
     id: str = field(default_factory=lambda: "")
-    external_id: Optional[str] = None
+    external_id: str | None = None
     status: OrderStatus = OrderStatus.NEW
 
     def validate(self) -> None:

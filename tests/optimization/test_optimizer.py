@@ -5,10 +5,10 @@ from decimal import Decimal
 
 import pandas as pd
 
+from trader.backtest.results import BacktestResult
 from trader.optimization.objectives import score_result
 from trader.optimization.optimizer import Optimizer
 from trader.optimization.search import generate_grid, generate_random
-from trader.backtest.results import BacktestResult
 
 
 def _sample_data() -> dict[str, pd.DataFrame]:

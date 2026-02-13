@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 from contextvars import ContextVar
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -46,7 +46,7 @@ def log_action(
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / "audit.log"
     record = {
-        "ts": datetime.now(tz=timezone.utc).isoformat(),
+        "ts": datetime.now(tz=UTC).isoformat(),
         "source": get_audit_source(),
         "action": action,
         "details": details,

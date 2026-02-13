@@ -2,9 +2,8 @@
 
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Optional
 
-from trader.api.broker import Broker, Position
+from trader.api.broker import Broker
 from trader.data.ledger import TradeLedger
 
 

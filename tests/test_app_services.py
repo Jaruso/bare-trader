@@ -1,12 +1,11 @@
 """Tests for the app service layer."""
 
-from decimal import Decimal
 from pathlib import Path
 
 import pytest
 
-from trader.app.indicators import describe_indicator, list_all_indicators
 from trader.app.engine import get_engine_status, stop_engine
+from trader.app.indicators import describe_indicator, list_all_indicators
 from trader.app.strategies import (
     get_strategy_detail,
     list_strategies,
@@ -17,8 +16,8 @@ from trader.errors import (
     EngineError,
     NotFoundError,
 )
-from trader.schemas.indicators import IndicatorInfo
 from trader.schemas.engine import EngineStatus
+from trader.schemas.indicators import IndicatorInfo
 from trader.schemas.strategies import StrategyListResponse
 
 
@@ -119,8 +118,8 @@ class TestAppInit:
 
     def test_get_broker_with_keys_returns_broker(self) -> None:
         """Should return a broker instance when keys are set."""
-        from trader.app import get_broker
         from trader.api.broker import Broker
+        from trader.app import get_broker
         from trader.utils.config import (
             Config,
             Environment,
@@ -148,6 +147,7 @@ class TestCLIJsonFlag:
     def test_cli_status_json(self) -> None:
         """Status command should accept --json flag."""
         from click.testing import CliRunner
+
         from trader.cli.main import cli
 
         runner = CliRunner()
@@ -157,6 +157,7 @@ class TestCLIJsonFlag:
     def test_cli_strategy_list_json(self) -> None:
         """Strategy list should accept --json flag."""
         from click.testing import CliRunner
+
         from trader.cli.main import cli
 
         runner = CliRunner()

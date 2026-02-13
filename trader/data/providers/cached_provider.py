@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pandas as pd
@@ -78,8 +78,8 @@ class CachedDataProvider(DataProvider):
             return False
         if self.ttl_minutes <= 0:
             return True
-        mtime = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
-        age_seconds = (datetime.now(timezone.utc) - mtime).total_seconds()
+        mtime = datetime.fromtimestamp(path.stat().st_mtime, tz=UTC)
+        age_seconds = (datetime.now(UTC) - mtime).total_seconds()
         return age_seconds <= self.ttl_minutes * 60
 
 

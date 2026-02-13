@@ -9,7 +9,6 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
-from typing import Optional
 
 # Comment at end of our crontab line so we can find and remove it
 AUTOTRADER_MARKER = "# AutoTrader schedule"
@@ -19,7 +18,7 @@ def _is_unix() -> bool:
     return os.name == "posix"
 
 
-def get_trader_path() -> Optional[str]:
+def get_trader_path() -> str | None:
     """Return full path to 'trader' executable, or None if not on PATH."""
     return shutil.which("trader")
 

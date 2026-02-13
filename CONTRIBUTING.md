@@ -42,6 +42,8 @@ Then you can run `trader status` (or `poetry run trader status`) and use the sam
 
 Use the same Claude config as in the README: set `command` to the **full path** to `trader` (run `which trader` and use that path), and `args`: `["mcp", "serve"]`, plus `env` for your Alpaca keys. Claude Desktop often uses a limited PATH and won’t find `trader` if you only use `"command": "trader"`. Install with `pipx install -e .` from the repo root so that path runs your local code. Each new Claude conversation spawns a new MCP process, so code changes are picked up without restarting Claude. MCP rate limits and timeouts for long-running tools are configured via env (see README Configuration).
 
+**Agents**: Use MCP tools as the primary interface for all operations. Run CLI commands only when testing or verifying human-facing output (e.g. `trader status` or `trader backtest list --json`).
+
 ---
 
 ## Project Layout
@@ -53,7 +55,7 @@ Use the same Claude config as in the README: set `command` to the **full path** 
 - **trader/errors.py** — Shared error hierarchy
 - **trader/core/**, **trader/backtest/**, **trader/strategies/**, **trader/api/**, **trader/data/**, **trader/indicators/**, **trader/notifications/**, **trader/oms/**, **trader/utils/** — Domain and infra
 
-**Dual-interface architecture**: CLI and MCP are thin adapters; both call `trader/app` and use `trader/schemas`. One core, two adapters — no logic duplication. For a full mapping of CLI commands to MCP tools, see [docs/cli-mcp-usage.md](docs/cli-mcp-usage.md).
+**Dual-interface architecture**: CLI and MCP are thin adapters; both call `trader/app` and use `trader/schemas`. One core, two adapters — no logic duplication. For a full mapping of CLI commands to MCP tools, run `trader --help` and inspect the MCP server tool list (32 tools); the app layer in `trader/app/` is the single source of truth for both. See [CODEBASE_REVIEW.md](CODEBASE_REVIEW.md) for a package map, test coverage matrix, and gaps/redundancies report.
 
 ```
 ┌─────────────┐      ┌─────────────┐

@@ -68,7 +68,7 @@ class OptimizationResult:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "OptimizationResult":
+    def from_dict(cls, data: dict) -> OptimizationResult:
         """Deserialize from dict."""
         return cls(
             id=data["id"],

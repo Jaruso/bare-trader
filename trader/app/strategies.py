@@ -35,6 +35,7 @@ from trader.strategies.models import (
 )
 from trader.utils.config import Config
 
+
 def _to_pct(value: Decimal) -> Decimal:
     """Normalize a percentage value.
 

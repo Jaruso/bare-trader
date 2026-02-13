@@ -5,14 +5,13 @@ Strategies are stored in YAML format at config/strategies.yaml.
 
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import yaml
 
 from trader.strategies.models import Strategy
 
 
-def get_strategies_file(config_dir: Optional[Path] = None) -> Path:
+def get_strategies_file(config_dir: Path | None = None) -> Path:
     """Get path to strategies file."""
     if config_dir is None:
         from trader.utils.paths import get_config_dir
@@ -21,7 +20,7 @@ def get_strategies_file(config_dir: Optional[Path] = None) -> Path:
     return config_dir / "strategies.yaml"
 
 
-def load_strategies(config_dir: Optional[Path] = None) -> list[Strategy]:
+def load_strategies(config_dir: Path | None = None) -> list[Strategy]:
     """Load all strategies from YAML file.
 
     Args:
@@ -44,7 +43,7 @@ def load_strategies(config_dir: Optional[Path] = None) -> list[Strategy]:
     return [Strategy.from_dict(s) for s in data["strategies"]]
 
 
-def save_strategies(strategies: list[Strategy], config_dir: Optional[Path] = None) -> None:
+def save_strategies(strategies: list[Strategy], config_dir: Path | None = None) -> None:
     """Save all strategies to YAML file.
 
     Args:
@@ -59,7 +58,7 @@ def save_strategies(strategies: list[Strategy], config_dir: Optional[Path] = Non
         yaml.dump(data, f, default_flow_style=False, sort_keys=False)
 
 
-def save_strategy(strategy: Strategy, config_dir: Optional[Path] = None) -> None:
+def save_strategy(strategy: Strategy, config_dir: Path | None = None) -> None:
     """Add or update a single strategy.
 
     Args:
@@ -86,7 +85,7 @@ def save_strategy(strategy: Strategy, config_dir: Optional[Path] = None) -> None
     save_strategies(strategies, config_dir)
 
 
-def delete_strategy(strategy_id: str, config_dir: Optional[Path] = None) -> bool:
+def delete_strategy(strategy_id: str, config_dir: Path | None = None) -> bool:
     """Delete a strategy by ID.
 
     Args:
@@ -108,7 +107,7 @@ def delete_strategy(strategy_id: str, config_dir: Optional[Path] = None) -> bool
     return True
 
 
-def get_strategy(strategy_id: str, config_dir: Optional[Path] = None) -> Optional[Strategy]:
+def get_strategy(strategy_id: str, config_dir: Path | None = None) -> Strategy | None:
     """Get a strategy by ID.
 
     Args:
@@ -125,7 +124,7 @@ def get_strategy(strategy_id: str, config_dir: Optional[Path] = None) -> Optiona
     return None
 
 
-def enable_strategy(strategy_id: str, enabled: bool = True, config_dir: Optional[Path] = None) -> bool:
+def enable_strategy(strategy_id: str, enabled: bool = True, config_dir: Path | None = None) -> bool:
     """Enable or disable a strategy.
 
     Args:
@@ -145,7 +144,7 @@ def enable_strategy(strategy_id: str, enabled: bool = True, config_dir: Optional
     return True
 
 
-def get_active_strategies(config_dir: Optional[Path] = None) -> list[Strategy]:
+def get_active_strategies(config_dir: Path | None = None) -> list[Strategy]:
     """Get all active (non-terminal, enabled) strategies.
 
     Excludes strategies that are scheduled but haven't reached their schedule time yet.
@@ -160,21 +159,21 @@ def get_active_strategies(config_dir: Optional[Path] = None) -> list[Strategy]:
 
     strategies = load_strategies(config_dir)
     now = datetime.now()
-    
+
     active = []
     for s in strategies:
         # Skip if not enabled
         if not s.enabled:
             continue
-        
+
         # Skip if scheduled but schedule time hasn't arrived
         if s.schedule_enabled and s.schedule_at and s.schedule_at > now:
             continue
-        
+
         # Skip if in terminal phase
         if not s.is_active():
             continue
-        
+
         active.append(s)
-    
+
     return active

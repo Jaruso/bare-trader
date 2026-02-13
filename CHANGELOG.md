@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [1.0.0] - 2026-02-13
 
 ### Added
 - **Schedule (cron) commands** — `trader schedule enable` installs a user crontab job that runs `trader run-once` on a schedule (default every 5 minutes; `--every N` for 1–60 minutes). `trader schedule disable` removes the job; `trader schedule status` shows whether it is enabled and the cron line. Supported on macOS and Linux. No environment variable; the schedule is enabled or disabled by adding/removing the cron job.
@@ -18,10 +18,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - All prompts enable agents to research autonomously, document findings in CONTEXTS.md, and build on past research without user direction
   - Corresponding Cursor commands created for easy access: `/research-large-caps`, `/research-sectors`, `/explore-opportunities`
 
+### Removed
+- **Deprecated rules subsystem** — Removed `trader/rules/` (RuleEvaluator and missing models/loader). Strategies are the only evaluation path; rules were unused by CLI/MCP/app.
+
+### Changed
+- **Documentation** — PLAN.md now uses `trader/backtest/` (not `backtesting/`) and actual file names (broker.py, store.py). Removed references to missing `docs/` files (cli-mcp-usage, QUICK_START, INSTALLATION_PATHS, agent-guide); README/CONTRIBUTING/CLAUDE/PLAN updated. MCP tool count corrected from 28 to 32 in README, PLAN, CLAUDE, CHANGELOG.
+- **Lint** — Ruff: ignore E501 (line length); fixed unused vars/imports and undefined `logger` in `trader/app/orders.py`.
+- **Agent guidance (MCP first, CLI for testing)** — Documented in PLAN, CLAUDE.md, CONTRIBUTING, README, and .cursor rules/commands: agents use MCP tools for all operations; run CLI only when testing human-facing output (e.g. `trader status` or `trader --json <cmd>`). CLI stays human-first with opt-in `--json`.
+
+### Fixed
+- **Safety checks** — Pending orders in `orders_dir` (e.g. orders.yaml) are now considered when the broker returns no pending orders (e.g. mock or API failure), so buying power and position-size limits correctly reserve for local pending orders. Fixes `test_pending_buys_reduce_buying_power` and `test_pending_buys_count_toward_position_size`.
+
+### Added (MCP Phase 4)
+- **MCP contract tests** (`tests/test_mcp_contract.py`) — Validate each MCP tool response: success payloads match expected schema (EngineStatus, IndicatorInfo, etc.) or required keys; error payloads match ErrorResponse shape.
+- **CLI–MCP parity tests** (`tests/test_cli_mcp_parity.py`) — Compare `trader <cmd> --json` output with MCP tool JSON for status, indicator list/describe, strategy list, and backtest list; assert same top-level keys and matching values where applicable.
+
 ## [0.6.0] - 2026-02-11
 
 ### Added
-- **CLI + MCP usage docs (MCP Phase 4)** — New `docs/cli-mcp-usage.md` with per-feature mapping of CLI commands to MCP tools (engine, portfolio, orders, strategies, backtest, analysis, indicators, optimization, safety, notifications). Documents MCP-only and CLI-only actions. Linked from README.
+- **CLI + MCP usage (MCP Phase 4)** — Per-feature mapping of CLI commands to MCP tools (engine, portfolio, orders, strategies, backtest, analysis, indicators, optimization, safety, notifications) via `trader --help` and MCP tool list. Documents MCP-only and CLI-only actions.
 - **Notification system (Phase 3 Automation)** — Discord and generic webhook channels for alerts. New module `trader/notifications/` (NotificationManager, DiscordChannel, WebhookChannel, formatters). CLI: `trader notify test` and `trader notify send "message"`. Config via env (`DISCORD_WEBHOOK_URL`, `CUSTOM_WEBHOOK_URL`, `NOTIFICATIONS_ENABLED`) and optional `config/notifications.yaml` (see `config/notifications.yaml.example`). App layer: `trader/app/notifications.py` for use by engine or MCP later.
 - **Central audit log (MCP Phase 3)** — `trader/audit.py` appends structured JSONL to `logs/audit.log` for sensitive actions from both CLI and MCP. Logged actions: `place_order`, `place_order_blocked`, `cancel_order`, `create_strategy`, `remove_strategy`, `run_backtest`, `stop_engine`. Each record includes timestamp (UTC), source (`cli` or `mcp`), action, details, and optional error. Audit source is set via context (CLI sets at startup; MCP sets per tool call).
 - **MCP rate limits and timeouts (Phase 3)** — Long-running MCP tools (`run_backtest`, `run_optimization`) are now subject to configurable rate limits and per-call timeouts. New module `trader/mcp/limits.py`; env vars: `MCP_BACKTEST_TIMEOUT_SECONDS` (default 300), `MCP_OPTIMIZATION_TIMEOUT_SECONDS` (default 600), `MCP_RATE_LIMIT_LONG_RUNNING_PER_MINUTE` (default 10). New error types: `RateLimitError`, `TaskTimeoutError` in `trader/errors.py`. See README Configuration for details.
@@ -42,7 +57,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.4.0] - 2026-02-10
 
 ### Added
-- **MCP server with full tool parity** (`trader/mcp/`): MCP-compliant server using the official `mcp` Python SDK with stdio transport, 28 tools covering all CLI features
+- **MCP server with full tool parity** (`trader/mcp/`): MCP-compliant server using the official `mcp` Python SDK with stdio transport, 32 tools covering all CLI features
   - Engine: `get_status`, `stop_engine`
   - Portfolio: `get_balance`, `get_positions`, `get_portfolio`, `get_quote`
   - Orders: `place_order`, `list_orders`, `cancel_order`

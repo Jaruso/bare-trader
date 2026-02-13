@@ -9,10 +9,9 @@ from __future__ import annotations
 import os
 import platform
 from pathlib import Path
-from typing import Optional
 
 
-def get_config_dir(custom_path: Optional[Path] = None) -> Path:
+def get_config_dir(custom_path: Path | None = None) -> Path:
     """Get the configuration directory path.
 
     Priority:
@@ -41,7 +40,7 @@ def get_config_dir(custom_path: Optional[Path] = None) -> Path:
 
     # Installed mode - use user config directory
     system = platform.system()
-    
+
     if system == "Linux":
         # XDG Base Directory spec
         xdg_config = os.getenv("XDG_CONFIG_HOME")
@@ -62,7 +61,7 @@ def get_config_dir(custom_path: Optional[Path] = None) -> Path:
     return config_dir
 
 
-def get_data_dir(custom_path: Optional[Path] = None) -> Path:
+def get_data_dir(custom_path: Path | None = None) -> Path:
     """Get the data directory path.
 
     Priority:
@@ -90,7 +89,7 @@ def get_data_dir(custom_path: Optional[Path] = None) -> Path:
 
     # Installed mode - use user data directory
     system = platform.system()
-    
+
     if system == "Linux":
         # XDG Base Directory spec
         xdg_data = os.getenv("XDG_DATA_HOME")
@@ -111,7 +110,7 @@ def get_data_dir(custom_path: Optional[Path] = None) -> Path:
     return data_dir
 
 
-def get_log_dir(custom_path: Optional[Path] = None) -> Path:
+def get_log_dir(custom_path: Path | None = None) -> Path:
     """Get the log directory path.
 
     Priority:
@@ -139,7 +138,7 @@ def get_log_dir(custom_path: Optional[Path] = None) -> Path:
 
     # Installed mode - use user log directory
     system = platform.system()
-    
+
     if system == "Linux":
         # XDG Base Directory spec
         xdg_state = os.getenv("XDG_STATE_HOME")
@@ -167,13 +166,13 @@ def get_project_root() -> Path:
     Useful for detecting development vs installed mode.
     """
     project_root = Path(__file__).resolve().parent.parent.parent
-    
+
     # Check if this looks like a development installation
     if (project_root / "config" / "strategies.yaml").exists():
         return project_root
-    
+
     # Check if this looks like a development installation (alternative check)
     if (project_root / "pyproject.toml").exists():
         return project_root
-    
+
     return project_root  # Return anyway, but caller should check if it's valid

@@ -1,12 +1,12 @@
 """Simple order persistence (YAML) for the OMS scaffold."""
 from pathlib import Path
-from typing import Optional
+
 import yaml
 
 from trader.models.order import Order
 
 
-def get_orders_file(config_dir: Optional[Path] = None) -> Path:
+def get_orders_file(config_dir: Path | None = None) -> Path:
     if config_dir is None:
         from trader.utils.paths import get_config_dir
         config_dir = get_config_dir()
@@ -14,14 +14,14 @@ def get_orders_file(config_dir: Optional[Path] = None) -> Path:
     return config_dir / "orders.yaml"
 
 
-def save_orders(orders: list[Order], config_dir: Optional[Path] = None) -> None:
+def save_orders(orders: list[Order], config_dir: Path | None = None) -> None:
     path = get_orders_file(config_dir)
     data = {"orders": [o.to_dict() for o in orders]}
     with open(path, "w") as f:
         yaml.dump(data, f, default_flow_style=False, sort_keys=False)
 
 
-def load_orders(config_dir: Optional[Path] = None) -> list[Order]:
+def load_orders(config_dir: Path | None = None) -> list[Order]:
     path = get_orders_file(config_dir)
     if not path.exists():
         return []
@@ -34,7 +34,10 @@ def load_orders(config_dir: Optional[Path] = None) -> list[Order]:
 def _to_local_order(order_obj: object) -> Order:
     """Convert a broker.Order-like object or local Order dict to local `Order` model."""
     # Import local enums
-    from trader.models.order import Order as LocalOrder, OrderSide as LocalSide, OrderType as LocalType, OrderStatus as LocalStatus
+    from trader.models.order import Order as LocalOrder
+    from trader.models.order import OrderSide as LocalSide
+    from trader.models.order import OrderStatus as LocalStatus
+    from trader.models.order import OrderType as LocalType
 
     # Extract fields with fallbacks
     oid = getattr(order_obj, "id", getattr(order_obj, "order_id", ""))
@@ -74,7 +77,7 @@ def _to_local_order(order_obj: object) -> Order:
     )
 
 
-def save_order(order_obj: object, config_dir: Optional[Path] = None) -> None:
+def save_order(order_obj: object, config_dir: Path | None = None) -> None:
     """Save or update a single order to the orders file.
 
     Accepts either a local `Order` instance or a broker-like Order object.

@@ -4,7 +4,6 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
 
 from trader.api.broker import Order, OrderSide
 
@@ -32,7 +31,7 @@ class BacktestResult:
     profit_factor: Decimal  # Gross profit / Gross loss
     max_drawdown: Decimal  # Maximum peak-to-trough decline in $
     max_drawdown_pct: Decimal  # Max drawdown as %
-    sharpe_ratio: Optional[Decimal] = None  # Risk-adjusted return
+    sharpe_ratio: Decimal | None = None  # Risk-adjusted return
 
     # Trade Statistics
     total_trades: int = 0

@@ -2,12 +2,11 @@
 
 import json
 from pathlib import Path
-from typing import Optional
 
 from trader.backtest.results import BacktestResult
 
 
-def get_backtests_dir(data_dir: Optional[Path] = None) -> Path:
+def get_backtests_dir(data_dir: Path | None = None) -> Path:
     """Get the backtests directory, creating if needed.
 
     Args:
@@ -25,7 +24,7 @@ def get_backtests_dir(data_dir: Optional[Path] = None) -> Path:
     return backtests_dir
 
 
-def save_backtest(result: BacktestResult, data_dir: Optional[Path] = None) -> None:
+def save_backtest(result: BacktestResult, data_dir: Path | None = None) -> None:
     """Save backtest result to JSON.
 
     Saves to data/backtests/{id}.json and updates index.
@@ -46,7 +45,7 @@ def save_backtest(result: BacktestResult, data_dir: Optional[Path] = None) -> No
 
 
 def load_backtest(
-    backtest_id: str, data_dir: Optional[Path] = None
+    backtest_id: str, data_dir: Path | None = None
 ) -> BacktestResult:
     """Load backtest result from JSON.
 
@@ -66,13 +65,13 @@ def load_backtest(
     if not result_file.exists():
         raise FileNotFoundError(f"Backtest {backtest_id} not found at {result_file}")
 
-    with open(result_file, "r") as f:
+    with open(result_file) as f:
         data = json.load(f)
 
     return BacktestResult.from_dict(data)
 
 
-def list_backtests(data_dir: Optional[Path] = None) -> list[dict]:
+def list_backtests(data_dir: Path | None = None) -> list[dict]:
     """List all backtest results (metadata only).
 
     Args:
@@ -87,13 +86,13 @@ def list_backtests(data_dir: Optional[Path] = None) -> list[dict]:
     if not index_file.exists():
         return []
 
-    with open(index_file, "r") as f:
+    with open(index_file) as f:
         index = json.load(f)
 
     return index.get("backtests", [])
 
 
-def delete_backtest(backtest_id: str, data_dir: Optional[Path] = None) -> bool:
+def delete_backtest(backtest_id: str, data_dir: Path | None = None) -> bool:
     """Delete a backtest result.
 
     Args:
@@ -129,7 +128,7 @@ def _update_index(result: BacktestResult, backtests_dir: Path) -> None:
 
     # Load existing index
     if index_file.exists():
-        with open(index_file, "r") as f:
+        with open(index_file) as f:
             index = json.load(f)
     else:
         index = {"backtests": []}
@@ -175,7 +174,7 @@ def _remove_from_index(backtest_id: str, backtests_dir: Path) -> None:
     if not index_file.exists():
         return
 
-    with open(index_file, "r") as f:
+    with open(index_file) as f:
         index = json.load(f)
 
     # Remove entry

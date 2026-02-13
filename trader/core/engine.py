@@ -5,16 +5,15 @@ import os
 import signal
 import time
 from datetime import datetime
-from typing import Optional
 from pathlib import Path
 
 from trader.api.broker import Broker
+from trader.models.order import OrderStatus as LocalOrderStatus
+from trader.oms.store import load_orders, save_order
 from trader.strategies.evaluator import StrategyEvaluator
 from trader.strategies.loader import get_active_strategies
 from trader.utils.config import StrategyDefaults
 from trader.utils.logging import get_logger
-from trader.oms.store import load_orders, save_order
-from trader.models.order import OrderStatus as LocalOrderStatus
 
 
 class EngineAlreadyRunningError(Exception):
@@ -39,8 +38,8 @@ class TradingEngine:
         broker: Broker,
         poll_interval: int = 60,
         dry_run: bool = False,
-        orders_dir: Optional[Path] = None,
-        strategy_defaults: Optional[StrategyDefaults] = None,
+        orders_dir: Path | None = None,
+        strategy_defaults: StrategyDefaults | None = None,
     ) -> None:
         """Initialize trading engine.
 
@@ -189,7 +188,7 @@ class TradingEngine:
         self._stop_requested = True
         self.logger.info("Stop requested, will exit after current cycle")
 
-    def _handle_shutdown(self, signum: int, frame: Optional[object]) -> None:
+    def _handle_shutdown(self, signum: int, frame: object | None) -> None:
         """Handle shutdown signals."""
         self.logger.info(f"Received signal {signum}, shutting down...")
         self.stop()

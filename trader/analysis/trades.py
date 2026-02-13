@@ -1,9 +1,9 @@
 """Trade analysis helpers."""
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
-from typing import Iterable
 
 from trader.data.ledger import TradeRecord
 

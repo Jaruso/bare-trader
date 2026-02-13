@@ -29,12 +29,11 @@ Example
     ... )
 """
 
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Optional
-import uuid
 
 
 class StrategyType(Enum):
@@ -162,50 +161,50 @@ class Strategy:
 
     # Entry configuration
     entry_type: EntryType = EntryType.MARKET
-    entry_price: Optional[Decimal] = None
-    entry_condition: Optional[str] = None
+    entry_price: Decimal | None = None
+    entry_condition: str | None = None
 
     # Exit configuration - Trailing Stop
-    trailing_stop_pct: Optional[Decimal] = None
+    trailing_stop_pct: Decimal | None = None
 
     # Pullback-Trailing: wait for pullback, then trailing stop exit
-    pullback_pct: Optional[Decimal] = None  # e.g. 5 = buy when price drops 5% from reference
-    pullback_reference_price: Optional[Decimal] = None  # high-water mark while waiting for pullback
+    pullback_pct: Decimal | None = None  # e.g. 5 = buy when price drops 5% from reference
+    pullback_reference_price: Decimal | None = None  # high-water mark while waiting for pullback
 
     # Exit configuration - Bracket
-    take_profit_pct: Optional[Decimal] = None
-    stop_loss_pct: Optional[Decimal] = None
+    take_profit_pct: Decimal | None = None
+    stop_loss_pct: Decimal | None = None
 
     # Exit configuration - Scale Out
     # Format: [{"pct": 33, "target_pct": 5}, {"pct": 33, "target_pct": 10}, ...]
-    scale_targets: Optional[list[dict]] = None
+    scale_targets: list[dict] | None = None
 
     # Exit configuration - Grid
     # Format: {"low": 380, "high": 420, "levels": 5, "qty_per_level": 10}
-    grid_config: Optional[dict] = None
+    grid_config: dict | None = None
 
     # State tracking
-    entry_order_id: Optional[str] = None
-    entry_fill_price: Optional[Decimal] = None
-    high_watermark: Optional[Decimal] = None
+    entry_order_id: str | None = None
+    entry_fill_price: Decimal | None = None
+    high_watermark: Decimal | None = None
     exit_order_ids: list[str] = field(default_factory=list)
 
     # For scale-out: track which tranches have been sold
     # Format: [{"pct": 33, "target_pct": 5, "sold": False, "order_id": None}, ...]
-    scale_state: Optional[list[dict]] = None
+    scale_state: list[dict] | None = None
 
     # For grid: track grid level states
     # Format: [{"price": 390, "side": "buy", "filled": False, "order_id": None}, ...]
-    grid_state: Optional[list[dict]] = None
+    grid_state: list[dict] | None = None
 
     # Scheduling
-    schedule_at: Optional[datetime] = None  # Schedule strategy to start at this time
+    schedule_at: datetime | None = None  # Schedule strategy to start at this time
     schedule_enabled: bool = False  # Enable scheduling (strategy won't execute until schedule_at)
 
     # Metadata
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
-    notes: Optional[str] = None
+    notes: str | None = None
 
     def __post_init__(self) -> None:
         """Validate strategy after initialization."""

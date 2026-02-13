@@ -4,8 +4,8 @@ from decimal import Decimal
 
 import pytest
 
-from trader.api.broker import OrderSide, OrderStatus, OrderType, Position
 from tests.mocks import MockBroker
+from trader.api.broker import OrderSide, OrderStatus, OrderType, Position
 
 
 @pytest.fixture

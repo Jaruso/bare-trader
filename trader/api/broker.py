@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from decimal import Decimal
 from enum import Enum
-from typing import Optional
 
 
 class OrderSide(Enum):
@@ -48,9 +47,9 @@ class Account:
     currency: str = "USD"
     # Day trading info
     daytrade_count: int = 0
-    day_trading_buying_power: Optional[Decimal] = None
+    day_trading_buying_power: Decimal | None = None
     # P/L
-    last_equity: Optional[Decimal] = None  # Previous day's equity
+    last_equity: Decimal | None = None  # Previous day's equity
     # Account status
     status: str = "ACTIVE"
     pattern_day_trader: bool = False
@@ -80,11 +79,11 @@ class Order:
     qty: Decimal
     status: OrderStatus
     filled_qty: Decimal = Decimal("0")
-    filled_avg_price: Optional[Decimal] = None
-    limit_price: Optional[Decimal] = None
-    stop_price: Optional[Decimal] = None
-    trail_percent: Optional[Decimal] = None  # For trailing stop orders
-    created_at: Optional[str] = None
+    filled_avg_price: Decimal | None = None
+    limit_price: Decimal | None = None
+    stop_price: Decimal | None = None
+    trail_percent: Decimal | None = None  # For trailing stop orders
+    created_at: str | None = None
 
 
 @dataclass
@@ -123,7 +122,7 @@ class Broker(ABC):
         pass
 
     @abstractmethod
-    def get_position(self, symbol: str) -> Optional[Position]:
+    def get_position(self, symbol: str) -> Position | None:
         """Get position for a specific symbol.
 
         Args:
@@ -153,9 +152,9 @@ class Broker(ABC):
         qty: Decimal,
         side: OrderSide,
         order_type: OrderType = OrderType.MARKET,
-        limit_price: Optional[Decimal] = None,
-        stop_price: Optional[Decimal] = None,
-        trail_percent: Optional[Decimal] = None,
+        limit_price: Decimal | None = None,
+        stop_price: Decimal | None = None,
+        trail_percent: Decimal | None = None,
     ) -> Order:
         """Place a trade order.
 
@@ -186,7 +185,7 @@ class Broker(ABC):
         pass
 
     @abstractmethod
-    def get_order(self, order_id: str) -> Optional[Order]:
+    def get_order(self, order_id: str) -> Order | None:
         """Get order by ID.
 
         Args:
@@ -198,7 +197,7 @@ class Broker(ABC):
         pass
 
     @abstractmethod
-    def get_orders(self, status: Optional[OrderStatus] = None) -> list[Order]:
+    def get_orders(self, status: OrderStatus | None = None) -> list[Order]:
         """Get orders, optionally filtered by status.
 
         Args:

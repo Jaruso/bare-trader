@@ -15,6 +15,8 @@ from trader.schemas.orders import OrderRequest, OrderResponse
 from trader.utils.config import Config
 from trader.utils.logging import get_logger
 
+logger = get_logger("autotrader.app.orders")
+
 
 def place_order(config: Config, request: OrderRequest) -> OrderResponse:
     """Place a limit order.
@@ -143,7 +145,7 @@ def cancel_order(config: Config, order_id: str) -> dict[str, str]:
                 save_order(canceled_order)
         except Exception:
             logger.debug(f"Failed to update local order {order_id} after cancellation")
-        
+
         audit_log("cancel_order", {"order_id": order_id}, log_dir=config.log_dir)
         return {"status": "canceled", "order_id": order_id}
     else:

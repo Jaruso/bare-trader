@@ -4,8 +4,18 @@ from datetime import datetime
 from decimal import Decimal
 
 from trader.errors import AppError
+from trader.schemas.analysis import (
+    OpenPositionSchema,
+    TradeStatsSchema,
+)
+from trader.schemas.backtests import (
+    BacktestRequest,
+    BacktestSummary,
+)
 from trader.schemas.common import DateRange, PaginationParams
+from trader.schemas.engine import EngineStatus
 from trader.schemas.errors import ErrorResponse
+from trader.schemas.indicators import IndicatorInfo
 from trader.schemas.orders import OrderRequest, OrderResponse
 from trader.schemas.portfolio import (
     AccountInfo,
@@ -17,17 +27,6 @@ from trader.schemas.strategies import (
     StrategyCreate,
     StrategyListResponse,
 )
-from trader.schemas.backtests import (
-    BacktestRequest,
-    BacktestSummary,
-)
-from trader.schemas.analysis import (
-    AnalysisResponse,
-    OpenPositionSchema,
-    TradeStatsSchema,
-)
-from trader.schemas.indicators import IndicatorInfo
-from trader.schemas.engine import EngineStatus
 
 
 class TestCommonSchemas:
