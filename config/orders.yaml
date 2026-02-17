@@ -30,7 +30,7 @@ orders:
   order_type: limit
   limit_price: '416'
   external_id: null
-  status: new
+  status: filled
 - id: 52e39125-6059-4e09-a7a6-46cf7652ecc0
   symbol: TSLA
   side: sell
@@ -38,7 +38,7 @@ orders:
   order_type: limit
   limit_price: '416'
   external_id: null
-  status: new
+  status: filled
 - id: e5543f06-9c91-4f52-8a82-e0a3f5ec02cf
   symbol: TSLA
   side: sell
@@ -46,7 +46,7 @@ orders:
   order_type: limit
   limit_price: '416'
   external_id: null
-  status: new
+  status: filled
 - id: 637d90f9-3be0-466a-aed8-7dc5617835b9
   symbol: TSLA
   side: sell
@@ -54,7 +54,7 @@ orders:
   order_type: limit
   limit_price: '416'
   external_id: null
-  status: new
+  status: filled
 - id: f803771d-daa2-45cb-b590-8d0511f3f71e
   symbol: TSLA
   side: sell
@@ -62,7 +62,7 @@ orders:
   order_type: limit
   limit_price: '416'
   external_id: null
-  status: new
+  status: filled
 - id: 903de922-4025-4e19-9554-ce93d25a8b03
   symbol: TSLA
   side: sell
@@ -70,7 +70,7 @@ orders:
   order_type: limit
   limit_price: '416'
   external_id: null
-  status: new
+  status: filled
 - id: 8968cc96-abf8-46d9-8bcf-fca233748a74
   symbol: TSLA
   side: sell
@@ -78,7 +78,7 @@ orders:
   order_type: limit
   limit_price: '416'
   external_id: null
-  status: new
+  status: filled
 - id: b50d9c21-daba-4759-8d0c-652efefbe124
   symbol: TSLA
   side: sell
@@ -86,7 +86,7 @@ orders:
   order_type: limit
   limit_price: '416'
   external_id: null
-  status: new
+  status: filled
 - id: 47d1aeec-73dd-42fe-8d1b-1056c4de9637
   symbol: TSLA
   side: sell
@@ -94,7 +94,7 @@ orders:
   order_type: limit
   limit_price: '416'
   external_id: null
-  status: new
+  status: filled
 - id: 97fce23a-7911-495a-8200-fbde547208ef
   symbol: TSLA
   side: sell
@@ -102,7 +102,7 @@ orders:
   order_type: limit
   limit_price: '416'
   external_id: null
-  status: new
+  status: filled
 - id: ffa0e062-38d3-4f3c-ba81-eaa1ff7989b9
   symbol: TSLA
   side: sell
@@ -110,7 +110,7 @@ orders:
   order_type: limit
   limit_price: '416'
   external_id: null
-  status: new
+  status: filled
 - id: 6b39ee08-1f81-4b75-826b-3b493db07143
   symbol: TSLA
   side: sell
@@ -118,7 +118,7 @@ orders:
   order_type: limit
   limit_price: '416'
   external_id: null
-  status: new
+  status: filled
 - id: 8bcb6479-b61d-481e-8992-55414b43904f
   symbol: TSLA
   side: sell
@@ -126,7 +126,7 @@ orders:
   order_type: limit
   limit_price: '416'
   external_id: null
-  status: new
+  status: filled
 - id: e47c6e87-5865-41cb-9606-8228165d9fc8
   symbol: TSLA
   side: sell
@@ -134,7 +134,7 @@ orders:
   order_type: limit
   limit_price: '416'
   external_id: null
-  status: new
+  status: filled
 - id: b3867d38-823c-4656-9d88-412e986a9837
   symbol: TSLA
   side: sell
@@ -142,7 +142,7 @@ orders:
   order_type: limit
   limit_price: '416'
   external_id: null
-  status: new
+  status: filled
 - id: 2ab5612c-0d6e-474f-9ac2-945dd4a71460
   symbol: TSLA
   side: sell
@@ -150,7 +150,7 @@ orders:
   order_type: limit
   limit_price: '416'
   external_id: null
-  status: new
+  status: filled
 - id: 83329091-e360-4976-9c0b-dffcd4aa1587
   symbol: TSLA
   side: sell
@@ -158,7 +158,7 @@ orders:
   order_type: limit
   limit_price: '416'
   external_id: null
-  status: new
+  status: filled
 - id: b700f02d-3cd5-4b3c-9b43-f96985c0bcf4
   symbol: AAPL
   side: sell
@@ -166,7 +166,7 @@ orders:
   order_type: limit
   limit_price: '261.3'
   external_id: null
-  status: new
+  status: canceled
 - id: a2e92b5e-612d-4e29-a27d-ed4c63bc6aee
   symbol: AAPL
   side: sell
@@ -174,7 +174,7 @@ orders:
   order_type: limit
   limit_price: '261.22'
   external_id: null
-  status: new
+  status: canceled
 - id: 7a387920-faa6-4649-bff7-12858cc959a4
   symbol: AAPL
   side: sell
@@ -182,7 +182,7 @@ orders:
   order_type: limit
   limit_price: '261.15'
   external_id: null
-  status: new
+  status: filled
 - id: e056d831-c202-4737-ab0a-a2516f4e506e
   symbol: NVDA
   side: buy
@@ -190,7 +190,7 @@ orders:
   order_type: limit
   limit_price: '189.61'
   external_id: null
-  status: new
+  status: filled
 - id: 41553769-0d52-478b-be04-7d30a41dde48
   symbol: NVDA
   side: buy
@@ -198,7 +198,7 @@ orders:
   order_type: limit
   limit_price: '189.61'
   external_id: null
-  status: new
+  status: filled
 - id: b83a391c-fb4b-4ce1-94ca-51047a042e5d
   symbol: MSFT
   side: buy
@@ -206,7 +206,7 @@ orders:
   order_type: limit
   limit_price: '404.44'
   external_id: null
-  status: new
+  status: filled
 - id: 96067883-ff62-4ec4-a517-d2c5dee8e310
   symbol: MSFT
   side: buy
@@ -214,7 +214,7 @@ orders:
   order_type: limit
   limit_price: '404.44'
   external_id: null
-  status: new
+  status: filled
 - id: e57e17cd-a227-4e5d-8013-841d154bd32e
   symbol: XLK
   side: buy
@@ -222,7 +222,7 @@ orders:
   order_type: limit
   limit_price: '139.63'
   external_id: null
-  status: new
+  status: filled
 - id: 57a2e0f9-e42d-443a-bb09-cdd7e08c7bc3
   symbol: XLK
   side: buy
@@ -230,7 +230,7 @@ orders:
   order_type: limit
   limit_price: '139.63'
   external_id: null
-  status: new
+  status: filled
 - id: b62e550b-81ad-4dad-8602-b5c2666e15a7
   symbol: GOOGL
   side: buy
@@ -238,7 +238,7 @@ orders:
   order_type: limit
   limit_price: '313.87'
   external_id: null
-  status: new
+  status: filled
 - id: fc117fcf-5ee7-47e8-a785-399510369bd8
   symbol: GOOGL
   side: buy
@@ -246,7 +246,7 @@ orders:
   order_type: limit
   limit_price: '313.87'
   external_id: null
-  status: new
+  status: filled
 - id: ce5818e1-fc5d-4e94-a295-3b58ef638214
   symbol: AMZN
   side: buy
@@ -254,7 +254,7 @@ orders:
   order_type: limit
   limit_price: '199.59'
   external_id: null
-  status: new
+  status: filled
 - id: a16e91bf-df33-4fa6-b05f-fe604a37db90
   symbol: AMZN
   side: buy
@@ -262,7 +262,7 @@ orders:
   order_type: limit
   limit_price: '199.59'
   external_id: null
-  status: new
+  status: filled
 - id: a2fd9281-e917-4a70-99d5-a2c8c0d60723
   symbol: XLI
   side: buy
@@ -270,7 +270,7 @@ orders:
   order_type: limit
   limit_price: '172.79'
   external_id: null
-  status: new
+  status: filled
 - id: 3671e42e-42cc-4b95-8ee3-54fbc5ff065f
   symbol: XLF
   side: buy
@@ -278,7 +278,7 @@ orders:
   order_type: limit
   limit_price: '51.57'
   external_id: null
-  status: new
+  status: canceled
 - id: 505149e2-7a94-4977-a19c-9c177617f31d
   symbol: XLP
   side: buy
@@ -286,7 +286,7 @@ orders:
   order_type: limit
   limit_price: '89.51'
   external_id: null
-  status: new
+  status: canceled
 - id: b571f39b-9f55-4384-9456-78443b7e0388
   symbol: AEM
   side: buy
@@ -294,7 +294,7 @@ orders:
   order_type: limit
   limit_price: '211.07'
   external_id: null
-  status: new
+  status: filled
 - id: 7b565930-fb5c-4edc-9d15-03dcf3a2e25c
   symbol: AEM
   side: buy
@@ -302,7 +302,7 @@ orders:
   order_type: limit
   limit_price: '211.07'
   external_id: null
-  status: new
+  status: filled
 - id: 2a12dc76-f23e-48f6-be0e-2d1f167e2af4
   symbol: GDX
   side: buy
@@ -310,7 +310,7 @@ orders:
   order_type: limit
   limit_price: '100.78'
   external_id: null
-  status: new
+  status: filled
 - id: 5e3cf242-61d7-4223-9dad-f711fae7385f
   symbol: GDX
   side: buy
@@ -318,7 +318,7 @@ orders:
   order_type: limit
   limit_price: '100.78'
   external_id: null
-  status: new
+  status: filled
 - id: d909d18b-a7fa-4440-a74c-6f21ebad653a
   symbol: XLP
   side: buy
@@ -326,7 +326,7 @@ orders:
   order_type: limit
   limit_price: '89.51'
   external_id: null
-  status: new
+  status: canceled
 - id: 487ad6c2-eab8-49b1-9883-2ab52a668634
   symbol: XLP
   side: buy
@@ -334,7 +334,7 @@ orders:
   order_type: limit
   limit_price: '89.61'
   external_id: null
-  status: new
+  status: filled
 - id: b082b720-9616-435b-ad20-7d1620df87e3
   symbol: AAPL
   side: buy
@@ -342,4 +342,4 @@ orders:
   order_type: limit
   limit_price: '0.01'
   external_id: null
-  status: new
+  status: canceled

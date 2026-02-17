@@ -71,6 +71,84 @@ def get_engine_status(config: Config) -> EngineStatus:
     )
 
 
+def start_engine(dry_run: bool = False, interval: int = 60) -> dict[str, str]:
+    """Start the trading engine as a background process.
+
+    Spawns `trader start` as a detached subprocess so the call returns
+    immediately. The engine writes its PID to the lock file; subsequent
+    calls to get_engine_status will show it as running.
+
+    Args:
+        dry_run:  If True, evaluate strategies but do not execute trades.
+        interval: Poll interval in seconds (default 60).
+
+    Returns:
+        Dict with status and pid of the launched process.
+
+    Raises:
+        EngineError: If the engine is already running or cannot be started.
+    """
+    import subprocess
+    import sys
+    import time
+
+    from trader.core.engine import get_lock_file_path
+
+    # Refuse if already running.
+    lock_path = get_lock_file_path()
+    if lock_path.exists():
+        try:
+            with open(lock_path) as f:
+                pid_str = f.read().strip()
+            if pid_str:
+                try:
+                    os.kill(int(pid_str), 0)
+                    raise EngineError(
+                        message=f"Engine is already running (PID {pid_str})",
+                        code="ENGINE_ALREADY_RUNNING",
+                        details={"pid": int(pid_str)},
+                        suggestion="Use stop_engine first, or force-start via CLI with --force",
+                    )
+                except ProcessLookupError:
+                    lock_path.unlink()  # stale lock — clean up and continue
+        except (ValueError, FileNotFoundError):
+            pass
+
+    # Build the command: use the same Python interpreter so venv is respected.
+    cmd = [sys.executable, "-m", "trader.cli.main", "start",
+           f"--interval={interval}"]
+    if dry_run:
+        cmd.append("--dry-run")
+
+    # Spawn detached (no controlling terminal, stdout/stderr to /dev/null).
+    proc = subprocess.Popen(
+        cmd,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        stdin=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+
+    # Give the engine a moment to write its lock file before returning.
+    time.sleep(1.5)
+
+    from trader.audit import log_action as audit_log
+    from trader.utils.config import load_config
+
+    audit_log(
+        "start_engine",
+        {"pid": proc.pid, "dry_run": dry_run, "interval": interval},
+        log_dir=load_config().log_dir,
+    )
+
+    return {
+        "status": "started",
+        "pid": str(proc.pid),
+        "mode": "dry_run" if dry_run else "live",
+        "interval": str(interval),
+    }
+
+
 def stop_engine(force: bool = False) -> dict[str, str]:
     """Stop the running trading engine.
 

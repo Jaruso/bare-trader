@@ -59,6 +59,25 @@ def get_status() -> str:
         return _err(e)
 
 
+def start_engine(dry_run: bool = False, interval: int = 60) -> str:
+    """Start the trading engine as a background process.
+
+    Spawns the engine detached so this call returns immediately.
+    The engine will run until stopped with stop_engine().
+    Only paper trading is supported via MCP (use CLI --prod for production).
+
+    Args:
+        dry_run:  If true, evaluate strategies but do not place real orders.
+        interval: Strategy poll interval in seconds (default: 60).
+    """
+    from trader.app.engine import start_engine as _start_engine
+
+    try:
+        return _ok(_start_engine(dry_run=dry_run, interval=interval))
+    except AppError as e:
+        return _err(e)
+
+
 def stop_engine(force: bool = False) -> str:
     """Stop the running trading engine.
 
@@ -721,6 +740,7 @@ def _with_mcp_audit(fn: Any) -> Any:
 _ALL_TOOLS = [
     # Engine
     get_status,
+    start_engine,
     stop_engine,
     # Portfolio & Market Data
     get_balance,
