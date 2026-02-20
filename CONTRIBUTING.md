@@ -57,7 +57,7 @@ Use the same Claude config as in the README: set `command` to the **full path** 
 - **trader/errors.py** — Shared error hierarchy
 - **trader/core/**, **trader/backtest/**, **trader/strategies/**, **trader/api/**, **trader/data/**, **trader/indicators/**, **trader/notifications/**, **trader/oms/**, **trader/utils/** — Domain and infra
 
-**Dual-interface architecture**: CLI and MCP are thin adapters; both call `baretrader/app` and use `baretrader/schemas`. One core, two adapters — no logic duplication. For a full mapping of CLI commands to MCP tools, run `trader --help` and inspect the MCP server tool list (32 tools); the app layer in `trader/app/` is the single source of truth for both. See [CODEBASE_REVIEW.md](CODEBASE_REVIEW.md) for a package map, test coverage matrix, and gaps/redundancies report.
+**Dual-interface architecture**: CLI and MCP are thin adapters; both call `trader/app` and use `trader/schemas`. One core, two adapters — no logic duplication. For a full mapping of CLI commands to MCP tools, run `trader --help` and inspect the MCP server tool list (32 tools); the app layer in `trader/app/` is the single source of truth for both. See [CODEBASE_REVIEW.md](CODEBASE_REVIEW.md) for a package map, test coverage matrix, and gaps/redundancies report.
 
 ```
 ┌─────────────┐      ┌─────────────┐
@@ -68,7 +68,7 @@ Use the same Claude config as in the README: set `command` to the **full path** 
        └────────┬───────────┘
                 │
          ┌──────▼──────┐
-         │  baretrader/app │  ← Shared business logic
+         │  trader/app │  ← Shared business logic
          │  (Services) │
          └──────┬──────┘
                 │

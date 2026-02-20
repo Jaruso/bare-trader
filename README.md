@@ -13,11 +13,11 @@ BareTrader is a command-line trading platform for **automated stock trading**. I
 * ✅ **Backtesting** with historical data
 * ✅ **Notifications** (Discord webhook, generic webhook) for alerts
 
-**Tools**: 32 MCP tools (engine, portfolio, orders, strategies, backtests, analysis, indicators, optimization, safety, scheduling). CLI commands mirror these; run `baretrader --help` and `baretrader <command> --help` for the full CLI surface.
+**Tools**: 32 MCP tools (engine, portfolio, orders, strategies, backtests, analysis, indicators, optimization, safety, scheduling). CLI commands mirror these; run `trader --help` and `trader <command> --help` for the full CLI surface.
 
 ## 🤖 MCP Server Usage
 
-BareTrader supports both CLI users and AI agents via an MCP-compliant server. **For AI agents**: Use the MCP server for all operations (status, strategies, backtests, etc.); the CLI is for human use. Run CLI only when testing or verifying human-facing output (e.g. `baretrader status` or `baretrader --json <cmd>`).
+BareTrader supports both CLI users and AI agents via an MCP-compliant server. **For AI agents**: Use the MCP server for all operations (status, strategies, backtests, etc.); the CLI is for human use. Run CLI only when testing or verifying human-facing output (e.g. `trader status` or `trader --json <cmd>`).
 
 **Quick Start**: Install → Configure → Use. See the Installation and Configure MCP Server sections below.
 
@@ -54,7 +54,7 @@ And verify:
 trader status
 ```
 
-**Note**: When installed via **pipx** or Homebrew, BareTrader uses the same behavior: config, data, and logs go to `~/.baretrader/` (macOS) or `~/.config/baretrader/` (Linux). `baretrader config set` and all path resolution work identically with pipx. See the Installation section for path behavior.
+**Note**: When installed via **pipx** or Homebrew, BareTrader uses the same behavior: config, data, and logs go to `~/.baretrader/` (macOS) or `~/.config/baretrader/` (Linux). `trader config set` and all path resolution work identically with pipx. See the Installation section for path behavior.
 
 ### Configure MCP Server
 
@@ -137,9 +137,9 @@ trader config get ALPACA_API_KEY --show-secret   # full value
 trader config keys   # list all available keys
 ```
 
-**Schedule (cron):** Use `baretrader schedule enable` to install a cron job that runs one cycle on a schedule; `baretrader schedule disable` to remove it. See "Schedule (cron) mode" above.
+**Schedule (cron):** Use `trader schedule enable` to install a cron job that runs one cycle on a schedule; `trader schedule disable` to remove it. See "Schedule (cron) mode" above.
 
-For MCP/stdio, set keys in your `claude_desktop_config.json` `env` block so they are available to the subprocess. For CLI-only use, `baretrader config set` writes to the appropriate `.env` file.
+For MCP/stdio, set keys in your `claude_desktop_config.json` `env` block so they are available to the subprocess. For CLI-only use, `trader config set` writes to the appropriate `.env` file.
 
 ### MCP server (optional)
 
@@ -161,7 +161,7 @@ Alerts can be sent to Discord or a custom webhook (e.g. for trade events or manu
 | `CUSTOM_WEBHOOK_URL` | Generic HTTP webhook URL (POST JSON with `message`). |
 | `NOTIFICATIONS_ENABLED` | Set to `false` or `0` to disable all notifications. |
 
-Optional YAML: copy `config/notifications.yaml.example` to `config/notifications.yaml` to configure events and channels. CLI: `baretrader notify test` (test delivery), `baretrader notify send "message"` (send manual message).
+Optional YAML: copy `config/notifications.yaml.example` to `config/notifications.yaml` to configure events and channels. CLI: `trader notify test` (test delivery), `trader notify send "message"` (send manual message).
 
 ---
 
@@ -194,7 +194,7 @@ trader stop
 
 ### Schedule (cron) mode
 
-Instead of running the engine as a long-lived loop, you can run one evaluation cycle on a schedule. Use **`baretrader schedule enable`** to add a cron job that runs `baretrader run-once` (e.g. every 5 minutes); use **`baretrader schedule disable`** to remove it.
+Instead of running the engine as a long-lived loop, you can run one evaluation cycle on a schedule. Use **`trader schedule enable`** to add a cron job that runs `trader run-once` (e.g. every 5 minutes); use **`trader schedule disable`** to remove it.
 
 ```bash
 trader schedule enable          # every 5 minutes (default)
@@ -307,7 +307,7 @@ trader strategy explain <type>    # Learn about a strategy type
 ### How Strategies Work
 
 1. **Add a strategy** → It starts in `PENDING` phase
-2. **Start the engine** → `baretrader start`
+2. **Start the engine** → `trader start`
 3. **Entry executes** → Strategy moves to `POSITION_OPEN`
 4. **Exit conditions monitored** → Based on strategy type
 5. **Exit executes** → Strategy moves to `COMPLETED`
@@ -472,7 +472,7 @@ $ baretrader backtest show abc123
 
 ## 🧪 Strategy Optimization
 
-Use `baretrader optimize` to run grid or random search over strategy parameters.
+Use `trader optimize` to run grid or random search over strategy parameters.
 
 ```bash
 # Optimize trailing-stop percentage (grid search)
