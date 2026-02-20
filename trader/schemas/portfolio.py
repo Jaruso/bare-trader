@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING
 from pydantic import BaseModel
 
 if TYPE_CHECKING:
-    from trader.api.broker import Account, Position, Quote
-    from trader.core.portfolio import PortfolioSummary, PositionDetail
+    from baretrader.api.broker import Account, Position, Quote
+    from baretrader.core.portfolio import PortfolioSummary, PositionDetail
 
 
 class AccountInfo(BaseModel):

@@ -8,13 +8,13 @@ from pathlib import Path
 
 import yaml
 
-from trader.strategies.models import Strategy
+from baretrader.strategies.models import Strategy
 
 
 def get_strategies_file(config_dir: Path | None = None) -> Path:
     """Get path to strategies file."""
     if config_dir is None:
-        from trader.utils.paths import get_config_dir
+        from baretrader.utils.paths import get_config_dir
         config_dir = get_config_dir()
     config_dir.mkdir(parents=True, exist_ok=True)
     return config_dir / "strategies.yaml"

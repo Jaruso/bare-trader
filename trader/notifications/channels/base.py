@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 
-from trader.notifications.formatters import TradeNotification
+from baretrader.notifications.formatters import TradeNotification
 
 
 class NotificationChannel(ABC):
@@ -21,5 +21,5 @@ class NotificationChannel(ABC):
 
     def format_trade(self, trade: TradeNotification) -> str:
         """Format trade for this channel. Override for channel-specific formatting."""
-        from trader.notifications.formatters import format_trade_plain
+        from baretrader.notifications.formatters import format_trade_plain
         return format_trade_plain(trade)

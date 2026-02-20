@@ -1,1 +1,1 @@
-"""Test suite for AutoTrader."""
+"""Test suite for BareTrader."""

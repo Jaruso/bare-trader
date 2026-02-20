@@ -1,14 +1,14 @@
-"""Backtesting module for AutoTrader.
+"""Backtesting module for BareTrader.
 
 This module provides backtesting capabilities to test trading strategies
 against historical data before risking real capital.
 """
 
-from trader.backtest.broker import HistoricalBroker
-from trader.backtest.data import load_csv_data, load_data_for_backtest
-from trader.backtest.engine import BacktestEngine
-from trader.backtest.results import BacktestResult
-from trader.backtest.store import (
+from baretrader.backtest.broker import HistoricalBroker
+from baretrader.backtest.data import load_csv_data, load_data_for_backtest
+from baretrader.backtest.engine import BacktestEngine
+from baretrader.backtest.results import BacktestResult
+from baretrader.backtest.store import (
     delete_backtest,
     list_backtests,
     load_backtest,

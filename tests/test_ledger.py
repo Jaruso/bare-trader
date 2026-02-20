@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from trader.api.broker import OrderSide, OrderStatus
-from trader.data.ledger import TradeLedger, TradeRecord
+from baretrader.api.broker import OrderSide, OrderStatus
+from baretrader.data.ledger import TradeLedger, TradeRecord
 
 
 @pytest.fixture

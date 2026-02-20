@@ -12,7 +12,7 @@ from typing import Any
 import pytest
 from click.testing import CliRunner
 
-from trader.cli.main import cli
+from baretrader.cli.main import cli
 
 
 def _cli_json(cmd: list[str]) -> dict[str, Any] | list[Any] | None:
@@ -37,7 +37,7 @@ class TestParityStatus:
     """CLI 'trader status --json' and MCP get_status() return equivalent data."""
 
     def test_status_same_top_level_keys(self) -> None:
-        from trader.mcp.server import get_status
+        from baretrader.mcp.server import get_status
 
         cli_data = _cli_json(["status"])
         if cli_data is None:
@@ -55,7 +55,7 @@ class TestParityStatus:
         assert required <= mcp_keys, f"MCP status missing keys: {required - mcp_keys}"
 
     def test_status_running_and_environment_match(self) -> None:
-        from trader.mcp.server import get_status
+        from baretrader.mcp.server import get_status
 
         cli_data = _cli_json(["status"])
         if cli_data is None:
@@ -80,7 +80,7 @@ class TestParityIndicators:
     """CLI indicator commands and MCP indicator tools return equivalent data."""
 
     def test_indicator_list_same_count_and_names(self) -> None:
-        from trader.mcp.server import list_indicators
+        from baretrader.mcp.server import list_indicators
 
         cli_data = _cli_json(["indicator", "list"])
         if cli_data is None:
@@ -99,7 +99,7 @@ class TestParityIndicators:
         assert len(cli_data) == len(mcp_data)
 
     def test_indicator_describe_sma_same_structure(self) -> None:
-        from trader.mcp.server import describe_indicator
+        from baretrader.mcp.server import describe_indicator
 
         cli_data = _cli_json(["indicator", "describe", "sma"])
         if cli_data is None or not isinstance(cli_data, dict):
@@ -125,7 +125,7 @@ class TestParityStrategies:
     """CLI strategy list and MCP list_strategies return equivalent data."""
 
     def test_strategy_list_same_count_when_available(self) -> None:
-        from trader.mcp.server import list_strategies
+        from baretrader.mcp.server import list_strategies
 
         cli_data = _cli_json(["strategy", "list"])
         if cli_data is None or not isinstance(cli_data, dict):
@@ -151,7 +151,7 @@ class TestParityBacktestList:
     """CLI backtest list and MCP list_backtests return equivalent data."""
 
     def test_backtest_list_same_length(self) -> None:
-        from trader.mcp.server import list_backtests
+        from baretrader.mcp.server import list_backtests
 
         cli_data = _cli_json(["backtest", "list"])
         if cli_data is None:

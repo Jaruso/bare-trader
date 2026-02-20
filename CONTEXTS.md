@@ -1,6 +1,6 @@
-# AutoTrader Agent Learning Context
+# BareTrader Agent Learning Context
 
-This file tracks discoveries, successful strategies, patterns, and insights from agent usage of the AutoTrader MCP server.
+This file tracks discoveries, successful strategies, patterns, and insights from agent usage of the BareTrader MCP server.
 
 **Purpose**: Append-only learning log for agent discoveries, experiments, and insights. Tracks what agents learn during exploration and backtesting.
 

@@ -1,4 +1,4 @@
-"""Visualization helpers for AutoTrader."""
+"""Visualization helpers for BareTrader."""
 
 from __future__ import annotations
 
@@ -6,13 +6,13 @@ from pathlib import Path
 
 import pandas as pd
 
-from trader.backtest.data import load_data_for_backtest
-from trader.backtest.results import BacktestResult
-from trader.data import TimeFrame
-from trader.utils.logging import get_logger
-from trader.visualization.chart import ChartBuilder
+from baretrader.backtest.data import load_data_for_backtest
+from baretrader.backtest.results import BacktestResult
+from baretrader.data import TimeFrame
+from baretrader.utils.logging import get_logger
+from baretrader.visualization.chart import ChartBuilder
 
-logger = get_logger("autotrader.visualization")
+logger = get_logger("baretrader.visualization")
 
 
 def default_historical_data_dir() -> Path:

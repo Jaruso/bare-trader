@@ -1,4 +1,4 @@
-"""Configuration management for AutoTrader."""
+"""Configuration management for BareTrader."""
 
 import os
 from dataclasses import dataclass, field
@@ -140,13 +140,13 @@ def load_config(
     project_root = Path(__file__).parent.parent.parent
 
     # Load .env files: project root, CWD, then config .env (so CLI-set values are used).
-    from trader.utils.paths import get_config_dir
+    from baretrader.utils.paths import get_config_dir
     config_parent = get_config_dir().parent
     for candidate in [
         project_root / ".env",
         Path.cwd() / ".env",
         config_parent / ".env",
-        Path.home() / ".autotrader" / ".env",
+        Path.home() / ".baretrader" / ".env",
     ]:
         if candidate.is_file():
             load_dotenv(candidate)
@@ -179,7 +179,7 @@ def load_config(
         alpaca_secret_key = os.getenv("ALPACA_SECRET_KEY", "")
 
     # Set up directories - use user directories when installed, project dirs in dev
-    from trader.utils.paths import get_config_dir, get_data_dir, get_log_dir
+    from baretrader.utils.paths import get_config_dir, get_data_dir, get_log_dir
 
     # Check if we're in development mode (config dir exists in project root)
     is_dev_mode = (project_root / "config" / "strategies.yaml").exists() or (project_root / "pyproject.toml").exists()

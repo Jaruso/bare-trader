@@ -3,8 +3,8 @@
 import os
 from unittest.mock import patch
 
-from trader.notifications.formatters import TradeNotification
-from trader.notifications.manager import NotificationManager, _resolve_url
+from baretrader.notifications.formatters import TradeNotification
+from baretrader.notifications.manager import NotificationManager, _resolve_url
 
 
 def test_resolve_url_plain() -> None:

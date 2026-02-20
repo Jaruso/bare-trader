@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from trader.backtest.results import BacktestResult
+from baretrader.backtest.results import BacktestResult
 
 
 def get_backtests_dir(data_dir: Path | None = None) -> Path:
@@ -16,7 +16,7 @@ def get_backtests_dir(data_dir: Path | None = None) -> Path:
         Path to backtests directory.
     """
     if data_dir is None:
-        from trader.utils.paths import get_data_dir
+        from baretrader.utils.paths import get_data_dir
         data_dir = get_data_dir()
 
     backtests_dir = data_dir / "backtests"

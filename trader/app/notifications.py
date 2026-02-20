@@ -5,12 +5,12 @@ from typing import Any
 
 import yaml
 
-from trader.notifications.formatters import TradeNotification
-from trader.notifications.manager import NotificationManager
+from baretrader.notifications.formatters import TradeNotification
+from baretrader.notifications.manager import NotificationManager
 
 
 def _config_dir() -> Path:
-    from trader.utils.paths import get_config_dir
+    from baretrader.utils.paths import get_config_dir
     return get_config_dir()
 
 
@@ -71,7 +71,7 @@ def send_test_notification(
     manager = get_notification_manager(config_dir=config_dir)
     if not manager.enabled:
         return False
-    msg = "AutoTrader test notification — notifications are working."
+    msg = "BareTrader test notification — notifications are working."
     if channel and channel != "all":
         ch = manager.get_channel(channel)
         channels = [ch] if ch else []

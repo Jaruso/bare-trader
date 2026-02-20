@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 
-from trader.mcp.server import (
+from baretrader.mcp.server import (
     _ALL_TOOLS,
     analyze_performance,
     describe_indicator,
@@ -34,8 +34,8 @@ class TestMCPServerSetup:
     """Test MCP server instantiation and configuration."""
 
     def test_server_name(self) -> None:
-        """Server should be named 'autotrader'."""
-        assert mcp.name == "autotrader"
+        """Server should be named 'baretrader'."""
+        assert mcp.name == "baretrader"
 
     def test_all_tools_registered(self) -> None:
         """Every tool in _ALL_TOOLS should be registered."""
@@ -257,7 +257,7 @@ class TestMCPCLICommand:
     def test_mcp_group_exists(self) -> None:
         from click.testing import CliRunner
 
-        from trader.cli.main import cli
+        from baretrader.cli.main import cli
 
         runner = CliRunner()
         result = runner.invoke(cli, ["mcp", "--help"])
@@ -267,7 +267,7 @@ class TestMCPCLICommand:
     def test_serve_command_help(self) -> None:
         from click.testing import CliRunner
 
-        from trader.cli.main import cli
+        from baretrader.cli.main import cli
 
         runner = CliRunner()
         result = runner.invoke(cli, ["mcp", "serve", "--help"])

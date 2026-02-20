@@ -11,7 +11,7 @@ import shutil
 import subprocess
 
 # Comment at end of our crontab line so we can find and remove it
-AUTOTRADER_MARKER = "# AutoTrader schedule"
+AUTOTRADER_MARKER = "# BareTrader schedule"
 
 
 def _is_unix() -> bool:
@@ -58,7 +58,7 @@ def _is_our_line(line: str) -> bool:
 
 
 def is_schedule_enabled() -> bool:
-    """Return True if the AutoTrader cron job is present."""
+    """Return True if the BareTrader cron job is present."""
     lines = get_current_crontab()
     return any(_is_our_line(line) for line in lines)
 
@@ -97,7 +97,7 @@ def enable_schedule(every_minutes: int = 5) -> None:
 
     new_line = _build_cron_line(path, every_minutes)
     lines = get_current_crontab()
-    # Remove any existing AutoTrader line so we don't duplicate
+    # Remove any existing BareTrader line so we don't duplicate
     lines = [line for line in lines if not _is_our_line(line)]
     lines.append(new_line)
     new_crontab = "\n".join(lines) + "\n"
@@ -116,7 +116,7 @@ def enable_schedule(every_minutes: int = 5) -> None:
 
 
 def disable_schedule() -> None:
-    """Remove the AutoTrader cron job if present.
+    """Remove the BareTrader cron job if present.
 
     Raises:
         RuntimeError: If not on Unix.

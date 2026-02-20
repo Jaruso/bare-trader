@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from trader.data.providers.base import DataProvider, TimeFrame
-from trader.utils.logging import get_logger
+from baretrader.data.providers.base import DataProvider, TimeFrame
+from baretrader.utils.logging import get_logger
 
 
 @dataclass(frozen=True)
@@ -37,7 +37,7 @@ class CachedDataProvider(DataProvider):
         self.provider = provider
         self.cache_dir = Path(cache_dir)
         self.ttl_minutes = ttl_minutes
-        self.logger = get_logger("autotrader.data.cache")
+        self.logger = get_logger("baretrader.data.cache")
 
     def get_bars(
         self,

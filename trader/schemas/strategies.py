@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
-    from trader.strategies.models import Strategy
+    from baretrader.strategies.models import Strategy
 
 
 class StrategyCreate(BaseModel):

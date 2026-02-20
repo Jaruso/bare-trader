@@ -5,9 +5,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from trader.errors import ValidationError
-from trader.schemas.optimization import OptimizeRequest, OptimizeResponse
-from trader.utils.config import Config
+from baretrader.errors import ValidationError
+from baretrader.schemas.optimization import OptimizeRequest, OptimizeResponse
+from baretrader.utils.config import Config
 
 # Canonical parameter name aliases
 _PARAM_ALIAS_MAP = {
@@ -57,7 +57,7 @@ def run_optimization(config: Config, request: OptimizeRequest) -> OptimizeRespon
     Raises:
         ValidationError: If parameters are invalid.
     """
-    from trader.optimization import Optimizer, save_optimization
+    from baretrader.optimization import Optimizer, save_optimization
 
     # Parse dates
     try:

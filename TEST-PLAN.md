@@ -1,8 +1,8 @@
 # Financial Manager MCP Test Plan
 
-**Purpose:** Validate AutoTrader MCP server from the perspective of a financial analyst/manager whose AI agent uses the MCP. Execute workflows via MCP tools; record results for regression and for agents reworking features or developing new requirements.
+**Purpose:** Validate BareTrader MCP server from the perspective of a financial analyst/manager whose AI agent uses the MCP. Execute workflows via MCP tools; record results for regression and for agents reworking features or developing new requirements.
 
-**Prerequisites:** Python 3.11+, MCP config (e.g. Cursor with AutoTrader MCP), optional Alpaca paper keys, optional CSV data in `HISTORICAL_DATA_DIR`.
+**Prerequisites:** Python 3.11+, MCP config (e.g. Cursor with BareTrader MCP), optional Alpaca paper keys, optional CSV data in `HISTORICAL_DATA_DIR`.
 
 **Workflow groups:**
 
@@ -90,7 +90,7 @@
 
 ## Results: Run 1 (2026-02-13)
 
-Environment: paper broker (Alpaca), API keys configured. CSV: no (HISTORICAL_DATA_DIR not set / data dir not found). MCP client: Cursor AutoTrader MCP; A7/B5 verified via server import where tool not in client.
+Environment: paper broker (Alpaca), API keys configured. CSV: no (HISTORICAL_DATA_DIR not set / data dir not found). MCP client: Cursor BareTrader MCP; A7/B5 verified via server import where tool not in client.
 
 ### A. System and discovery
 
@@ -163,7 +163,7 @@ Environment: paper broker (Alpaca), API keys configured. CSV: no (HISTORICAL_DAT
 
 ## Results: Run 2 (2026-02-13)
 
-Environment: paper broker (Alpaca), API keys configured. CSV: no (HISTORICAL_DATA_DIR not set / data dir not found). MCP client: Cursor AutoTrader MCP. **Note**: MCP server running old code; requires restart to pick up fixes. Direct app layer tests confirm fixes work.
+Environment: paper broker (Alpaca), API keys configured. CSV: no (HISTORICAL_DATA_DIR not set / data dir not found). MCP client: Cursor BareTrader MCP. **Note**: MCP server running old code; requires restart to pick up fixes. Direct app layer tests confirm fixes work.
 
 ### A. System and discovery
 

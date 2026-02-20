@@ -2,7 +2,7 @@
 
 from click.testing import CliRunner
 
-from trader.cli.main import cli
+from baretrader.cli.main import cli
 
 
 def test_cli_help() -> None:
@@ -10,7 +10,7 @@ def test_cli_help() -> None:
     runner = CliRunner()
     result = runner.invoke(cli, ["--help"])
     assert result.exit_code == 0
-    assert "AutoTrader" in result.output
+    assert "BareTrader" in result.output
     assert "status" in result.output
 
 

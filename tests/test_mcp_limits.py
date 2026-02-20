@@ -7,8 +7,8 @@ from unittest.mock import patch
 
 import pytest
 
-from trader.errors import RateLimitError, TaskTimeoutError
-from trader.mcp import limits as limits_mod
+from baretrader.errors import RateLimitError, TaskTimeoutError
+from baretrader.mcp import limits as limits_mod
 
 
 # Reset rate limit state between tests so env-driven limits don't leak

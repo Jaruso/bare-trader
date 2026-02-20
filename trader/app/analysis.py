@@ -5,8 +5,8 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-from trader.data.ledger import TradeLedger
-from trader.schemas.analysis import AnalysisResponse
+from baretrader.data.ledger import TradeLedger
+from baretrader.schemas.analysis import AnalysisResponse
 
 
 def analyze_trade_performance(
@@ -24,7 +24,7 @@ def analyze_trade_performance(
     Returns:
         Analysis response schema, or None if no trades found.
     """
-    from trader.analysis.trades import analyze_trades
+    from baretrader.analysis.trades import analyze_trades
 
     ledger = TradeLedger()
     since = datetime.now() - timedelta(days=days)

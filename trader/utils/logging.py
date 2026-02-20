@@ -1,4 +1,4 @@
-"""Logging configuration for AutoTrader."""
+"""Logging configuration for BareTrader."""
 
 import logging
 import sys
@@ -24,7 +24,7 @@ def setup_logging(
     Returns:
         Configured logger instance.
     """
-    logger = logging.getLogger("autotrader")
+    logger = logging.getLogger("baretrader")
     logger.setLevel(level)
 
     # Clear existing handlers
@@ -44,7 +44,7 @@ def setup_logging(
     # File handler
     if log_to_file and log_dir:
         log_dir.mkdir(parents=True, exist_ok=True)
-        file_handler = logging.FileHandler(log_dir / "autotrader.log")
+        file_handler = logging.FileHandler(log_dir / "baretrader.log")
         file_handler.setLevel(level)
         file_format = logging.Formatter(
             "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
@@ -61,14 +61,14 @@ def setup_logging(
             datefmt="%Y-%m-%d %H:%M:%S",
         )
         trade_handler.setFormatter(trade_format)
-        trade_logger = logging.getLogger("autotrader.trades")
+        trade_logger = logging.getLogger("baretrader.trades")
         trade_logger.addHandler(trade_handler)
         trade_logger.setLevel(logging.INFO)
 
     return logger
 
 
-def get_logger(name: str = "autotrader") -> logging.Logger:
+def get_logger(name: str = "baretrader") -> logging.Logger:
     """Get a logger instance.
 
     Args:

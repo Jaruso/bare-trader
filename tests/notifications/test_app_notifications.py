@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-from trader.app.notifications import (
+from baretrader.app.notifications import (
     get_notification_manager,
     send_notification,
     send_test_notification,

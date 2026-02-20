@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""List all MCP tools registered in the AutoTrader server.
+"""List all MCP tools registered in the BareTrader server.
 
 This script helps verify that all tools are properly registered and can be
 used for debugging tool visibility issues in MCP clients.
@@ -7,7 +7,7 @@ used for debugging tool visibility issues in MCP clients.
 
 import asyncio
 
-from trader.mcp.server import _ALL_TOOLS
+from baretrader.mcp.server import _ALL_TOOLS
 
 
 def main() -> None:

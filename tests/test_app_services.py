@@ -5,21 +5,21 @@ from pathlib import Path
 
 import pytest
 
-from trader.app.engine import get_engine_status, stop_engine
-from trader.app.indicators import describe_indicator, list_all_indicators
-from trader.app.strategies import (
+from baretrader.app.engine import get_engine_status, stop_engine
+from baretrader.app.indicators import describe_indicator, list_all_indicators
+from baretrader.app.strategies import (
     get_strategy_detail,
     list_strategies,
     remove_strategy,
 )
-from trader.errors import (
+from baretrader.errors import (
     ConfigurationError,
     EngineError,
     NotFoundError,
 )
-from trader.schemas.engine import EngineStatus
-from trader.schemas.indicators import IndicatorInfo
-from trader.schemas.strategies import StrategyListResponse
+from baretrader.schemas.engine import EngineStatus
+from baretrader.schemas.indicators import IndicatorInfo
+from baretrader.schemas.strategies import StrategyListResponse
 
 
 class TestIndicatorServices:
@@ -54,7 +54,7 @@ class TestEngineServices:
 
     def test_get_engine_status_not_running(self) -> None:
         """When no lock file exists, engine is not running."""
-        from trader.utils.config import load_config
+        from baretrader.utils.config import load_config
 
         config = load_config()
         result = get_engine_status(config)
@@ -91,7 +91,7 @@ class TestStrategyServices:
 
     def test_strategy_load_with_hyphen_format(self) -> None:
         """Test that strategies.yaml with pullback-trailing (hyphen) loads correctly."""
-        from trader.strategies.models import Strategy, StrategyType
+        from baretrader.strategies.models import Strategy, StrategyType
 
         # Test that hyphen format normalizes to underscore enum value
         data = {
@@ -118,8 +118,8 @@ class TestAppInit:
 
     def test_get_broker_missing_keys_raises(self) -> None:
         """Should raise ConfigurationError when API keys missing."""
-        from trader.app import get_broker
-        from trader.utils.config import (
+        from baretrader.app import get_broker
+        from baretrader.utils.config import (
             Config,
             Environment,
             Service,
@@ -142,9 +142,9 @@ class TestAppInit:
 
     def test_get_broker_with_keys_returns_broker(self) -> None:
         """Should return a broker instance when keys are set."""
-        from trader.api.broker import Broker
-        from trader.app import get_broker
-        from trader.utils.config import (
+        from baretrader.api.broker import Broker
+        from baretrader.app import get_broker
+        from baretrader.utils.config import (
             Config,
             Environment,
             Service,
@@ -172,7 +172,7 @@ class TestCLIJsonFlag:
         """Status command should accept --json flag."""
         from click.testing import CliRunner
 
-        from trader.cli.main import cli
+        from baretrader.cli.main import cli
 
         runner = CliRunner()
         result = runner.invoke(cli, ["--json", "status"])
@@ -182,7 +182,7 @@ class TestCLIJsonFlag:
         """Strategy list should accept --json flag."""
         from click.testing import CliRunner
 
-        from trader.cli.main import cli
+        from baretrader.cli.main import cli
 
         runner = CliRunner()
         result = runner.invoke(cli, ["--json", "strategy", "list"])

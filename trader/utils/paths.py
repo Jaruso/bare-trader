@@ -1,4 +1,4 @@
-"""Centralized path resolution for AutoTrader.
+"""Centralized path resolution for BareTrader.
 
 Handles config, data, and log directories for both development and installed environments.
 Uses XDG Base Directory spec on Linux, standard locations on macOS/Windows.
@@ -17,7 +17,7 @@ def get_config_dir(custom_path: Path | None = None) -> Path:
     Priority:
     1. Custom path if provided
     2. Development mode: project root / config (if exists)
-    3. Installed mode: ~/.autotrader/config (or XDG_CONFIG_HOME/autotrader on Linux)
+    3. Installed mode: ~/.baretrader/config (or XDG_CONFIG_HOME/baretrader on Linux)
 
     Args:
         custom_path: Optional custom config directory path.
@@ -45,17 +45,17 @@ def get_config_dir(custom_path: Path | None = None) -> Path:
         # XDG Base Directory spec
         xdg_config = os.getenv("XDG_CONFIG_HOME")
         if xdg_config:
-            config_dir = Path(xdg_config) / "autotrader"
+            config_dir = Path(xdg_config) / "baretrader"
         else:
-            config_dir = Path.home() / ".config" / "autotrader"
+            config_dir = Path.home() / ".config" / "baretrader"
     elif system == "Darwin":  # macOS
-        config_dir = Path.home() / ".autotrader" / "config"
+        config_dir = Path.home() / ".baretrader" / "config"
     else:  # Windows
         appdata = os.getenv("APPDATA")
         if appdata:
-            config_dir = Path(appdata) / "autotrader" / "config"
+            config_dir = Path(appdata) / "baretrader" / "config"
         else:
-            config_dir = Path.home() / ".autotrader" / "config"
+            config_dir = Path.home() / ".baretrader" / "config"
 
     config_dir.mkdir(parents=True, exist_ok=True)
     return config_dir
@@ -67,7 +67,7 @@ def get_data_dir(custom_path: Path | None = None) -> Path:
     Priority:
     1. Custom path if provided
     2. Development mode: project root / data (if exists)
-    3. Installed mode: ~/.autotrader/data (or XDG_DATA_HOME/autotrader on Linux)
+    3. Installed mode: ~/.baretrader/data (or XDG_DATA_HOME/baretrader on Linux)
 
     Args:
         custom_path: Optional custom data directory path.
@@ -94,17 +94,17 @@ def get_data_dir(custom_path: Path | None = None) -> Path:
         # XDG Base Directory spec
         xdg_data = os.getenv("XDG_DATA_HOME")
         if xdg_data:
-            data_dir = Path(xdg_data) / "autotrader"
+            data_dir = Path(xdg_data) / "baretrader"
         else:
-            data_dir = Path.home() / ".local" / "share" / "autotrader"
+            data_dir = Path.home() / ".local" / "share" / "baretrader"
     elif system == "Darwin":  # macOS
-        data_dir = Path.home() / ".autotrader" / "data"
+        data_dir = Path.home() / ".baretrader" / "data"
     else:  # Windows
         appdata = os.getenv("APPDATA")
         if appdata:
-            data_dir = Path(appdata) / "autotrader" / "data"
+            data_dir = Path(appdata) / "baretrader" / "data"
         else:
-            data_dir = Path.home() / ".autotrader" / "data"
+            data_dir = Path.home() / ".baretrader" / "data"
 
     data_dir.mkdir(parents=True, exist_ok=True)
     return data_dir
@@ -116,7 +116,7 @@ def get_log_dir(custom_path: Path | None = None) -> Path:
     Priority:
     1. Custom path if provided
     2. Development mode: project root / logs (if exists)
-    3. Installed mode: ~/.autotrader/logs (or XDG_STATE_HOME/autotrader on Linux)
+    3. Installed mode: ~/.baretrader/logs (or XDG_STATE_HOME/baretrader on Linux)
 
     Args:
         custom_path: Optional custom log directory path.
@@ -143,17 +143,17 @@ def get_log_dir(custom_path: Path | None = None) -> Path:
         # XDG Base Directory spec
         xdg_state = os.getenv("XDG_STATE_HOME")
         if xdg_state:
-            log_dir = Path(xdg_state) / "autotrader"
+            log_dir = Path(xdg_state) / "baretrader"
         else:
-            log_dir = Path.home() / ".local" / "state" / "autotrader"
+            log_dir = Path.home() / ".local" / "state" / "baretrader"
     elif system == "Darwin":  # macOS
-        log_dir = Path.home() / ".autotrader" / "logs"
+        log_dir = Path.home() / ".baretrader" / "logs"
     else:  # Windows
         appdata = os.getenv("APPDATA")
         if appdata:
-            log_dir = Path(appdata) / "autotrader" / "logs"
+            log_dir = Path(appdata) / "baretrader" / "logs"
         else:
-            log_dir = Path.home() / ".autotrader" / "logs"
+            log_dir = Path.home() / ".baretrader" / "logs"
 
     log_dir.mkdir(parents=True, exist_ok=True)
     return log_dir

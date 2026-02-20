@@ -6,7 +6,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from trader.errors import AppError
+from baretrader.errors import AppError
 
 
 class ErrorResponse(BaseModel):

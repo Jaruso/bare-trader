@@ -5,13 +5,13 @@ from decimal import Decimal
 
 import pandas as pd
 
-from trader.api.broker import OrderStatus
-from trader.backtest.broker import HistoricalBroker
-from trader.backtest.results import BacktestResult, calculate_metrics
-from trader.strategies.evaluator import ActionType, StrategyAction, StrategyEvaluator
-from trader.strategies.models import Strategy, StrategyPhase
-from trader.utils.config import StrategyDefaults
-from trader.utils.logging import get_logger
+from baretrader.api.broker import OrderStatus
+from baretrader.backtest.broker import HistoricalBroker
+from baretrader.backtest.results import BacktestResult, calculate_metrics
+from baretrader.strategies.evaluator import ActionType, StrategyAction, StrategyEvaluator
+from baretrader.strategies.models import Strategy, StrategyPhase
+from baretrader.utils.config import StrategyDefaults
+from baretrader.utils.logging import get_logger
 
 
 class BacktestEngine:
@@ -41,7 +41,7 @@ class BacktestEngine:
         self.broker = broker
         self.start_date = start_date
         self.end_date = end_date
-        self.logger = get_logger("autotrader.backtest")
+        self.logger = get_logger("baretrader.backtest")
 
         # Create strategy from config
         self.strategy = Strategy.from_dict(strategy_config)

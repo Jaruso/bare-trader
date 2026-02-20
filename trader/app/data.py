@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from trader.app import get_broker
-from trader.core.safety import SafetyCheck, SafetyLimits
-from trader.data.ledger import TradeLedger
-from trader.utils.config import Config
+from baretrader.app import get_broker
+from baretrader.core.safety import SafetyCheck, SafetyLimits
+from baretrader.data.ledger import TradeLedger
+from baretrader.utils.config import Config
 
 
 def get_safety_status(config: Config) -> dict[str, object]:

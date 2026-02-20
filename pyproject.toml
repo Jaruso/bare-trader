@@ -1,5 +1,5 @@
 [project]
-name = "autotrader"
+name = "baretrader"
 version = "1.0.0"
 description = "CLI-based automated trading system"
 authors = [
@@ -24,7 +24,7 @@ dependencies = [
 ]
 
 [project.scripts]
-trader = "trader.cli.main:cli"
+baretrader = "baretrader.cli.main:cli"
 
 [tool.poetry]
 packages = [{include = "trader"}]

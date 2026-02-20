@@ -3,12 +3,12 @@ from pathlib import Path
 
 import yaml
 
-from trader.models.order import Order
+from baretrader.models.order import Order
 
 
 def get_orders_file(config_dir: Path | None = None) -> Path:
     if config_dir is None:
-        from trader.utils.paths import get_config_dir
+        from baretrader.utils.paths import get_config_dir
         config_dir = get_config_dir()
     config_dir.mkdir(parents=True, exist_ok=True)
     return config_dir / "orders.yaml"
@@ -34,10 +34,10 @@ def load_orders(config_dir: Path | None = None) -> list[Order]:
 def _to_local_order(order_obj: object) -> Order:
     """Convert a broker.Order-like object or local Order dict to local `Order` model."""
     # Import local enums
-    from trader.models.order import Order as LocalOrder
-    from trader.models.order import OrderSide as LocalSide
-    from trader.models.order import OrderStatus as LocalStatus
-    from trader.models.order import OrderType as LocalType
+    from baretrader.models.order import Order as LocalOrder
+    from baretrader.models.order import OrderSide as LocalSide
+    from baretrader.models.order import OrderStatus as LocalStatus
+    from baretrader.models.order import OrderType as LocalType
 
     # Extract fields with fallbacks
     oid = getattr(order_obj, "id", getattr(order_obj, "order_id", ""))

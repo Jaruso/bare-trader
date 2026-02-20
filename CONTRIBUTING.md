@@ -1,4 +1,4 @@
-# Contributing to AutoTrader
+# Contributing to BareTrader
 
 Thanks for your interest in contributing. This document covers setup, code style, and how to make changes.
 
@@ -8,7 +8,7 @@ Thanks for your interest in contributing. This document covers setup, code style
 
 - **Python 3.11+** — [python.org](https://www.python.org/downloads/). On Windows, install from python.org and check **Add Python to PATH**.
 - **Poetry** — Dependency and project manager. It reads [pyproject.toml](pyproject.toml), locks versions in `poetry.lock`, and provides `poetry install`, `poetry run`, and `poetry add`. You still need Python installed; Poetry creates a virtual environment and installs packages. Install: [install.python-poetry.org](https://install.python-poetry.org/). On Windows, after installing ensure Poetry’s bin is on PATH.
-- **pipx** (optional but recommended) — Puts the `trader` CLI on your PATH so you can run `trader` and use the same Claude MCP config as end users. [pipx.pypa.io](https://pipx.pypa.io/); run `pip install pipx` then `pipx ensurepath` if needed.
+- **pipx** (optional but recommended) — Puts the `baretrader` CLI on your PATH so you can run `baretrader` and use the same Claude MCP config as end users. [pipx.pypa.io](https://pipx.pypa.io/); run `pip install pipx` then `pipx ensurepath` if needed.
 - **Alpaca account** — Paper (and optionally live) for testing.
 
 ---
@@ -17,47 +17,47 @@ Thanks for your interest in contributing. This document covers setup, code style
 
 ```bash
 git clone <repo-url>
-cd auto-trader
+cd bare-trader
 poetry install
 ```
 
-Optional: install the CLI on your PATH for development so `trader` uses your local code:
+Optional: install the CLI on your PATH for development so `baretrader` uses your local code:
 
 ```bash
 pipx install -e .
 ```
 
-Then you can run `trader status` (or `poetry run trader status`) and use the same Claude Desktop MCP config as in the README (`command`: `trader`, `args`: `["mcp", "serve"]`).
+Then you can run `baretrader status` (or `poetry run baretrader status`) and use the same Claude Desktop MCP config as in the README (`command`: `baretrader`, `args`: `["mcp", "serve"]`).
 
 ---
 
 ## Running the App
 
-- With Poetry only: `poetry run trader status`, `poetry run trader backtest list`, etc.
-- With pipx editable install: `trader status`, `trader backtest list`, etc.
+- With Poetry only: `poetry run baretrader status`, `poetry run baretrader backtest list`, etc.
+- With pipx editable install: `baretrader status`, `baretrader backtest list`, etc.
 
 ---
 
 ## MCP for Development
 
-Use the same Claude config as in the README: set `command` to the **full path** to `trader` (run `which trader` and use that path), and `args`: `["mcp", "serve"]`, plus `env` for your Alpaca keys. Claude Desktop often uses a limited PATH and won’t find `trader` if you only use `"command": "trader"`. Install with `pipx install -e .` from the repo root so that path runs your local code. Each new Claude conversation spawns a new MCP process, so code changes are picked up without restarting Claude. MCP rate limits and timeouts for long-running tools are configured via env (see README Configuration).
+Use the same Claude config as in the README: set `command` to the **full path** to `baretrader` (run `which baretrader` and use that path), and `args`: `["mcp", "serve"]`, plus `env` for your Alpaca keys. Claude Desktop often uses a limited PATH and won’t find `baretrader` if you only use `"command": "baretrader"`. Install with `pipx install -e .` from the repo root so that path runs your local code. Each new Claude conversation spawns a new MCP process, so code changes are picked up without restarting Claude. MCP rate limits and timeouts for long-running tools are configured via env (see README Configuration).
 
-**Agents**: Use MCP tools as the primary interface for all operations. Run CLI commands only when testing or verifying human-facing output (e.g. `trader status` or `trader backtest list --json`).
+**Agents**: Use MCP tools as the primary interface for all operations. Run CLI commands only when testing or verifying human-facing output (e.g. `baretrader status` or `baretrader backtest list --json`).
 
-**Note on tool visibility**: All 32+ MCP tools are registered in the server (`trader/mcp/server.py`). Some MCP clients may filter or not display all tools. For testing, if a tool isn't visible in your client, you can import it directly: `from trader.mcp.server import <tool_name>`. To list all registered tools programmatically: `python3 -c "from trader.mcp.server import mcp; [print(f'{t.name}') for t in mcp.list_tools()]"`.
+**Note on tool visibility**: All 32+ MCP tools are registered in the server (`baretrader/mcp/server.py`). Some MCP clients may filter or not display all tools. For testing, if a tool isn't visible in your client, you can import it directly: `from baretrader.mcp.server import <tool_name>`. To list all registered tools programmatically: `python3 -c "from baretrader.mcp.server import mcp; [print(f'{t.name}') for t in mcp.list_tools()]"`.
 
 ---
 
 ## Project Layout
 
-- **trader/app/** — Shared application services (single source of truth for business logic)
-- **trader/cli/** — Click CLI (human-friendly, Rich tables)
-- **trader/mcp/** — MCP server (agent-friendly, JSON)
-- **trader/schemas/** — Pydantic models (contracts)
-- **trader/errors.py** — Shared error hierarchy
-- **trader/core/**, **trader/backtest/**, **trader/strategies/**, **trader/api/**, **trader/data/**, **trader/indicators/**, **trader/notifications/**, **trader/oms/**, **trader/utils/** — Domain and infra
+- **barebaretrader/app/** — Shared application services (single source of truth for business logic)
+- **baretrader/cli/** — Click CLI (human-friendly, Rich tables)
+- **baretrader/mcp/** — MCP server (agent-friendly, JSON)
+- **barebaretrader/schemas/** — Pydantic models (contracts)
+- **baretrader/errors.py** — Shared error hierarchy
+- **baretrader/core/**, **baretrader/backtest/**, **baretrader/strategies/**, **baretrader/api/**, **baretrader/data/**, **baretrader/indicators/**, **baretrader/notifications/**, **baretrader/oms/**, **baretrader/utils/** — Domain and infra
 
-**Dual-interface architecture**: CLI and MCP are thin adapters; both call `trader/app` and use `trader/schemas`. One core, two adapters — no logic duplication. For a full mapping of CLI commands to MCP tools, run `trader --help` and inspect the MCP server tool list (32 tools); the app layer in `trader/app/` is the single source of truth for both. See [CODEBASE_REVIEW.md](CODEBASE_REVIEW.md) for a package map, test coverage matrix, and gaps/redundancies report.
+**Dual-interface architecture**: CLI and MCP are thin adapters; both call `baretrader/app` and use `baretrader/schemas`. One core, two adapters — no logic duplication. For a full mapping of CLI commands to MCP tools, run `baretrader --help` and inspect the MCP server tool list (32 tools); the app layer in `barebaretrader/app/` is the single source of truth for both. See [CODEBASE_REVIEW.md](CODEBASE_REVIEW.md) for a package map, test coverage matrix, and gaps/redundancies report.
 
 ```
 ┌─────────────┐      ┌─────────────┐
@@ -68,7 +68,7 @@ Use the same Claude config as in the README: set `command` to the **full path** 
        └────────┬───────────┘
                 │
          ┌──────▼──────┐
-         │  trader/app │  ← Shared business logic
+         │  baretrader/app │  ← Shared business logic
          │  (Services) │
          └──────┬──────┘
                 │
@@ -100,7 +100,7 @@ poetry run mypy .
 ```bash
 poetry run pytest
 poetry run pytest -v
-poetry run pytest --cov=trader
+poetry run pytest --cov=baretrader
 poetry run pytest tests/test_mcp_server.py
 ```
 
@@ -112,10 +112,10 @@ Write tests for new features; use the mock broker for integration tests; never r
 
 When adding a feature:
 
-1. **Business logic** in `trader/app/` (e.g. `portfolio.py`, `backtests.py`).
-2. **Schema** in `trader/schemas/` if needed (Pydantic models).
-3. **CLI** in `trader/cli/main.py` (Rich for display).
-4. **MCP tool** in `trader/mcp/server.py` (JSON).
+1. **Business logic** in `barebaretrader/app/` (e.g. `portfolio.py`, `backtests.py`).
+2. **Schema** in `barebaretrader/schemas/` if needed (Pydantic models).
+3. **CLI** in `baretrader/cli/main.py` (Rich for display).
+4. **MCP tool** in `baretrader/mcp/server.py` (JSON).
 5. **Tests** in `tests/` for CLI and/or MCP.
 6. **Docs** — update README.md, CHANGELOG.md, and PLAN.md as needed.
 
@@ -138,8 +138,8 @@ poetry show --outdated
 
 ## Common Issues
 
-- **"trader" not found**: Pipx’s bin must be on PATH (`~/.local/bin` on Linux/macOS, `%USERPROFILE%\.local\bin` on Windows). Run `pipx ensurepath`.
-- **Changes not reflected**: If you use the global `trader`, ensure it’s the editable install (`pipx install -e .`). Otherwise use `poetry run trader`.
+- **"baretrader" not found**: Pipx’s bin must be on PATH (`~/.local/bin` on Linux/macOS, `%USERPROFILE%\.local\bin` on Windows). Run `pipx ensurepath`.
+- **Changes not reflected**: If you use the global `baretrader`, ensure it’s the editable install (`pipx install -e .`). Otherwise use `poetry run baretrader`.
 - **Backtest errors**: Ensure CSV files in `data/historical/` with columns `timestamp, open, high, low, close, volume`; date range must match data.
 - **Poetry lock out of sync**: After editing `pyproject.toml`, run `poetry lock` then `poetry install`.
 

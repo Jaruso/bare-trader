@@ -5,8 +5,8 @@ from decimal import Decimal
 
 import pandas as pd
 
-from trader.backtest.results import BacktestResult
-from trader.visualization.chart import ChartBuilder
+from baretrader.backtest.results import BacktestResult
+from baretrader.visualization.chart import ChartBuilder
 
 
 def _sample_result() -> BacktestResult:

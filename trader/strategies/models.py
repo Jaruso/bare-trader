@@ -20,7 +20,7 @@ Strategy Types
 
 Example
 -------
-    >>> from trader.strategies.models import Strategy, StrategyType
+    >>> from baretrader.strategies.models import Strategy, StrategyType
     >>> strategy = Strategy(
     ...     symbol="AAPL",
     ...     strategy_type=StrategyType.TRAILING_STOP,

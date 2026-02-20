@@ -9,9 +9,9 @@ from typing import TYPE_CHECKING, Any
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
-    from trader.optimization.results import OptimizationResult
+    from baretrader.optimization.results import OptimizationResult
 
-from trader.schemas.backtests import BacktestResponse
+from baretrader.schemas.backtests import BacktestResponse
 
 
 class OptimizeRequest(BaseModel):

@@ -3,7 +3,7 @@
 import os
 from unittest.mock import patch
 
-from trader.utils.config import (
+from baretrader.utils.config import (
     Config,
     Environment,
     Service,

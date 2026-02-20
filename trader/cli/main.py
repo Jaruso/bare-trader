@@ -1,4 +1,4 @@
-"""CLI entry point for AutoTrader.
+"""CLI entry point for BareTrader.
 
 All business logic is delegated to the trader.app service layer.
 This module handles:
@@ -17,11 +17,11 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from trader import __version__
-from trader.audit import set_audit_source
-from trader.errors import AppError
-from trader.utils.config import Environment, load_config
-from trader.utils.logging import setup_logging
+from baretrader import __version__
+from baretrader.audit import set_audit_source
+from baretrader.errors import AppError
+from baretrader.utils.config import Environment, load_config
+from baretrader.utils.logging import setup_logging
 
 console = Console()
 
@@ -65,13 +65,13 @@ def _get_json_flag(ctx: click.Context) -> bool:
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
 @click.pass_context
 def cli(ctx: click.Context, prod: bool, as_json: bool) -> None:
-    """AutoTrader - CLI-based automated trading system."""
+    """BareTrader - CLI-based automated trading system."""
     import sys
     import traceback
     from datetime import datetime
     from pathlib import Path
 
-    log_file = Path.home() / "autotrader_mcp_debug.log"
+    log_file = Path.home() / "baretrader_mcp_debug.log"
 
     try:
         with open(log_file, "a") as f:
@@ -107,7 +107,7 @@ def cli(ctx: click.Context, prod: bool, as_json: bool) -> None:
 @click.pass_context
 def status(ctx: click.Context) -> None:
     """Show current system status including engine state."""
-    from trader.app.engine import get_engine_status
+    from baretrader.app.engine import get_engine_status
 
     config = ctx.obj["config"]
     as_json = _get_json_flag(ctx)
@@ -117,7 +117,7 @@ def status(ctx: click.Context) -> None:
         if as_json:
             _json_output(result)
         else:
-            table = Table(title="AutoTrader Status")
+            table = Table(title="BareTrader Status")
             table.add_column("Setting", style="cyan")
             table.add_column("Value", style="green")
 
@@ -143,7 +143,7 @@ def status(ctx: click.Context) -> None:
 @click.pass_context
 def balance(ctx: click.Context) -> None:
     """Show account balance and portfolio summary."""
-    from trader.app.portfolio import get_balance
+    from baretrader.app.portfolio import get_balance
 
     config = ctx.obj["config"]
     as_json = _get_json_flag(ctx)
@@ -203,7 +203,7 @@ def balance(ctx: click.Context) -> None:
 @click.pass_context
 def positions(ctx: click.Context) -> None:
     """Show current positions."""
-    from trader.app.portfolio import get_positions
+    from baretrader.app.portfolio import get_positions
 
     config = ctx.obj["config"]
     as_json = _get_json_flag(ctx)
@@ -253,7 +253,7 @@ def positions(ctx: click.Context) -> None:
 @click.pass_context
 def orders(ctx: click.Context, show_all: bool) -> None:
     """Show open orders."""
-    from trader.app.orders import list_orders
+    from baretrader.app.orders import list_orders
 
     config = ctx.obj["config"]
     as_json = _get_json_flag(ctx)
@@ -315,7 +315,7 @@ def orders(ctx: click.Context, show_all: bool) -> None:
 @click.pass_context
 def portfolio(ctx: click.Context) -> None:
     """Show portfolio summary and performance."""
-    from trader.app.portfolio import get_portfolio_summary
+    from baretrader.app.portfolio import get_portfolio_summary
 
     config = ctx.obj["config"]
     as_json = _get_json_flag(ctx)
@@ -395,7 +395,7 @@ def portfolio(ctx: click.Context) -> None:
 @click.pass_context
 def quote(ctx: click.Context, symbol: str) -> None:
     """Get current quote for a symbol."""
-    from trader.app.portfolio import get_quote
+    from baretrader.app.portfolio import get_quote
 
     config = ctx.obj["config"]
     as_json = _get_json_flag(ctx)
@@ -438,8 +438,8 @@ def buy(ctx: click.Context, symbol: str, price: float, qty: int) -> None:
 
     Example: trader buy TSLA 399.00 --qty 1
     """
-    from trader.app.orders import place_order
-    from trader.schemas.orders import OrderRequest
+    from baretrader.app.orders import place_order
+    from baretrader.schemas.orders import OrderRequest
 
     config = ctx.obj["config"]
     as_json = _get_json_flag(ctx)
@@ -491,8 +491,8 @@ def sell(ctx: click.Context, symbol: str, price: float, qty: int) -> None:
 
     Example: trader sell TSLA 420.00 --qty 1
     """
-    from trader.app.orders import place_order
-    from trader.schemas.orders import OrderRequest
+    from baretrader.app.orders import place_order
+    from baretrader.schemas.orders import OrderRequest
 
     config = ctx.obj["config"]
     as_json = _get_json_flag(ctx)
@@ -542,13 +542,13 @@ def sell(ctx: click.Context, symbol: str, price: float, qty: int) -> None:
 @click.pass_context
 def reconcile_orders(ctx: click.Context, orders_dir: str | None) -> None:
     """Reconcile locally persisted orders with broker state."""
-    from trader.core.engine import TradingEngine
+    from baretrader.core.engine import TradingEngine
 
     config = ctx.obj["config"]
     as_json = _get_json_flag(ctx)
 
     try:
-        from trader.app import get_broker
+        from baretrader.app import get_broker
         broker = get_broker(config)
         orders_path = Path(orders_dir) if orders_dir else None
         engine = TradingEngine(broker, orders_dir=orders_path)
@@ -574,7 +574,7 @@ def reconcile_orders(ctx: click.Context, orders_dir: str | None) -> None:
 @click.pass_context
 def cancel(ctx: click.Context, order_id: str) -> None:
     """Cancel an open order."""
-    from trader.app.orders import cancel_order
+    from baretrader.app.orders import cancel_order
 
     config = ctx.obj["config"]
     as_json = _get_json_flag(ctx)
@@ -633,9 +633,9 @@ def start(ctx: click.Context, dry_run: bool, interval: int, once: bool, force: b
         Production mode:
         trader --prod start
     """
-    from trader.app import get_broker
-    from trader.core.engine import EngineAlreadyRunningError, TradingEngine, get_lock_file_path
-    from trader.strategies.loader import load_strategies
+    from baretrader.app import get_broker
+    from baretrader.core.engine import EngineAlreadyRunningError, TradingEngine, get_lock_file_path
+    from baretrader.strategies.loader import load_strategies
 
     config = ctx.obj["config"]
 
@@ -727,8 +727,8 @@ def run_once_cmd(ctx: click.Context, dry_run: bool, force: bool) -> None:
         In crontab (every 5 minutes):
         */5 * * * * trader run-once
     """
-    from trader.app import get_broker
-    from trader.core.engine import EngineAlreadyRunningError, TradingEngine, get_lock_file_path
+    from baretrader.app import get_broker
+    from baretrader.core.engine import EngineAlreadyRunningError, TradingEngine, get_lock_file_path
 
     config = ctx.obj["config"]
 
@@ -800,7 +800,7 @@ def schedule_enable(every: int) -> None:
         Every 15 minutes:
         trader schedule enable --every 15
     """
-    from trader.utils.schedule_cron import enable_schedule, get_trader_path
+    from baretrader.utils.schedule_cron import enable_schedule, get_trader_path
 
     try:
         enable_schedule(every_minutes=every)
@@ -813,11 +813,11 @@ def schedule_enable(every: int) -> None:
 
 @schedule_group.command("disable")
 def schedule_disable() -> None:
-    """Remove the AutoTrader cron job from your crontab."""
-    from trader.utils.schedule_cron import disable_schedule, is_schedule_enabled
+    """Remove the BareTrader cron job from your crontab."""
+    from baretrader.utils.schedule_cron import disable_schedule, is_schedule_enabled
 
     if not is_schedule_enabled():
-        console.print("[yellow]Schedule was not enabled (no AutoTrader cron job found).[/yellow]")
+        console.print("[yellow]Schedule was not enabled (no BareTrader cron job found).[/yellow]")
         return
     try:
         disable_schedule()
@@ -829,7 +829,7 @@ def schedule_disable() -> None:
 @schedule_group.command("status")
 def schedule_status() -> None:
     """Show whether the schedule is enabled and the current cron line."""
-    from trader.utils.schedule_cron import get_schedule_status
+    from baretrader.utils.schedule_cron import get_schedule_status
 
     status = get_schedule_status()
     if not status["supported"]:
@@ -864,7 +864,7 @@ def stop(ctx: click.Context, force: bool) -> None:
         trader stop --force
         trader stop -f
     """
-    from trader.app.engine import stop_engine
+    from baretrader.app.engine import stop_engine
 
     as_json = _get_json_flag(ctx)
 
@@ -889,7 +889,7 @@ def stop(ctx: click.Context, force: bool) -> None:
 @click.pass_context
 def watch(ctx: click.Context) -> None:
     """Watch prices for symbols in your strategies."""
-    from trader.app.portfolio import watch_strategies
+    from baretrader.app.portfolio import watch_strategies
 
     config = ctx.obj["config"]
     as_json = _get_json_flag(ctx)
@@ -936,7 +936,7 @@ def watch(ctx: click.Context) -> None:
 @click.pass_context
 def history(ctx: click.Context, symbol: str | None, limit: int) -> None:
     """Show trade history."""
-    from trader.app.analysis import get_today_pnl, get_trade_history
+    from baretrader.app.analysis import get_today_pnl, get_trade_history
 
     as_json = _get_json_flag(ctx)
 
@@ -988,7 +988,7 @@ def history(ctx: click.Context, symbol: str | None, limit: int) -> None:
 @click.pass_context
 def analyze(ctx: click.Context, symbol: str | None, days: int, limit: int) -> None:
     """Analyze trade performance."""
-    from trader.app.analysis import analyze_trade_performance
+    from baretrader.app.analysis import analyze_trade_performance
 
     as_json = _get_json_flag(ctx)
 
@@ -1081,7 +1081,7 @@ def analyze(ctx: click.Context, symbol: str | None, days: int, limit: int) -> No
 @click.pass_context
 def export(ctx: click.Context, output: str, days: int) -> None:
     """Export trade history to CSV."""
-    from trader.data.ledger import TradeLedger
+    from baretrader.data.ledger import TradeLedger
 
     ledger = TradeLedger()
     since = datetime.now() - timedelta(days=days)
@@ -1104,7 +1104,7 @@ def export(ctx: click.Context, output: str, days: int) -> None:
 @click.pass_context
 def safety(ctx: click.Context) -> None:
     """Show safety controls status."""
-    from trader.app.data import get_safety_status
+    from baretrader.app.data import get_safety_status
 
     config = ctx.obj["config"]
     as_json = _get_json_flag(ctx)
@@ -1200,7 +1200,7 @@ def scan(ctx: click.Context, symbols: tuple[str, ...]) -> None:
         Scan all symbols in strategies:
         trader scan
     """
-    from trader.app.portfolio import scan_symbols
+    from baretrader.app.portfolio import scan_symbols
 
     config = ctx.obj["config"]
     as_json = _get_json_flag(ctx)
@@ -1259,7 +1259,7 @@ def config_group() -> None:
 @click.pass_context
 def config_list(ctx: click.Context, show_secrets: bool) -> None:
     """List current configuration (secrets redacted by default)."""
-    from trader.utils.env_config import (
+    from baretrader.utils.env_config import (
         CONFIG_KEYS,
         get_config_value,
         get_display_value,
@@ -1298,7 +1298,7 @@ def config_list(ctx: click.Context, show_secrets: bool) -> None:
 @click.pass_context
 def config_get(ctx: click.Context, key: str, show_secret: bool) -> None:
     """Get a single config value (secret redacted unless --show-secret)."""
-    from trader.utils.env_config import (
+    from baretrader.utils.env_config import (
         CONFIG_KEYS,
         get_config_value,
         get_display_value,
@@ -1325,7 +1325,7 @@ def config_get(ctx: click.Context, key: str, show_secret: bool) -> None:
 @click.pass_context
 def config_set(ctx: click.Context, key: str, value: str) -> None:
     """Set a config value (persisted to .env in config directory)."""
-    from trader.utils.env_config import (
+    from baretrader.utils.env_config import (
         CONFIG_KEYS,
         get_env_file_path,
         load_dotenv_for_config,
@@ -1356,7 +1356,7 @@ def config_set(ctx: click.Context, key: str, value: str) -> None:
 @click.pass_context
 def config_keys(ctx: click.Context) -> None:
     """List available config keys and descriptions (no values)."""
-    from trader.utils.env_config import CONFIG_KEYS
+    from baretrader.utils.env_config import CONFIG_KEYS
 
     as_json = _get_json_flag(ctx)
     rows = [{"key": k, "description": CONFIG_KEYS[k][1], "secret": CONFIG_KEYS[k][0]} for k in sorted(CONFIG_KEYS)]
@@ -1483,7 +1483,7 @@ def indicator() -> None:
 @click.pass_context
 def indicator_list(ctx: click.Context) -> None:
     """List available indicators."""
-    from trader.app.indicators import list_all_indicators
+    from baretrader.app.indicators import list_all_indicators
 
     as_json = _get_json_flag(ctx)
 
@@ -1508,7 +1508,7 @@ def indicator_list(ctx: click.Context) -> None:
 @click.pass_context
 def indicator_describe(ctx: click.Context, name: str) -> None:
     """Show details for an indicator."""
-    from trader.app.indicators import describe_indicator
+    from baretrader.app.indicators import describe_indicator
 
     as_json = _get_json_flag(ctx)
 
@@ -1558,8 +1558,8 @@ def notify() -> None:
 @click.pass_context
 def notify_test(ctx: click.Context, channel: str) -> None:
     """Send a test notification to verify channel configuration."""
-    from trader.app.notifications import get_notification_manager, send_test_notification
-    from trader.utils.paths import get_config_dir
+    from baretrader.app.notifications import get_notification_manager, send_test_notification
+    from baretrader.utils.paths import get_config_dir
 
     as_json = _get_json_flag(ctx)
     config_dir = get_config_dir()
@@ -1596,8 +1596,8 @@ def notify_test(ctx: click.Context, channel: str) -> None:
 @click.pass_context
 def notify_send(ctx: click.Context, message: str, channel: str) -> None:
     """Send a manual notification message."""
-    from trader.app.notifications import get_notification_manager, send_notification
-    from trader.utils.paths import get_config_dir
+    from baretrader.app.notifications import get_notification_manager, send_notification
+    from baretrader.utils.paths import get_config_dir
 
     as_json = _get_json_flag(ctx)
     config_dir = get_config_dir()
@@ -1621,7 +1621,7 @@ def notify_send(ctx: click.Context, message: str, channel: str) -> None:
 @click.pass_context
 def strategy_list(ctx: click.Context) -> None:
     """List all trading strategies."""
-    from trader.app.strategies import list_strategies
+    from baretrader.app.strategies import list_strategies
 
     as_json = _get_json_flag(ctx)
     result = list_strategies()
@@ -1743,8 +1743,8 @@ def strategy_add(
 
     Use --limit/-L to enter at a specific price instead of market.
     """
-    from trader.app.strategies import create_strategy
-    from trader.schemas.strategies import StrategyCreate
+    from baretrader.app.strategies import create_strategy
+    from baretrader.schemas.strategies import StrategyCreate
 
     config = ctx.obj["config"]
     as_json = _get_json_flag(ctx)
@@ -1801,7 +1801,7 @@ def strategy_add(
 @click.pass_context
 def strategy_show(ctx: click.Context, strategy_id: str) -> None:
     """Show details of a specific strategy."""
-    from trader.app.strategies import get_strategy_detail
+    from baretrader.app.strategies import get_strategy_detail
 
     as_json = _get_json_flag(ctx)
 
@@ -1882,7 +1882,7 @@ def strategy_show(ctx: click.Context, strategy_id: str) -> None:
 @click.pass_context
 def strategy_remove(ctx: click.Context, strategy_id: str) -> None:
     """Remove a trading strategy."""
-    from trader.app.strategies import remove_strategy
+    from baretrader.app.strategies import remove_strategy
 
     as_json = _get_json_flag(ctx)
 
@@ -1901,7 +1901,7 @@ def strategy_remove(ctx: click.Context, strategy_id: str) -> None:
 @click.pass_context
 def strategy_enable(ctx: click.Context, strategy_id: str) -> None:
     """Enable a trading strategy."""
-    from trader.app.strategies import set_strategy_enabled
+    from baretrader.app.strategies import set_strategy_enabled
 
     as_json = _get_json_flag(ctx)
 
@@ -1920,7 +1920,7 @@ def strategy_enable(ctx: click.Context, strategy_id: str) -> None:
 @click.pass_context
 def strategy_disable(ctx: click.Context, strategy_id: str) -> None:
     """Disable a trading strategy."""
-    from trader.app.strategies import set_strategy_enabled
+    from baretrader.app.strategies import set_strategy_enabled
 
     as_json = _get_json_flag(ctx)
 
@@ -1939,7 +1939,7 @@ def strategy_disable(ctx: click.Context, strategy_id: str) -> None:
 @click.pass_context
 def strategy_pause(ctx: click.Context, strategy_id: str) -> None:
     """Pause an active strategy."""
-    from trader.app.strategies import pause_strategy
+    from baretrader.app.strategies import pause_strategy
 
     as_json = _get_json_flag(ctx)
 
@@ -1958,7 +1958,7 @@ def strategy_pause(ctx: click.Context, strategy_id: str) -> None:
 @click.pass_context
 def strategy_resume(ctx: click.Context, strategy_id: str) -> None:
     """Resume a paused strategy."""
-    from trader.app.strategies import resume_strategy
+    from baretrader.app.strategies import resume_strategy
 
     as_json = _get_json_flag(ctx)
 
@@ -2009,7 +2009,7 @@ def schedule_add(ctx: click.Context, strategy_id: str, schedule_at: str) -> None
         trader strategy schedule add abc123 "2026-02-13T09:30:00"
         trader strategy schedule add abc123 "tomorrow 09:30"
     """
-    from trader.app.strategies import schedule_strategy
+    from baretrader.app.strategies import schedule_strategy
 
     as_json = _get_json_flag(ctx)
 
@@ -2039,7 +2039,7 @@ def schedule_add(ctx: click.Context, strategy_id: str, schedule_at: str) -> None
 @click.pass_context
 def schedule_list(ctx: click.Context) -> None:
     """List all scheduled strategies."""
-    from trader.app.strategies import list_scheduled_strategies
+    from baretrader.app.strategies import list_scheduled_strategies
 
     as_json = _get_json_flag(ctx)
     result = list_scheduled_strategies()
@@ -2084,7 +2084,7 @@ def schedule_cancel(ctx: click.Context, strategy_id: str) -> None:
     This clears the schedule and leaves the strategy in its current state
     (enabled or disabled).
     """
-    from trader.app.strategies import cancel_schedule
+    from baretrader.app.strategies import cancel_schedule
 
     as_json = _get_json_flag(ctx)
 
@@ -2226,8 +2226,8 @@ def visualize(
         console.print("[red]Provide --output or --show to render a chart[/red]")
         return
 
-    from trader.backtest import load_backtest
-    from trader.backtest.results import BacktestResult
+    from baretrader.backtest import load_backtest
+    from baretrader.backtest.results import BacktestResult
 
     result = None
     source_path = Path(source)
@@ -2328,7 +2328,7 @@ def optimize(
     show_results: bool,
 ) -> None:
     """Optimize strategy parameters using backtests."""
-    from trader.optimization import Optimizer, save_optimization
+    from baretrader.optimization import Optimizer, save_optimization
 
     logger = ctx.obj["logger"]
     as_json = _get_json_flag(ctx)
@@ -2365,7 +2365,7 @@ def optimize(
                 console.print(f"[green]Optimization saved with ID: {result.id}[/green]")
 
         if as_json:
-            from trader.schemas.optimization import OptimizeResponse
+            from baretrader.schemas.optimization import OptimizeResponse
             _json_output(OptimizeResponse.from_domain(result))
         elif show_results:
             _display_optimization_result(result)
@@ -2429,8 +2429,8 @@ def backtest_run(
     theme: str,
 ) -> None:
     """Run a backtest for a strategy."""
-    from trader.app.backtests import run_backtest
-    from trader.schemas.backtests import BacktestRequest
+    from baretrader.app.backtests import run_backtest
+    from baretrader.schemas.backtests import BacktestRequest
 
     logger = ctx.obj["logger"]
     as_json = _get_json_flag(ctx)
@@ -2466,7 +2466,7 @@ def backtest_run(
 
             # Load domain result for charting
             if chart or show:
-                from trader.backtest import load_backtest as _load_bt
+                from baretrader.backtest import load_backtest as _load_bt
                 try:
                     domain_result = _load_bt(result.id)
                     data_dir_path = (
@@ -2499,7 +2499,7 @@ def backtest_run(
 @click.pass_context
 def backtest_list(ctx: click.Context, data_dir: str | None) -> None:
     """List all saved backtests."""
-    from trader.app.backtests import list_backtests_app
+    from baretrader.app.backtests import list_backtests_app
 
     as_json = _get_json_flag(ctx)
 
@@ -2584,8 +2584,8 @@ def backtest_show(
     theme: str,
 ) -> None:
     """Show detailed results for a backtest."""
-    from trader.app.backtests import show_backtest
-    from trader.backtest import load_backtest
+    from baretrader.app.backtests import show_backtest
+    from baretrader.backtest import load_backtest
 
     as_json = _get_json_flag(ctx)
 
@@ -2629,7 +2629,7 @@ def backtest_compare(
     data_dir: str | None,
 ) -> None:
     """Compare multiple backtests side-by-side."""
-    from trader.app.backtests import compare_backtests
+    from baretrader.app.backtests import compare_backtests
 
     as_json = _get_json_flag(ctx)
 
@@ -2749,7 +2749,7 @@ def _render_backtest_chart(
     if not chart_path and not show:
         return
 
-    from trader.visualization import build_backtest_chart, default_historical_data_dir
+    from baretrader.visualization import build_backtest_chart, default_historical_data_dir
 
     resolved_dir = Path(historical_dir) if historical_dir else default_historical_data_dir()
     chart_builder = build_backtest_chart(
@@ -2847,7 +2847,7 @@ def mcp(ctx: click.Context) -> None:
     """MCP server commands."""
     import sys
 
-    from trader.utils.logging import setup_logging
+    from baretrader.utils.logging import setup_logging
 
     # Redirect logging to stderr immediately so subcommands using stdio
     # transport don't have their protocol stream corrupted by log output.
@@ -2893,7 +2893,7 @@ def serve(
     """Start the MCP server (stdio or streamable HTTP).
 
     Launches an MCP-compliant server, allowing AI agents (e.g. Claude Desktop)
-    to interact with AutoTrader via the MCP protocol.
+    to interact with BareTrader via the MCP protocol.
     """
     import asyncio
     import sys
@@ -2902,7 +2902,7 @@ def serve(
     from pathlib import Path
 
     # Write to log file for debugging
-    log_file = Path.home() / "autotrader_mcp_debug.log"
+    log_file = Path.home() / "baretrader_mcp_debug.log"
 
     def log(msg: str) -> None:
         with open(log_file, "a") as f:
@@ -2913,7 +2913,7 @@ def serve(
 
     try:
         log("Importing run_server...")
-        from trader.mcp.server import run_server
+        from baretrader.mcp.server import run_server
         log("Import successful")
 
         log(f"Running server with transport={transport}")

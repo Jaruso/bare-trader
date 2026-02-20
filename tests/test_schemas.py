@@ -3,27 +3,27 @@
 from datetime import datetime
 from decimal import Decimal
 
-from trader.errors import AppError
-from trader.schemas.analysis import (
+from baretrader.errors import AppError
+from baretrader.schemas.analysis import (
     OpenPositionSchema,
     TradeStatsSchema,
 )
-from trader.schemas.backtests import (
+from baretrader.schemas.backtests import (
     BacktestRequest,
     BacktestSummary,
 )
-from trader.schemas.common import DateRange, PaginationParams
-from trader.schemas.engine import EngineStatus
-from trader.schemas.errors import ErrorResponse
-from trader.schemas.indicators import IndicatorInfo
-from trader.schemas.orders import OrderRequest, OrderResponse
-from trader.schemas.portfolio import (
+from baretrader.schemas.common import DateRange, PaginationParams
+from baretrader.schemas.engine import EngineStatus
+from baretrader.schemas.errors import ErrorResponse
+from baretrader.schemas.indicators import IndicatorInfo
+from baretrader.schemas.orders import OrderRequest, OrderResponse
+from baretrader.schemas.portfolio import (
     AccountInfo,
     BalanceResponse,
     PositionInfo,
     QuoteResponse,
 )
-from trader.schemas.strategies import (
+from baretrader.schemas.strategies import (
     StrategyCreate,
     StrategyListResponse,
 )
@@ -94,7 +94,7 @@ class TestAccountInfo:
 
     def test_from_domain(self) -> None:
         """Test from_domain works with broker Account."""
-        from trader.api.broker import Account
+        from baretrader.api.broker import Account
 
         domain = Account(
             cash=Decimal("10000"),
@@ -115,7 +115,7 @@ class TestPositionInfo:
     """Test PositionInfo schema."""
 
     def test_from_domain(self) -> None:
-        from trader.api.broker import Position
+        from baretrader.api.broker import Position
 
         pos = Position(
             symbol="AAPL",
@@ -136,7 +136,7 @@ class TestQuoteResponse:
     """Test QuoteResponse schema."""
 
     def test_from_domain(self) -> None:
-        from trader.api.broker import Quote
+        from baretrader.api.broker import Quote
 
         q = Quote(
             symbol="AAPL",
@@ -196,7 +196,7 @@ class TestOrderSchemas:
         assert req.side == "sell"
 
     def test_order_response_from_domain(self) -> None:
-        from trader.api.broker import (
+        from baretrader.api.broker import (
             Order,
             OrderSide,
             OrderStatus,
@@ -318,7 +318,7 @@ class TestIndicatorInfo:
         assert ind.output == "sma_20"
 
     def test_from_domain(self) -> None:
-        from trader.indicators.base import IndicatorSpec
+        from baretrader.indicators.base import IndicatorSpec
 
         spec = IndicatorSpec(
             name="RSI",

@@ -1,19 +1,19 @@
-"""Application service layer for AutoTrader.
+"""Application service layer for BareTrader.
 
 This module provides the shared business logic used by both CLI and MCP
 interfaces. Each submodule exposes functions that:
 1. Accept validated input (Pydantic schemas or primitives)
 2. Coordinate existing domain modules (broker, strategies, backtest, etc.)
 3. Return Pydantic response schemas
-4. Raise typed errors from trader.errors on failure
+4. Raise typed errors from baretrader.errors on failure
 """
 
 from __future__ import annotations
 
-from trader.api.alpaca import AlpacaBroker
-from trader.api.broker import Broker
-from trader.errors import ConfigurationError
-from trader.utils.config import Config
+from baretrader.api.alpaca import AlpacaBroker
+from baretrader.api.broker import Broker
+from baretrader.errors import ConfigurationError
+from baretrader.utils.config import Config
 
 
 def get_broker(config: Config) -> Broker:

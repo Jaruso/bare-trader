@@ -19,7 +19,7 @@ from alpaca.trading.requests import (
     TrailingStopOrderRequest,
 )
 
-from trader.api.broker import (
+from baretrader.api.broker import (
     Account,
     Broker,
     Order,

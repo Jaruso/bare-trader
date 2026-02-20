@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from trader.data import DataProvider, TimeFrame, get_data_provider
-from trader.utils.config import Config, load_config
+from baretrader.data import DataProvider, TimeFrame, get_data_provider
+from baretrader.utils.config import Config, load_config
 
 
 def load_csv_data(file_path: Path) -> pd.DataFrame:
@@ -130,7 +130,7 @@ def _load_from_csv(
     if not data_dir.exists():
         raise FileNotFoundError(f"Data directory not found: {data_dir}")
 
-    from trader.data.providers.csv_provider import CSVDataProvider
+    from baretrader.data.providers.csv_provider import CSVDataProvider
 
     provider = CSVDataProvider(data_dir=data_dir)
     return provider.get_bars(symbols, start_date, end_date, timeframe=TimeFrame.DAY_1)

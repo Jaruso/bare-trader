@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from trader.indicators.base import Indicator, IndicatorSpec, validate_ohlcv
+from baretrader.indicators.base import Indicator, IndicatorSpec, validate_ohlcv
 
 
 class RollingHighLow(Indicator):

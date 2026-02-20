@@ -1,9 +1,9 @@
-"""Optimization module for AutoTrader."""
+"""Optimization module for BareTrader."""
 
-from trader.optimization.objectives import OBJECTIVES, score_result
-from trader.optimization.optimizer import Optimizer
-from trader.optimization.results import OptimizationResult
-from trader.optimization.store import (
+from baretrader.optimization.objectives import OBJECTIVES, score_result
+from baretrader.optimization.optimizer import Optimizer
+from baretrader.optimization.results import OptimizationResult
+from baretrader.optimization.store import (
     delete_optimization,
     get_optimizations_dir,
     list_optimizations,

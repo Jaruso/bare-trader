@@ -2,7 +2,7 @@
 
 from decimal import Decimal
 
-from trader.backtest.results import BacktestResult
+from baretrader.backtest.results import BacktestResult
 
 
 def score_result(result: BacktestResult, objective: str) -> Decimal:

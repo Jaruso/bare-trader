@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from trader.indicators.base import IndicatorSpec
-from trader.indicators.custom import RollingHighLow
-from trader.indicators.momentum import MACD, RSI
-from trader.indicators.trend import EMA, SMA
-from trader.indicators.volatility import ATR, BollingerBands
-from trader.indicators.volume import OBV, VWAP
+from baretrader.indicators.base import IndicatorSpec
+from baretrader.indicators.custom import RollingHighLow
+from baretrader.indicators.momentum import MACD, RSI
+from baretrader.indicators.trend import EMA, SMA
+from baretrader.indicators.volatility import ATR, BollingerBands
+from baretrader.indicators.volume import OBV, VWAP
 
 INDICATORS = {
     "sma": SMA,

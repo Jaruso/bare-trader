@@ -3,8 +3,8 @@
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-from trader.analysis.trades import analyze_trades
-from trader.data.ledger import TradeRecord
+from baretrader.analysis.trades import analyze_trades
+from baretrader.data.ledger import TradeRecord
 
 
 def _trade(

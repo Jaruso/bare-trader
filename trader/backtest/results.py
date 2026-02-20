@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 
-from trader.api.broker import Order, OrderSide
+from baretrader.api.broker import Order, OrderSide
 
 
 @dataclass

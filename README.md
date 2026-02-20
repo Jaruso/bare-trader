@@ -1,6 +1,6 @@
-# 📈 AutoTrader — CLI-Based Automated Trading System
+# 📈 BareTrader — CLI-Based Automated Trading System
 
-AutoTrader is a command-line trading platform for **automated stock trading**. It supports paper trading and live trading modes via Alpaca, with predefined trading strategies that handle complete trade lifecycles from entry to exit. From 1.0.0 the CLI and MCP tool set are treated as stable; breaking changes will be rare and noted in [CHANGELOG](CHANGELOG.md).
+BareTrader is a command-line trading platform for **automated stock trading**. It supports paper trading and live trading modes via Alpaca, with predefined trading strategies that handle complete trade lifecycles from entry to exit. From 1.0.0 the CLI and MCP tool set are treated as stable; breaking changes will be rare and noted in [CHANGELOG](CHANGELOG.md).
 
 ---
 
@@ -13,20 +13,20 @@ AutoTrader is a command-line trading platform for **automated stock trading**. I
 * ✅ **Backtesting** with historical data
 * ✅ **Notifications** (Discord webhook, generic webhook) for alerts
 
-**Tools**: 32 MCP tools (engine, portfolio, orders, strategies, backtests, analysis, indicators, optimization, safety, scheduling). CLI commands mirror these; run `trader --help` and `trader <command> --help` for the full CLI surface.
+**Tools**: 32 MCP tools (engine, portfolio, orders, strategies, backtests, analysis, indicators, optimization, safety, scheduling). CLI commands mirror these; run `baretrader --help` and `baretrader <command> --help` for the full CLI surface.
 
 ## 🤖 MCP Server Usage
 
-AutoTrader supports both CLI users and AI agents via an MCP-compliant server. **For AI agents**: Use the MCP server for all operations (status, strategies, backtests, etc.); the CLI is for human use. Run CLI only when testing or verifying human-facing output (e.g. `trader status` or `trader --json <cmd>`).
+BareTrader supports both CLI users and AI agents via an MCP-compliant server. **For AI agents**: Use the MCP server for all operations (status, strategies, backtests, etc.); the CLI is for human use. Run CLI only when testing or verifying human-facing output (e.g. `baretrader status` or `baretrader --json <cmd>`).
 
 **Quick Start**: Install → Configure → Use. See the Installation and Configure MCP Server sections below.
 
 ### Two-Step Setup
 
-1. **Install**: `brew install autotrader` (or `pipx install -e .`)
+1. **Install**: `brew install baretrader` (or `pipx install -e .`)
 2. **Configure**: Add to Claude Desktop/Cursor MCP config (see below)
 
-That's it! AutoTrader is ready to use with Claude Desktop or Cursor.
+That's it! BareTrader is ready to use with Claude Desktop or Cursor.
 
 ## 📦 Installation
 
@@ -37,11 +37,11 @@ To run from the CLI using an official version you can install with the `brew` pa
 
 Mac:
 ```bash
-brew install autotrader
+brew install baretrader
 ```
 Public installation not currently available with Windows.
 
-Alternatively you can install globally from the repo using pipx (recommended so `trader` is on PATH for CLI and MCP):
+Alternatively you can install globally from the repo using pipx (recommended so `baretrader` is on PATH for CLI and MCP):
 
 Mac:
 ```bash
@@ -51,21 +51,21 @@ sudo pipx install -e . --global
 And verify:
 
 ```bash
-trader status
+baretrader status
 ```
 
-**Note**: When installed via **pipx** or Homebrew, AutoTrader uses the same behavior: config, data, and logs go to `~/.autotrader/` (macOS) or `~/.config/autotrader/` (Linux). `trader config set` and all path resolution work identically with pipx. See the Installation section for path behavior.
+**Note**: When installed via **pipx** or Homebrew, BareTrader uses the same behavior: config, data, and logs go to `~/.baretrader/` (macOS) or `~/.config/baretrader/` (Linux). `baretrader config set` and all path resolution work identically with pipx. See the Installation section for path behavior.
 
 ### Configure MCP Server
 
-Add AutoTrader to your Claude Desktop or Cursor MCP configuration:
+Add BareTrader to your Claude Desktop or Cursor MCP configuration:
 
 **Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
 ```json
 {
   "mcpServers": {
-    "AutoTrader": {
-      "command": "trader",
+    "BareTrader": {
+      "command": "baretrader",
       "args": ["mcp", "serve"],
       "env": {
         "ALPACA_API_KEY": "your_paper_key",
@@ -82,10 +82,10 @@ Add AutoTrader to your Claude Desktop or Cursor MCP configuration:
 
 #### Troubleshooting
 
-- **"trader" command not found**: Use the full path to `trader` (run `which trader` and use that path in `command`)
+- **"baretrader" command not found**: Use the full path to `baretrader` (run `which baretrader` and use that path in `command`)
 - **MCP server error**: Check API keys and JSON syntax (no trailing commas)
 - **Test installation**: Run `python3 scripts/test_installation.py` to verify setup
-- **Tool not visible in MCP client**: All 32+ tools are registered in the server. If a tool doesn't appear in your MCP client (e.g., Cursor), it may be filtered by the client. For testing, you can import tools directly: `from trader.mcp.server import <tool_name>`. To list all registered tools, run: `python3 -c "from trader.mcp.server import mcp; [print(f'{t.name}: {t.description[:60]}...') for t in mcp.list_tools()]"`
+- **Tool not visible in MCP client**: All 32+ tools are registered in the server. If a tool doesn't appear in your MCP client (e.g., Cursor), it may be filtered by the client. For testing, you can import tools directly: `from baretrader.mcp.server import <tool_name>`. To list all registered tools, run: `python3 -c "from baretrader.mcp.server import mcp; [print(f'{t.name}: {t.description[:60]}...') for t in mcp.list_tools()]"`
 
 See the Configure MCP Server and Troubleshooting sections above for setup details.
 
@@ -94,7 +94,7 @@ See the Configure MCP Server and Troubleshooting sections above for setup detail
 
 **Prerequisites**: Python 3.11+ ([python.org](https://www.python.org/downloads/)) and pipx ([pipx.pypa.io](https://pipx.pypa.io/)). On Windows, install Python from python.org and check **Add Python to PATH**; then run `pip install pipx` and ensure pipx’s bin directory is on PATH.
 
-Install globally using pipx (recommended so `trader` is on PATH for CLI and MCP):
+Install globally using pipx (recommended so `baretrader` is on PATH for CLI and MCP):
 
 Mac:
 ```bash
@@ -109,7 +109,7 @@ Windows:
 Verify:
 
 ```bash
-trader status
+baretrader status
 ```
 
 ---
@@ -121,25 +121,25 @@ Remote URL-based MCP (`--transport streamable-http` with optional HTTPS) is impl
 
 ## ⚙️ Configuration
 
-Configuration is **environment-based**: the app reads from environment variables and, when present, from a `.env` file (project root, CWD, or `~/.autotrader/.env` when installed). You can view and set values via the CLI; secrets are never shown in full when listing.
+Configuration is **environment-based**: the app reads from environment variables and, when present, from a `.env` file (project root, CWD, or `~/.baretrader/.env` when installed). You can view and set values via the CLI; secrets are never shown in full when listing.
 
 **Set API keys (persisted to `.env`):**
 ```bash
-trader config set ALPACA_API_KEY your_paper_key
-trader config set ALPACA_SECRET_KEY your_paper_secret
+baretrader config set ALPACA_API_KEY your_paper_key
+baretrader config set ALPACA_SECRET_KEY your_paper_secret
 ```
 
 **View current config (secrets redacted):**
 ```bash
-trader config list
-trader config get ALPACA_API_KEY          # redacted
-trader config get ALPACA_API_KEY --show-secret   # full value
-trader config keys   # list all available keys
+baretrader config list
+baretrader config get ALPACA_API_KEY          # redacted
+baretrader config get ALPACA_API_KEY --show-secret   # full value
+baretrader config keys   # list all available keys
 ```
 
-**Schedule (cron):** Use `trader schedule enable` to install a cron job that runs one cycle on a schedule; `trader schedule disable` to remove it. See "Schedule (cron) mode" above.
+**Schedule (cron):** Use `baretrader schedule enable` to install a cron job that runs one cycle on a schedule; `baretrader schedule disable` to remove it. See "Schedule (cron) mode" above.
 
-For MCP/stdio, set keys in your `claude_desktop_config.json` `env` block so they are available to the subprocess. For CLI-only use, `trader config set` writes to the appropriate `.env` file.
+For MCP/stdio, set keys in your `claude_desktop_config.json` `env` block so they are available to the subprocess. For CLI-only use, `baretrader config set` writes to the appropriate `.env` file.
 
 ### MCP server (optional)
 
@@ -161,7 +161,7 @@ Alerts can be sent to Discord or a custom webhook (e.g. for trade events or manu
 | `CUSTOM_WEBHOOK_URL` | Generic HTTP webhook URL (POST JSON with `message`). |
 | `NOTIFICATIONS_ENABLED` | Set to `false` or `0` to disable all notifications. |
 
-Optional YAML: copy `config/notifications.yaml.example` to `config/notifications.yaml` to configure events and channels. CLI: `trader notify test` (test delivery), `trader notify send "message"` (send manual message).
+Optional YAML: copy `config/notifications.yaml.example` to `config/notifications.yaml` to configure events and channels. CLI: `baretrader notify test` (test delivery), `baretrader notify send "message"` (send manual message).
 
 ---
 
@@ -170,37 +170,37 @@ Optional YAML: copy `config/notifications.yaml.example` to `config/notifications
 ### Check Status
 
 ```bash
-trader status
+baretrader status
 ```
 
 ### Start Trading Engine
 
 ```bash
-trader start
+baretrader start
 ```
 
 For production:
 
 ```bash
-trader --prod start
+baretrader --prod start
 # You'll be prompted to confirm before trading with real money
 ```
 
 ### Stop Engine
 
 ```bash
-trader stop
+baretrader stop
 ```
 
 ### Schedule (cron) mode
 
-Instead of running the engine as a long-lived loop, you can run one evaluation cycle on a schedule. Use **`trader schedule enable`** to add a cron job that runs `trader run-once` (e.g. every 5 minutes); use **`trader schedule disable`** to remove it.
+Instead of running the engine as a long-lived loop, you can run one evaluation cycle on a schedule. Use **`baretrader schedule enable`** to add a cron job that runs `baretrader run-once` (e.g. every 5 minutes); use **`baretrader schedule disable`** to remove it.
 
 ```bash
-trader schedule enable          # every 5 minutes (default)
-trader schedule enable --every 1 # every minute
-trader schedule status          # show whether enabled and the cron line
-trader schedule disable         # remove the cron job
+baretrader schedule enable          # every 5 minutes (default)
+baretrader schedule enable --every 1 # every minute
+baretrader schedule status          # show whether enabled and the cron line
+baretrader schedule disable         # remove the cron job
 ```
 
 Supported on macOS and Linux only. The job is added to your user crontab.
@@ -208,33 +208,33 @@ Supported on macOS and Linux only. The job is added to your user crontab.
 ### View Portfolio
 
 ```bash
-trader portfolio      # Full overview (balance + positions + orders)
-trader balance        # Account summary with P/L
-trader positions      # Open positions
-trader orders         # Open orders
-trader quote AAPL     # Get current quote
+baretrader portfolio      # Full overview (balance + positions + orders)
+baretrader balance        # Account summary with P/L
+baretrader positions      # Open positions
+baretrader orders         # Open orders
+baretrader quote AAPL     # Get current quote
 ```
 
 ### Analyze Trades
 
 ```bash
 # Last 30 days (default)
-trader analyze
+baretrader analyze
 
 # Filter by symbol and time window
-trader analyze --symbol AAPL --days 7
+baretrader analyze --symbol AAPL --days 7
 ```
 
 ### Notifications
 
 ```bash
 # Test notification delivery (requires DISCORD_WEBHOOK_URL or config)
-trader notify test
-trader notify test --channel discord
+baretrader notify test
+baretrader notify test --channel discord
 
 # Send a manual message
-trader notify send "Trading paused for maintenance"
-trader notify send "AAPL target hit" --channel discord
+baretrader notify send "Trading paused for maintenance"
+baretrader notify send "AAPL target hit" --channel discord
 ```
 
 ---
@@ -256,16 +256,16 @@ Strategies are **automated trading plans** that handle both entry and exit, mana
 
 ```bash
 # Trailing stop: buy AAPL, exit when price drops 5% from any high
-trader strategy add trailing-stop AAPL --qty 10 --trailing-pct 5
+baretrader strategy add trailing-stop AAPL --qty 10 --trailing-pct 5
 
 # Bracket: buy TSLA with +10% take-profit and -5% stop-loss
-trader strategy add bracket TSLA --qty 5 --take-profit 10 --stop-loss 5
+baretrader strategy add bracket TSLA --qty 5 --take-profit 10 --stop-loss 5
 
 # Scale out: buy GOOGL, sell portions at +5%, +10%, +15%
-trader strategy add scale-out GOOGL --qty 20
+baretrader strategy add scale-out GOOGL --qty 20
 
 # Grid: profit from NVDA's volatility with 5 buy/sell levels
-trader strategy add grid NVDA --levels 5
+baretrader strategy add grid NVDA --levels 5
 ```
 
 ### Strategy Options
@@ -294,20 +294,20 @@ Strategy-specific options:
 ### Manage Strategies
 
 ```bash
-trader strategy list              # List all strategies
-trader strategy show <id>         # Show details
-trader strategy enable <id>       # Enable
-trader strategy disable <id>      # Disable
-trader strategy pause <id>        # Pause (keeps state)
-trader strategy resume <id>       # Resume
-trader strategy remove <id>       # Remove
-trader strategy explain <type>    # Learn about a strategy type
+baretrader strategy list              # List all strategies
+baretrader strategy show <id>         # Show details
+baretrader strategy enable <id>       # Enable
+baretrader strategy disable <id>      # Disable
+baretrader strategy pause <id>        # Pause (keeps state)
+baretrader strategy resume <id>       # Resume
+baretrader strategy remove <id>       # Remove
+baretrader strategy explain <type>    # Learn about a strategy type
 ```
 
 ### How Strategies Work
 
 1. **Add a strategy** → It starts in `PENDING` phase
-2. **Start the engine** → `trader start`
+2. **Start the engine** → `baretrader start`
 3. **Entry executes** → Strategy moves to `POSITION_OPEN`
 4. **Exit conditions monitored** → Based on strategy type
 5. **Exit executes** → Strategy moves to `COMPLETED`
@@ -322,7 +322,7 @@ Test your trading strategies against historical data before risking real capital
 
 ### Prepare Historical Data
 
-For CSV-based backtesting, create CSV files with OHLCV data. The default directory is `data/historical/` (relative to project root) or `~/.autotrader/data/historical/` (when installed via pipx). You can override this with the `HISTORICAL_DATA_DIR` environment variable or the `--data-dir` flag.
+For CSV-based backtesting, create CSV files with OHLCV data. The default directory is `data/historical/` (relative to project root) or `~/.baretrader/data/historical/` (when installed via pipx). You can override this with the `HISTORICAL_DATA_DIR` environment variable or the `--data-dir` flag.
 
 **CSV File Format**:
 - File naming: `{SYMBOL}.csv` (e.g., `AAPL.csv`, `MSFT.csv`)
@@ -348,7 +348,7 @@ mkdir -p $HISTORICAL_DATA_DIR
 # Add CSV files: $HISTORICAL_DATA_DIR/AAPL.csv, etc.
 
 # Option 3: Use --data-dir flag when running backtests
-trader backtest run trailing-stop AAPL --data-dir /path/to/data ...
+baretrader backtest run trailing-stop AAPL --data-dir /path/to/data ...
 ```
 
 **Note**: If you get a "Data directory not found" error, check that:
@@ -360,7 +360,7 @@ trader backtest run trailing-stop AAPL --data-dir /path/to/data ...
 
 ```bash
 # Trailing stop strategy
-trader backtest run trailing-stop AAPL \
+baretrader backtest run trailing-stop AAPL \
   --start 2024-01-02 \
   --end 2024-12-31 \
   --qty 10 \
@@ -369,7 +369,7 @@ trader backtest run trailing-stop AAPL \
   --data-dir data/historical
 
 # Bracket strategy
-trader backtest run bracket TSLA \
+baretrader backtest run bracket TSLA \
   --start 2024-01-02 \
   --end 2024-12-31 \
   --qty 5 \
@@ -379,7 +379,7 @@ trader backtest run bracket TSLA \
   --data-dir data/historical
 
 # Alpaca historical data (requires API keys)
-trader backtest run trailing-stop AAPL \
+baretrader backtest run trailing-stop AAPL \
   --start 2024-01-02 \
   --end 2024-12-31 \
   --qty 10 \
@@ -409,20 +409,20 @@ Note: Parquet caching requires the optional `pyarrow` dependency
 
 ```bash
 # List all backtests
-trader backtest list
+baretrader backtest list
 
 # Show detailed results
-trader backtest show <backtest-id>
+baretrader backtest show <backtest-id>
 
 # Compare multiple backtests
-trader backtest compare <id1> <id2> <id3>
+baretrader backtest compare <id1> <id2> <id3>
 
 # Save a chart for an existing backtest
-trader backtest show <backtest-id> --chart charts/backtest.html
+baretrader backtest show <backtest-id> --chart charts/backtest.html
 
 # Visualize a backtest by ID or JSON file
-trader visualize <backtest-id> --output charts/backtest.html --historical-dir data/historical
-trader visualize data/backtests/abc123.json --show --historical-dir data/historical
+baretrader visualize <backtest-id> --output charts/backtest.html --historical-dir data/historical
+baretrader visualize data/backtests/abc123.json --show --historical-dir data/historical
 ```
 
 ### What Gets Tracked
@@ -443,7 +443,7 @@ trader visualize data/backtests/abc123.json --show --historical-dir data/histori
 ### Example Output
 
 ```bash
-$ trader backtest show abc123
+$ baretrader backtest show abc123
 
          Backtest Results - abc123
 ┌─────────────────┬────────────────────────┐
@@ -472,11 +472,11 @@ $ trader backtest show abc123
 
 ## 🧪 Strategy Optimization
 
-Use `trader optimize` to run grid or random search over strategy parameters.
+Use `baretrader optimize` to run grid or random search over strategy parameters.
 
 ```bash
 # Optimize trailing-stop percentage (grid search)
-trader optimize trailing-stop \
+baretrader optimize trailing-stop \
   --symbol AAPL \
   --start 2024-01-02 \
   --end 2024-12-31 \
@@ -485,7 +485,7 @@ trader optimize trailing-stop \
   --show-results
 
 # Optimize bracket strategy with multiple parameters
-trader optimize bracket \
+baretrader optimize bracket \
   --symbol TSLA \
   --start 2024-01-02 \
   --end 2024-12-31 \
@@ -495,7 +495,7 @@ trader optimize bracket \
   --show-results
 
 # Random search with sampling
-trader optimize trailing-stop \
+baretrader optimize trailing-stop \
   --symbol SPY \
   --start 2024-01-02 \
   --end 2024-12-31 \
@@ -525,15 +525,15 @@ Saved optimization results are stored under `data/optimizations/` by default.
 
 ## 📈 Indicators Library
 
-AutoTrader ships with a lightweight indicators library. If `pandas-ta` is
+BareTrader ships with a lightweight indicators library. If `pandas-ta` is
 installed it will be used; otherwise, built-in pandas-based calculations are used.
 
 ```bash
 # List indicators
-trader indicator list
+baretrader indicator list
 
 # Describe an indicator
-trader indicator describe rsi
+baretrader indicator describe rsi
 ```
 
 Available indicators include SMA, EMA, RSI, MACD, ATR, Bollinger Bands, OBV, VWAP,
@@ -547,24 +547,24 @@ and a rolling high/low band helper.
 # 1. Configure your Alpaca keys in .env
 
 # 2. Check connection
-trader status
-trader balance
+baretrader status
+baretrader balance
 
 # 3. Add a strategy
-trader strategy add trailing-stop AAPL --qty 5 --trailing-pct 5
+baretrader strategy add trailing-stop AAPL --qty 5 --trailing-pct 5
 
 # 4. Dry run first
-trader start --dry-run --once
+baretrader start --dry-run --once
 
 # 5. When ready, run for real
-trader start
+baretrader start
 ```
 
 ---
 
 ## 🔒 Safety & Risk Controls
 
-AutoTrader enforces multiple layers of protection:
+BareTrader enforces multiple layers of protection:
 
 * Paper trading by default
 * Production requires `--prod` flag with interactive confirmation

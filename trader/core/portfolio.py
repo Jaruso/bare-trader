@@ -3,8 +3,8 @@
 from dataclasses import dataclass
 from decimal import Decimal
 
-from trader.api.broker import Broker
-from trader.data.ledger import TradeLedger
+from baretrader.api.broker import Broker
+from baretrader.data.ledger import TradeLedger
 
 
 @dataclass

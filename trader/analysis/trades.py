@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
-from trader.data.ledger import TradeRecord
+from baretrader.data.ledger import TradeRecord
 
 
 @dataclass

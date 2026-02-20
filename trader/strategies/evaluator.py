@@ -9,12 +9,12 @@ from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 
-from trader.api.broker import Broker, OrderSide, OrderStatus, OrderType
-from trader.oms.store import save_order
-from trader.strategies.loader import get_strategy, save_strategy
-from trader.strategies.models import EntryType, Strategy, StrategyPhase, StrategyType
-from trader.utils.config import StrategyDefaults
-from trader.utils.logging import get_logger
+from baretrader.api.broker import Broker, OrderSide, OrderStatus, OrderType
+from baretrader.oms.store import save_order
+from baretrader.strategies.loader import get_strategy, save_strategy
+from baretrader.strategies.models import EntryType, Strategy, StrategyPhase, StrategyType
+from baretrader.utils.config import StrategyDefaults
+from baretrader.utils.logging import get_logger
 
 
 class ActionType(Enum):
@@ -59,7 +59,7 @@ class StrategyEvaluator:
         """
         self.broker = broker
         self.defaults = defaults
-        self.logger = get_logger("autotrader.strategies")
+        self.logger = get_logger("baretrader.strategies")
 
     def evaluate(self, strategies: list[Strategy]) -> list[StrategyAction]:
         """Evaluate all strategies and return required actions.
@@ -270,7 +270,7 @@ class StrategyEvaluator:
                 reason=f"Entry order {strategy.entry_order_id} not found",
             )
 
-        from trader.api.broker import OrderStatus
+        from baretrader.api.broker import OrderStatus
 
         if order.status == OrderStatus.FILLED:
             # Entry filled! Update state and move to position_open

@@ -5,9 +5,9 @@ from __future__ import annotations
 import os
 import signal
 
-from trader.errors import EngineError
-from trader.schemas.engine import EngineStatus
-from trader.utils.config import Config
+from baretrader.errors import EngineError
+from baretrader.schemas.engine import EngineStatus
+from baretrader.utils.config import Config
 
 
 def get_engine_status(config: Config) -> EngineStatus:
@@ -19,8 +19,8 @@ def get_engine_status(config: Config) -> EngineStatus:
     Returns:
         Engine status schema.
     """
-    from trader.core.engine import get_lock_file_path
-    from trader.strategies.loader import load_strategies
+    from baretrader.core.engine import get_lock_file_path
+    from baretrader.strategies.loader import load_strategies
 
     lock_path = get_lock_file_path()
     running = False
@@ -92,7 +92,7 @@ def start_engine(dry_run: bool = False, interval: int = 60) -> dict[str, str]:
     import sys
     import time
 
-    from trader.core.engine import get_lock_file_path
+    from baretrader.core.engine import get_lock_file_path
 
     # Refuse if already running.
     lock_path = get_lock_file_path()
@@ -115,7 +115,7 @@ def start_engine(dry_run: bool = False, interval: int = 60) -> dict[str, str]:
             pass
 
     # Build the command: use the same Python interpreter so venv is respected.
-    cmd = [sys.executable, "-m", "trader.cli.main", "start",
+    cmd = [sys.executable, "-m", "baretrader.cli.main", "start",
            f"--interval={interval}"]
     if dry_run:
         cmd.append("--dry-run")
@@ -132,8 +132,8 @@ def start_engine(dry_run: bool = False, interval: int = 60) -> dict[str, str]:
     # Give the engine a moment to write its lock file before returning.
     time.sleep(1.5)
 
-    from trader.audit import log_action as audit_log
-    from trader.utils.config import load_config
+    from baretrader.audit import log_action as audit_log
+    from baretrader.utils.config import load_config
 
     audit_log(
         "start_engine",
@@ -161,7 +161,7 @@ def stop_engine(force: bool = False) -> dict[str, str]:
     Raises:
         EngineError: If engine is not running or cannot be stopped.
     """
-    from trader.core.engine import get_lock_file_path
+    from baretrader.core.engine import get_lock_file_path
 
     lock_path = get_lock_file_path()
 
@@ -213,8 +213,8 @@ def stop_engine(force: bool = False) -> dict[str, str]:
 
     try:
         os.kill(pid, sig)
-        from trader.audit import log_action as audit_log
-        from trader.utils.config import load_config
+        from baretrader.audit import log_action as audit_log
+        from baretrader.utils.config import load_config
 
         audit_log(
             "stop_engine",

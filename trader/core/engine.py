@@ -7,13 +7,13 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from trader.api.broker import Broker
-from trader.models.order import OrderStatus as LocalOrderStatus
-from trader.oms.store import load_orders, save_order
-from trader.strategies.evaluator import StrategyEvaluator
-from trader.strategies.loader import get_active_strategies
-from trader.utils.config import StrategyDefaults
-from trader.utils.logging import get_logger
+from baretrader.api.broker import Broker
+from baretrader.models.order import OrderStatus as LocalOrderStatus
+from baretrader.oms.store import load_orders, save_order
+from baretrader.strategies.evaluator import StrategyEvaluator
+from baretrader.strategies.loader import get_active_strategies
+from baretrader.utils.config import StrategyDefaults
+from baretrader.utils.logging import get_logger
 
 
 class EngineAlreadyRunningError(Exception):
@@ -25,7 +25,7 @@ class EngineAlreadyRunningError(Exception):
 def get_lock_file_path() -> Path:
     """Get the path to the engine lock file."""
     # Store in config directory alongside strategies.yaml
-    from trader.utils.paths import get_config_dir
+    from baretrader.utils.paths import get_config_dir
     config_dir = get_config_dir()
     return config_dir / ".engine.lock"
 
@@ -58,7 +58,7 @@ class TradingEngine:
         defaults = strategy_defaults or StrategyDefaults()
         self.strategy_evaluator = StrategyEvaluator(broker, defaults)
 
-        self.logger = get_logger("autotrader.engine")
+        self.logger = get_logger("baretrader.engine")
         self._running = False
         self._stop_requested = False
         self.orders_dir = orders_dir
@@ -233,7 +233,7 @@ class TradingEngine:
 
     def _check_scheduled_strategies(self) -> None:
         """Check scheduled strategies and enable them when schedule time arrives."""
-        from trader.strategies.loader import load_strategies, save_strategy
+        from baretrader.strategies.loader import load_strategies, save_strategy
 
         strategies = load_strategies()
         now = datetime.now()
