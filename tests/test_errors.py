@@ -1,6 +1,6 @@
 """Tests for the shared error hierarchy."""
 
-from baretrader.errors import (
+from trader.errors import (
     AppError,
     BrokerError,
     ConfigurationError,

@@ -1,9 +1,9 @@
 """Tests for optimization parameter normalization."""
 
-from baretrader.app.optimization import _normalize_param_keys
-from baretrader.errors import ValidationError
-from baretrader.schemas.optimization import OptimizeRequest
-from baretrader.utils.config import Config, Environment, Service, StrategyDefaults
+from trader.app.optimization import _normalize_param_keys
+from trader.errors import ValidationError
+from trader.schemas.optimization import OptimizeRequest
+from trader.utils.config import Config, Environment, Service, StrategyDefaults
 
 
 def test_normalize_param_keys_take_profit() -> None:
@@ -39,7 +39,7 @@ def test_optimization_with_short_param_names() -> None:
     """Test that run_optimization accepts short param names."""
     from pathlib import Path
 
-    from baretrader.app.optimization import run_optimization
+    from trader.app.optimization import run_optimization
 
     config = Config(
         env=Environment.PAPER,

@@ -10,9 +10,9 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from baretrader.schemas.engine import EngineStatus
-from baretrader.schemas.errors import ErrorResponse
-from baretrader.schemas.indicators import IndicatorInfo
+from trader.schemas.engine import EngineStatus
+from trader.schemas.errors import ErrorResponse
+from trader.schemas.indicators import IndicatorInfo
 
 
 def _parse(result: str) -> dict[str, Any] | list[Any]:
@@ -48,14 +48,14 @@ class TestContractGetStatus:
     """Contract: get_status returns EngineStatus or error."""
 
     def test_get_status_valid_json(self) -> None:
-        from baretrader.mcp.server import get_status
+        from trader.mcp.server import get_status
 
         result = get_status()
         data = _parse(result)
         assert isinstance(data, dict)
 
     def test_get_status_success_schema(self) -> None:
-        from baretrader.mcp.server import get_status
+        from trader.mcp.server import get_status
 
         result = get_status()
         data = _parse(result)
@@ -65,7 +65,7 @@ class TestContractGetStatus:
         EngineStatus.model_validate(data)
 
     def test_get_status_required_fields_when_success(self) -> None:
-        from baretrader.mcp.server import get_status
+        from trader.mcp.server import get_status
 
         result = get_status()
         data = _parse(result)
@@ -80,14 +80,14 @@ class TestContractStopEngine:
     """Contract: stop_engine returns dict or error."""
 
     def test_stop_engine_valid_json(self) -> None:
-        from baretrader.mcp.server import stop_engine
+        from trader.mcp.server import stop_engine
 
         result = stop_engine()
         data = _parse(result)
         assert isinstance(data, dict)
 
     def test_stop_engine_success_or_error_contract(self) -> None:
-        from baretrader.mcp.server import stop_engine
+        from trader.mcp.server import stop_engine
 
         result = stop_engine()
         data = _parse(result)
@@ -107,7 +107,7 @@ class TestContractPortfolioTools:
     """Contract: portfolio tools return documented shape or error."""
 
     def test_get_balance_contract(self) -> None:
-        from baretrader.mcp.server import get_balance
+        from trader.mcp.server import get_balance
 
         result = get_balance()
         data = _parse(result)
@@ -118,7 +118,7 @@ class TestContractPortfolioTools:
             assert "account" in data or "buying_power" in data or "equity" in data
 
     def test_get_positions_contract(self) -> None:
-        from baretrader.mcp.server import get_positions
+        from trader.mcp.server import get_positions
 
         result = get_positions()
         data = _parse(result)
@@ -130,7 +130,7 @@ class TestContractPortfolioTools:
                 assert isinstance(item, dict)
 
     def test_get_portfolio_contract(self) -> None:
-        from baretrader.mcp.server import get_portfolio
+        from trader.mcp.server import get_portfolio
 
         result = get_portfolio()
         data = _parse(result)
@@ -141,7 +141,7 @@ class TestContractPortfolioTools:
             assert "total_equity" in data or "positions" in data
 
     def test_get_quote_contract(self) -> None:
-        from baretrader.mcp.server import get_quote
+        from trader.mcp.server import get_quote
 
         result = get_quote("AAPL")
         data = _parse(result)
@@ -162,7 +162,7 @@ class TestContractOrderTools:
     """Contract: order tools return list/dict or error."""
 
     def test_list_orders_contract(self) -> None:
-        from baretrader.mcp.server import list_orders
+        from trader.mcp.server import list_orders
 
         result = list_orders()
         data = _parse(result)
@@ -180,7 +180,7 @@ class TestContractStrategyTools:
     """Contract: strategy tools return documented shape or error."""
 
     def test_list_strategies_contract(self) -> None:
-        from baretrader.mcp.server import list_strategies
+        from trader.mcp.server import list_strategies
 
         result = list_strategies()
         data = _parse(result)
@@ -194,7 +194,7 @@ class TestContractStrategyTools:
             assert data["count"] == len(data["strategies"])
 
     def test_get_strategy_contract(self) -> None:
-        from baretrader.mcp.server import get_strategy
+        from trader.mcp.server import get_strategy
 
         # Non-existent ID should still return valid contract (error)
         result = get_strategy("nonexistent-id-12345")
@@ -215,14 +215,14 @@ class TestContractBacktestTools:
     """Contract: backtest tools return list/dict or error."""
 
     def test_list_backtests_contract(self) -> None:
-        from baretrader.mcp.server import list_backtests
+        from trader.mcp.server import list_backtests
 
         result = list_backtests()
         data = _parse(result)
         assert isinstance(data, list)
 
     def test_show_backtest_contract(self) -> None:
-        from baretrader.mcp.server import show_backtest
+        from trader.mcp.server import show_backtest
 
         result = show_backtest("nonexistent-bt-id")
         data = _parse(result)
@@ -240,7 +240,7 @@ class TestContractAnalysisTools:
     """Contract: analysis tools return documented shape or error."""
 
     def test_analyze_performance_contract(self) -> None:
-        from baretrader.mcp.server import analyze_performance
+        from trader.mcp.server import analyze_performance
 
         result = analyze_performance()
         data = _parse(result)
@@ -254,14 +254,14 @@ class TestContractAnalysisTools:
             assert "summary" in data or "total_trades" in data or "win_rate" in data
 
     def test_get_trade_history_contract(self) -> None:
-        from baretrader.mcp.server import get_trade_history
+        from trader.mcp.server import get_trade_history
 
         result = get_trade_history()
         data = _parse(result)
         assert isinstance(data, list)
 
     def test_get_today_pnl_contract(self) -> None:
-        from baretrader.mcp.server import get_today_pnl
+        from trader.mcp.server import get_today_pnl
 
         result = get_today_pnl()
         data = _parse(result)
@@ -281,7 +281,7 @@ class TestContractIndicatorTools:
     """Contract: indicator tools return schema-valid shape or error."""
 
     def test_list_indicators_contract(self) -> None:
-        from baretrader.mcp.server import list_indicators
+        from trader.mcp.server import list_indicators
 
         result = list_indicators()
         data = _parse(result)
@@ -291,7 +291,7 @@ class TestContractIndicatorTools:
             IndicatorInfo.model_validate(item)
 
     def test_describe_indicator_success_contract(self) -> None:
-        from baretrader.mcp.server import describe_indicator
+        from trader.mcp.server import describe_indicator
 
         result = describe_indicator("sma")
         data = _parse(result)
@@ -303,7 +303,7 @@ class TestContractIndicatorTools:
             assert data["name"] == "sma"
 
     def test_describe_indicator_not_found_contract(self) -> None:
-        from baretrader.mcp.server import describe_indicator
+        from trader.mcp.server import describe_indicator
 
         result = describe_indicator("NONEXISTENT_XYZ")
         data = _parse(result)
@@ -320,7 +320,7 @@ class TestContractSafetyTools:
     """Contract: safety tool returns documented shape or error."""
 
     def test_get_safety_status_contract(self) -> None:
-        from baretrader.mcp.server import get_safety_status
+        from trader.mcp.server import get_safety_status
 
         result = get_safety_status()
         data = _parse(result)
@@ -344,7 +344,7 @@ class TestContractSchedulingTools:
     """Contract: scheduling tools return list/dict or error."""
 
     def test_list_scheduled_strategies_contract(self) -> None:
-        from baretrader.mcp.server import list_scheduled_strategies
+        from trader.mcp.server import list_scheduled_strategies
 
         result = list_scheduled_strategies()
         data = _parse(result)

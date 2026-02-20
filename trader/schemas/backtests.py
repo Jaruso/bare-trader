@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
-    from baretrader.backtest.results import BacktestResult
+    from trader.backtest.results import BacktestResult
 
 
 class BacktestRequest(BaseModel):

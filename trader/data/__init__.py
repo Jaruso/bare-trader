@@ -1,6 +1,6 @@
 """Data storage backends."""
 
-from baretrader.data.providers import (  # noqa: F401
+from trader.data.providers import (  # noqa: F401
     AlpacaDataProvider,
     CachedDataProvider,
     CSVDataProvider,

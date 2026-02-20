@@ -2,11 +2,11 @@
 from decimal import Decimal
 from pathlib import Path
 
-from baretrader.core.safety import SafetyCheck, SafetyLimits
-from baretrader.data.ledger import TradeLedger
-from baretrader.models.order import Order as LocalOrder
-from baretrader.models.order import OrderSide, OrderType
-from baretrader.oms.store import save_orders
+from trader.core.safety import SafetyCheck, SafetyLimits
+from trader.data.ledger import TradeLedger
+from trader.models.order import Order as LocalOrder
+from trader.models.order import OrderSide, OrderType
+from trader.oms.store import save_orders
 
 
 class MockBroker:

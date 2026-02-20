@@ -12,8 +12,8 @@ from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame as AlpacaTimeFrame
 from alpaca.data.timeframe import TimeFrameUnit
 
-from baretrader.data.providers.base import DataProvider, TimeFrame
-from baretrader.utils.logging import get_logger
+from trader.data.providers.base import DataProvider, TimeFrame
+from trader.utils.logging import get_logger
 
 _EASTERN_TZ = pytz.timezone("US/Eastern")
 
@@ -26,7 +26,7 @@ class AlpacaDataProvider(DataProvider):
             raise ValueError("Alpaca API credentials are required for data provider")
         self.client = StockHistoricalDataClient(api_key, secret_key)
         self.feed = feed
-        self.logger = get_logger("baretrader.data.alpaca")
+        self.logger = get_logger("trader.data.alpaca")
 
     def get_bars(
         self,

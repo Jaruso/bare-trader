@@ -18,7 +18,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeoutError
 from typing import TypeVar
 
-from baretrader.errors import RateLimitError, TaskTimeoutError
+from trader.errors import RateLimitError, TaskTimeoutError
 
 T = TypeVar("T")
 

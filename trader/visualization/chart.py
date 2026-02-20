@@ -14,7 +14,7 @@ from bokeh.layouts import column
 from bokeh.models import ColumnDataSource, HoverTool
 from bokeh.plotting import figure
 
-from baretrader.backtest.results import BacktestResult
+from trader.backtest.results import BacktestResult
 
 
 @dataclass

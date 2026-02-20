@@ -5,12 +5,12 @@ from typing import Any
 
 import yaml
 
-from baretrader.notifications.formatters import TradeNotification
-from baretrader.notifications.manager import NotificationManager
+from trader.notifications.formatters import TradeNotification
+from trader.notifications.manager import NotificationManager
 
 
 def _config_dir() -> Path:
-    from baretrader.utils.paths import get_config_dir
+    from trader.utils.paths import get_config_dir
     return get_config_dir()
 
 

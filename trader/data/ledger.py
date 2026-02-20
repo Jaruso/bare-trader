@@ -6,7 +6,7 @@ from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 
-from baretrader.api.broker import OrderSide, OrderStatus
+from trader.api.broker import OrderSide, OrderStatus
 
 
 @dataclass

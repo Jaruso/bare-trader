@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
-    from baretrader.api.broker import Order
+    from trader.api.broker import Order
 
 
 class OrderRequest(BaseModel):

@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
-from baretrader.notifications.channels.webhook import WebhookChannel
+from trader.notifications.channels.webhook import WebhookChannel
 
 
 def test_webhook_channel_requires_url() -> None:

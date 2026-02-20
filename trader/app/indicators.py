@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from baretrader.errors import NotFoundError
-from baretrader.schemas.indicators import IndicatorInfo
+from trader.errors import NotFoundError
+from trader.schemas.indicators import IndicatorInfo
 
 
 def list_all_indicators() -> list[IndicatorInfo]:
@@ -12,7 +12,7 @@ def list_all_indicators() -> list[IndicatorInfo]:
     Returns:
         List of indicator info schemas.
     """
-    from baretrader.indicators import list_indicators
+    from trader.indicators import list_indicators
 
     return [IndicatorInfo.from_domain(spec) for spec in list_indicators()]
 
@@ -29,7 +29,7 @@ def describe_indicator(name: str) -> IndicatorInfo:
     Raises:
         NotFoundError: If indicator name is unknown.
     """
-    from baretrader.indicators import get_indicator
+    from trader.indicators import get_indicator
 
     try:
         indicator_obj = get_indicator(name)

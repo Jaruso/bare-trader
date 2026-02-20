@@ -12,7 +12,7 @@ from typing import Any, Literal
 
 from mcp.server.fastmcp import FastMCP
 
-from baretrader.errors import AppError, ValidationError
+from trader.errors import AppError, ValidationError
 
 # =============================================================================
 # Helpers
@@ -21,7 +21,7 @@ from baretrader.errors import AppError, ValidationError
 
 def _config() -> Any:
     """Load config lazily (avoids import-time side effects)."""
-    from baretrader.utils.config import load_config
+    from trader.utils.config import load_config
 
     return load_config()
 
@@ -51,7 +51,7 @@ def get_status() -> str:
     and process ID if running. Check the 'hint' field for actionable
     guidance when the engine is not running or misconfigured.
     """
-    from baretrader.app.engine import get_engine_status
+    from trader.app.engine import get_engine_status
 
     try:
         return _ok(get_engine_status(_config()))
@@ -70,7 +70,7 @@ def start_engine(dry_run: bool = False, interval: int = 60) -> str:
         dry_run:  If true, evaluate strategies but do not place real orders.
         interval: Strategy poll interval in seconds (default: 60).
     """
-    from baretrader.app.engine import start_engine as _start_engine
+    from trader.app.engine import start_engine as _start_engine
 
     try:
         return _ok(_start_engine(dry_run=dry_run, interval=interval))
@@ -84,7 +84,7 @@ def stop_engine(force: bool = False) -> str:
     Args:
         force: If true, send SIGKILL instead of SIGTERM.
     """
-    from baretrader.app.engine import stop_engine as _stop_engine
+    from trader.app.engine import stop_engine as _stop_engine
 
     try:
         return _ok(_stop_engine(force=force))
@@ -99,7 +99,7 @@ def stop_engine(force: bool = False) -> str:
 
 def get_balance() -> str:
     """Get account balance, equity, buying power, and daily P/L."""
-    from baretrader.app.portfolio import get_balance as _get_balance
+    from trader.app.portfolio import get_balance as _get_balance
 
     try:
         return _ok(_get_balance(_config()))
@@ -109,7 +109,7 @@ def get_balance() -> str:
 
 def get_positions() -> str:
     """List all open positions with current prices and unrealized P/L."""
-    from baretrader.app.portfolio import get_positions as _get_positions
+    from trader.app.portfolio import get_positions as _get_positions
 
     try:
         result = _get_positions(_config())
@@ -122,7 +122,7 @@ def get_positions() -> str:
 
 def get_portfolio() -> str:
     """Get detailed portfolio summary with position weights and P/L breakdown."""
-    from baretrader.app.portfolio import get_portfolio_summary
+    from trader.app.portfolio import get_portfolio_summary
 
     try:
         return _ok(get_portfolio_summary(_config()))
@@ -136,7 +136,7 @@ def get_quote(symbol: str) -> str:
     Args:
         symbol: Stock ticker (e.g. "AAPL", "MSFT").
     """
-    from baretrader.app.portfolio import get_quote as _get_quote
+    from trader.app.portfolio import get_quote as _get_quote
 
     try:
         return _ok(_get_quote(_config(), symbol.upper()))
@@ -151,7 +151,7 @@ def get_top_movers(market_type: str = "stocks", limit: int = 10) -> str:
         market_type: Market type ('stocks' or 'crypto'). Defaults to 'stocks'.
         limit: Maximum number of gainers/losers to return. Defaults to 10.
     """
-    from baretrader.app.portfolio import get_top_movers as _get_top_movers
+    from trader.app.portfolio import get_top_movers as _get_top_movers
 
     try:
         result = _get_top_movers(_config(), market_type=market_type, limit=limit)
@@ -174,8 +174,8 @@ def place_order(symbol: str, qty: int, side: str, price: float) -> str:
         side: "buy" or "sell".
         price: Limit price per share.
     """
-    from baretrader.app.orders import place_order as _place_order
-    from baretrader.schemas.orders import OrderRequest
+    from trader.app.orders import place_order as _place_order
+    from trader.schemas.orders import OrderRequest
 
     try:
         request = OrderRequest(
@@ -195,7 +195,7 @@ def list_orders(show_all: bool = False) -> str:
     Args:
         show_all: If true, include filled, cancelled, and expired orders.
     """
-    from baretrader.app.orders import list_orders as _list_orders
+    from trader.app.orders import list_orders as _list_orders
 
     try:
         result = _list_orders(_config(), show_all=show_all)
@@ -212,7 +212,7 @@ def cancel_order(order_id: str) -> str:
     Args:
         order_id: The order ID to cancel.
     """
-    from baretrader.app.orders import cancel_order as _cancel_order
+    from trader.app.orders import cancel_order as _cancel_order
 
     try:
         return _ok(_cancel_order(_config(), order_id))
@@ -227,7 +227,7 @@ def cancel_order(order_id: str) -> str:
 
 def list_strategies() -> str:
     """List all configured trading strategies."""
-    from baretrader.app.strategies import list_strategies as _list_strategies
+    from trader.app.strategies import list_strategies as _list_strategies
 
     try:
         return _ok(_list_strategies())
@@ -241,7 +241,7 @@ def get_strategy(strategy_id: str) -> str:
     Args:
         strategy_id: The strategy ID.
     """
-    from baretrader.app.strategies import get_strategy_detail
+    from trader.app.strategies import get_strategy_detail
 
     try:
         return _ok(get_strategy_detail(strategy_id))
@@ -273,8 +273,8 @@ def create_strategy(
         entry_price: Limit entry price. If omitted, uses market order.
         levels: Number of grid levels (for grid strategy).
     """
-    from baretrader.app.strategies import create_strategy as _create_strategy
-    from baretrader.schemas.strategies import StrategyCreate
+    from trader.app.strategies import create_strategy as _create_strategy
+    from trader.schemas.strategies import StrategyCreate
 
     try:
         request = StrategyCreate(
@@ -299,7 +299,7 @@ def remove_strategy(strategy_id: str) -> str:
     Args:
         strategy_id: The strategy ID to remove.
     """
-    from baretrader.app.strategies import remove_strategy as _remove_strategy
+    from trader.app.strategies import remove_strategy as _remove_strategy
 
     try:
         return _ok(_remove_strategy(strategy_id))
@@ -313,7 +313,7 @@ def pause_strategy(strategy_id: str) -> str:
     Args:
         strategy_id: The strategy ID to pause.
     """
-    from baretrader.app.strategies import pause_strategy as _pause_strategy
+    from trader.app.strategies import pause_strategy as _pause_strategy
 
     try:
         return _ok(_pause_strategy(strategy_id))
@@ -327,7 +327,7 @@ def resume_strategy(strategy_id: str) -> str:
     Args:
         strategy_id: The strategy ID to resume.
     """
-    from baretrader.app.strategies import resume_strategy as _resume_strategy
+    from trader.app.strategies import resume_strategy as _resume_strategy
 
     try:
         return _ok(_resume_strategy(strategy_id))
@@ -342,7 +342,7 @@ def set_strategy_enabled(strategy_id: str, enabled: bool) -> str:
         strategy_id: The strategy ID.
         enabled: True to enable, False to disable.
     """
-    from baretrader.app.strategies import set_strategy_enabled as _set_enabled
+    from trader.app.strategies import set_strategy_enabled as _set_enabled
 
     try:
         return _ok(_set_enabled(strategy_id, enabled))
@@ -362,7 +362,7 @@ def schedule_strategy(strategy_id: str, schedule_at: str) -> str:
     """
     from datetime import datetime
 
-    from baretrader.app.strategies import schedule_strategy as _schedule_strategy
+    from trader.app.strategies import schedule_strategy as _schedule_strategy
 
     try:
         # Parse ISO datetime string
@@ -387,7 +387,7 @@ def cancel_schedule(strategy_id: str) -> str:
     Args:
         strategy_id: The strategy ID to cancel schedule for.
     """
-    from baretrader.app.strategies import cancel_schedule as _cancel_schedule
+    from trader.app.strategies import cancel_schedule as _cancel_schedule
 
     try:
         return _ok(_cancel_schedule(strategy_id))
@@ -400,7 +400,7 @@ def list_scheduled_strategies() -> str:
 
     Returns a list of strategies that are scheduled to start at a future time.
     """
-    from baretrader.app.strategies import list_scheduled_strategies as _list_scheduled
+    from trader.app.strategies import list_scheduled_strategies as _list_scheduled
 
     try:
         return _ok(_list_scheduled())
@@ -443,13 +443,13 @@ def run_backtest(
         initial_capital: Starting capital for simulation.
         save: Whether to save results to disk.
     """
-    from baretrader.app.backtests import run_backtest as _run_backtest
-    from baretrader.mcp.limits import (
+    from trader.app.backtests import run_backtest as _run_backtest
+    from trader.mcp.limits import (
         check_rate_limit,
         get_backtest_timeout_seconds,
         run_with_timeout,
     )
-    from baretrader.schemas.backtests import BacktestRequest
+    from trader.schemas.backtests import BacktestRequest
 
     try:
         check_rate_limit("long_running")
@@ -479,7 +479,7 @@ def run_backtest(
 
 def list_backtests() -> str:
     """List all saved backtest results."""
-    from baretrader.app.backtests import list_backtests_app
+    from trader.app.backtests import list_backtests_app
 
     try:
         result = list_backtests_app()
@@ -496,7 +496,7 @@ def show_backtest(backtest_id: str) -> str:
     Args:
         backtest_id: The backtest ID.
     """
-    from baretrader.app.backtests import show_backtest as _show_backtest
+    from trader.app.backtests import show_backtest as _show_backtest
 
     try:
         return _ok(_show_backtest(backtest_id))
@@ -510,7 +510,7 @@ def compare_backtests(backtest_ids: list[str]) -> str:
     Args:
         backtest_ids: List of backtest IDs to compare.
     """
-    from baretrader.app.backtests import compare_backtests as _compare
+    from trader.app.backtests import compare_backtests as _compare
 
     try:
         results = _compare(backtest_ids)
@@ -527,7 +527,7 @@ def delete_backtest(backtest_id: str) -> str:
     Args:
         backtest_id: The backtest ID to delete.
     """
-    from baretrader.app.backtests import delete_backtest_app
+    from trader.app.backtests import delete_backtest_app
 
     try:
         return _ok(delete_backtest_app(backtest_id))
@@ -552,7 +552,7 @@ def analyze_performance(
         days: Number of days to look back.
         limit: Maximum number of trades to analyze.
     """
-    from baretrader.app.analysis import analyze_trade_performance
+    from trader.app.analysis import analyze_trade_performance
 
     try:
         result = analyze_trade_performance(
@@ -574,7 +574,7 @@ def get_trade_history(symbol: str | None = None, limit: int = 20) -> str:
         symbol: Filter by ticker. If omitted, returns all symbols.
         limit: Maximum number of trades to return.
     """
-    from baretrader.app.analysis import get_trade_history as _get_history
+    from trader.app.analysis import get_trade_history as _get_history
 
     try:
         result = _get_history(
@@ -587,7 +587,7 @@ def get_trade_history(symbol: str | None = None, limit: int = 20) -> str:
 
 def get_today_pnl() -> str:
     """Get today's realized profit/loss."""
-    from baretrader.app.analysis import get_today_pnl as _get_today_pnl
+    from trader.app.analysis import get_today_pnl as _get_today_pnl
 
     try:
         pnl = _get_today_pnl()
@@ -603,7 +603,7 @@ def get_today_pnl() -> str:
 
 def list_indicators() -> str:
     """List all available technical indicators (SMA, RSI, MACD, etc.)."""
-    from baretrader.app.indicators import list_all_indicators
+    from trader.app.indicators import list_all_indicators
 
     try:
         result = list_all_indicators()
@@ -620,7 +620,7 @@ def describe_indicator(name: str) -> str:
     Args:
         name: Indicator name (e.g. "sma", "rsi", "macd").
     """
-    from baretrader.app.indicators import describe_indicator as _describe
+    from trader.app.indicators import describe_indicator as _describe
 
     try:
         return _ok(_describe(name.lower()))
@@ -666,13 +666,13 @@ def run_optimization(
         initial_capital: Starting capital for simulation.
         save: Whether to save results to disk.
     """
-    from baretrader.app.optimization import run_optimization as _run_opt
-    from baretrader.mcp.limits import (
+    from trader.app.optimization import run_optimization as _run_opt
+    from trader.mcp.limits import (
         check_rate_limit,
         get_optimization_timeout_seconds,
         run_with_timeout,
     )
-    from baretrader.schemas.optimization import OptimizeRequest
+    from trader.schemas.optimization import OptimizeRequest
 
     try:
         check_rate_limit("long_running")
@@ -710,7 +710,7 @@ def get_safety_status() -> str:
 
     Returns position size limits, daily loss limits, and trade count limits.
     """
-    from baretrader.app.data import get_safety_status as _get_safety
+    from trader.app.data import get_safety_status as _get_safety
 
     try:
         return _ok(_get_safety(_config()))
@@ -729,7 +729,7 @@ def _with_mcp_audit(fn: Any) -> Any:
 
     @functools.wraps(fn)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
-        from baretrader.audit import set_audit_source
+        from trader.audit import set_audit_source
 
         set_audit_source("mcp")
         return fn(*args, **kwargs)
@@ -800,7 +800,7 @@ def build_server(
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO",
 ) -> FastMCP:
     """Create a FastMCP server with configured host/port."""
-    server = FastMCP("baretrader", host=host, port=port, log_level=log_level)
+    server = FastMCP("trader", host=host, port=port, log_level=log_level)
     register_tools(server)
     return server
 

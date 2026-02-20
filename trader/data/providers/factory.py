@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from baretrader.data.providers.alpaca_provider import AlpacaDataProvider
-from baretrader.data.providers.base import DataProvider
-from baretrader.data.providers.cached_provider import CachedDataProvider
-from baretrader.data.providers.csv_provider import CSVDataProvider
-from baretrader.utils.config import Config
+from trader.data.providers.alpaca_provider import AlpacaDataProvider
+from trader.data.providers.base import DataProvider
+from trader.data.providers.cached_provider import CachedDataProvider
+from trader.data.providers.csv_provider import CSVDataProvider
+from trader.utils.config import Config
 
 
 def get_data_provider(

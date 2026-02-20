@@ -44,20 +44,20 @@ Use the same Claude config as in the README: set `command` to the **full path** 
 
 **Agents**: Use MCP tools as the primary interface for all operations. Run CLI commands only when testing or verifying human-facing output (e.g. `trader status` or `trader backtest list --json`).
 
-**Note on tool visibility**: All 32+ MCP tools are registered in the server (`baretrader/mcp/server.py`). Some MCP clients may filter or not display all tools. For testing, if a tool isn't visible in your client, you can import it directly: `from baretrader.mcp.server import <tool_name>`. To list all registered tools programmatically: `python3 -c "from baretrader.mcp.server import mcp; [print(f'{t.name}') for t in mcp.list_tools()]"`.
+**Note on tool visibility**: All 32+ MCP tools are registered in the server (`trader/mcp/server.py`). Some MCP clients may filter or not display all tools. For testing, if a tool isn't visible in your client, you can import it directly: `from trader.mcp.server import <tool_name>`. To list all registered tools programmatically: `python3 -c "from trader.mcp.server import mcp; [print(f'{t.name}') for t in mcp.list_tools()]"`.
 
 ---
 
 ## Project Layout
 
-- **baretrader/app/** — Shared application services (single source of truth for business logic)
-- **baretrader/cli/** — Click CLI (human-friendly, Rich tables)
-- **baretrader/mcp/** — MCP server (agent-friendly, JSON)
-- **baretrader/schemas/** — Pydantic models (contracts)
-- **baretrader/errors.py** — Shared error hierarchy
-- **baretrader/core/**, **baretrader/backtest/**, **baretrader/strategies/**, **baretrader/api/**, **baretrader/data/**, **baretrader/indicators/**, **baretrader/notifications/**, **baretrader/oms/**, **baretrader/utils/** — Domain and infra
+- **trader/app/** — Shared application services (single source of truth for business logic)
+- **trader/cli/** — Click CLI (human-friendly, Rich tables)
+- **trader/mcp/** — MCP server (agent-friendly, JSON)
+- **trader/schemas/** — Pydantic models (contracts)
+- **trader/errors.py** — Shared error hierarchy
+- **trader/core/**, **trader/backtest/**, **trader/strategies/**, **trader/api/**, **trader/data/**, **trader/indicators/**, **trader/notifications/**, **trader/oms/**, **trader/utils/** — Domain and infra
 
-**Dual-interface architecture**: CLI and MCP are thin adapters; both call `baretrader/app` and use `baretrader/schemas`. One core, two adapters — no logic duplication. For a full mapping of CLI commands to MCP tools, run `trader --help` and inspect the MCP server tool list (32 tools); the app layer in `baretrader/app/` is the single source of truth for both. See [CODEBASE_REVIEW.md](CODEBASE_REVIEW.md) for a package map, test coverage matrix, and gaps/redundancies report.
+**Dual-interface architecture**: CLI and MCP are thin adapters; both call `baretrader/app` and use `baretrader/schemas`. One core, two adapters — no logic duplication. For a full mapping of CLI commands to MCP tools, run `trader --help` and inspect the MCP server tool list (32 tools); the app layer in `trader/app/` is the single source of truth for both. See [CODEBASE_REVIEW.md](CODEBASE_REVIEW.md) for a package map, test coverage matrix, and gaps/redundancies report.
 
 ```
 ┌─────────────┐      ┌─────────────┐
@@ -100,7 +100,7 @@ poetry run mypy .
 ```bash
 poetry run pytest
 poetry run pytest -v
-poetry run pytest --cov=baretrader
+poetry run pytest --cov=trader
 poetry run pytest tests/test_mcp_server.py
 ```
 
@@ -112,10 +112,10 @@ Write tests for new features; use the mock broker for integration tests; never r
 
 When adding a feature:
 
-1. **Business logic** in `baretrader/app/` (e.g. `portfolio.py`, `backtests.py`).
-2. **Schema** in `baretrader/schemas/` if needed (Pydantic models).
-3. **CLI** in `baretrader/cli/main.py` (Rich for display).
-4. **MCP tool** in `baretrader/mcp/server.py` (JSON).
+1. **Business logic** in `trader/app/` (e.g. `portfolio.py`, `backtests.py`).
+2. **Schema** in `trader/schemas/` if needed (Pydantic models).
+3. **CLI** in `trader/cli/main.py` (Rich for display).
+4. **MCP tool** in `trader/mcp/server.py` (JSON).
 5. **Tests** in `tests/` for CLI and/or MCP.
 6. **Docs** — update README.md, CHANGELOG.md, and PLAN.md as needed.
 

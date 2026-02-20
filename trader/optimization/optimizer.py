@@ -9,11 +9,11 @@ from typing import Any
 
 import pandas as pd
 
-from baretrader.backtest import BacktestEngine, HistoricalBroker, load_data_for_backtest
-from baretrader.optimization.objectives import score_result
-from baretrader.optimization.results import OptimizationResult, new_result_id
-from baretrader.optimization.search import generate_grid, generate_random
-from baretrader.utils.logging import get_logger
+from trader.backtest import BacktestEngine, HistoricalBroker, load_data_for_backtest
+from trader.optimization.objectives import score_result
+from trader.optimization.results import OptimizationResult, new_result_id
+from trader.optimization.search import generate_grid, generate_random
+from trader.utils.logging import get_logger
 
 
 class Optimizer:
@@ -40,7 +40,7 @@ class Optimizer:
         self.data_dir = data_dir
         self.initial_capital = Decimal(str(initial_capital))
         self.historical_data = historical_data
-        self.logger = get_logger("baretrader.optimization")
+        self.logger = get_logger("trader.optimization")
 
     def optimize(
         self,

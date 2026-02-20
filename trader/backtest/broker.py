@@ -8,7 +8,7 @@ from decimal import Decimal
 
 import pandas as pd
 
-from baretrader.api.broker import (
+from trader.api.broker import (
     Account,
     Broker,
     Order,
@@ -18,7 +18,7 @@ from baretrader.api.broker import (
     Position,
     Quote,
 )
-from baretrader.utils.logging import get_logger
+from trader.utils.logging import get_logger
 
 
 class HistoricalBroker(Broker):
@@ -47,7 +47,7 @@ class HistoricalBroker(Broker):
             initial_cash: Starting capital.
         """
         self.data = historical_data
-        self.logger = get_logger("baretrader.backtest.broker")
+        self.logger = get_logger("trader.backtest.broker")
         self.initial_cash = initial_cash  # Store for metrics calculation
 
         # Current state

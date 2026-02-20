@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from pydantic import BaseModel
 
 if TYPE_CHECKING:
-    from baretrader.indicators.base import IndicatorSpec
+    from trader.indicators.base import IndicatorSpec
 
 
 class IndicatorInfo(BaseModel):

@@ -4,10 +4,10 @@ import logging
 import os
 from typing import Any
 
-from baretrader.notifications.channels.base import NotificationChannel
-from baretrader.notifications.channels.discord import DiscordChannel
-from baretrader.notifications.channels.webhook import WebhookChannel
-from baretrader.notifications.formatters import TradeNotification, format_error_plain
+from trader.notifications.channels.base import NotificationChannel
+from trader.notifications.channels.discord import DiscordChannel
+from trader.notifications.channels.webhook import WebhookChannel
+from trader.notifications.formatters import TradeNotification, format_error_plain
 
 logger = logging.getLogger(__name__)
 

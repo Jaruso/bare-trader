@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from baretrader.notifications.formatters import (
+from trader.notifications.formatters import (
     TradeNotification,
     format_error_plain,
     format_trade_plain,

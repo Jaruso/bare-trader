@@ -5,35 +5,35 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 
-from baretrader.audit import log_action as audit_log
-from baretrader.errors import NotFoundError, ValidationError
-from baretrader.schemas.strategies import (
+from trader.audit import log_action as audit_log
+from trader.errors import NotFoundError, ValidationError
+from trader.schemas.strategies import (
     StrategyCreate,
     StrategyListResponse,
     StrategyResponse,
 )
-from baretrader.strategies.loader import (
+from trader.strategies.loader import (
     delete_strategy as _delete_strategy,
 )
-from baretrader.strategies.loader import (
+from trader.strategies.loader import (
     enable_strategy as _enable_strategy,
 )
-from baretrader.strategies.loader import (
+from trader.strategies.loader import (
     get_strategy as _get_strategy,
 )
-from baretrader.strategies.loader import (
+from trader.strategies.loader import (
     load_strategies,
 )
-from baretrader.strategies.loader import (
+from trader.strategies.loader import (
     save_strategy as _save_strategy,
 )
-from baretrader.strategies.models import (
+from trader.strategies.models import (
     EntryType,
     Strategy,
     StrategyPhase,
     StrategyType,
 )
-from baretrader.utils.config import Config
+from trader.utils.config import Config
 
 
 def _to_pct(value: Decimal) -> Decimal:
@@ -165,7 +165,7 @@ def create_strategy(config: Config, request: StrategyCreate) -> StrategyResponse
             )
 
         elif strat_type == StrategyType.GRID:
-            from baretrader.app import get_broker
+            from trader.app import get_broker
 
             broker = get_broker(config)
             quote = broker.get_quote(request.symbol.upper())
@@ -247,7 +247,7 @@ def remove_strategy(strategy_id: str) -> dict[str, str]:
             message=f"Strategy {strategy_id} not found",
             code="STRATEGY_NOT_FOUND",
         )
-    from baretrader.utils.config import load_config
+    from trader.utils.config import load_config
 
     audit_log("remove_strategy", {"strategy_id": strategy_id}, log_dir=load_config().log_dir)
     return {"status": "removed", "strategy_id": strategy_id}

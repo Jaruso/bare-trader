@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from baretrader.indicators.base import Indicator, IndicatorSpec, validate_ohlcv
-from baretrader.indicators.ta_integration import get_pandas_ta
+from trader.indicators.base import Indicator, IndicatorSpec, validate_ohlcv
+from trader.indicators.ta_integration import get_pandas_ta
 
 
 class ATR(Indicator):

@@ -5,17 +5,17 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from baretrader.app import get_broker
-from baretrader.errors import BrokerError
-from baretrader.schemas.portfolio import (
+from trader.app import get_broker
+from trader.errors import BrokerError
+from trader.schemas.portfolio import (
     AccountInfo,
     BalanceResponse,
     PortfolioResponse,
     PositionInfo,
     QuoteResponse,
 )
-from baretrader.strategies.loader import load_strategies
-from baretrader.utils.config import Config
+from trader.strategies.loader import load_strategies
+from trader.utils.config import Config
 
 
 def get_balance(config: Config) -> BalanceResponse:
@@ -89,8 +89,8 @@ def get_portfolio_summary(config: Config) -> PortfolioResponse:
     Returns:
         Portfolio response schema.
     """
-    from baretrader.core.portfolio import Portfolio
-    from baretrader.data.ledger import TradeLedger
+    from trader.core.portfolio import Portfolio
+    from trader.data.ledger import TradeLedger
 
     broker = get_broker(config)
     ledger = TradeLedger()

@@ -5,13 +5,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from baretrader.optimization.results import OptimizationResult
+from trader.optimization.results import OptimizationResult
 
 
 def get_optimizations_dir(data_dir: Path | None = None) -> Path:
     """Get the optimizations directory, creating if needed."""
     if data_dir is None:
-        from baretrader.utils.paths import get_data_dir
+        from trader.utils.paths import get_data_dir
         data_dir = get_data_dir()
 
     optimizations_dir = data_dir / "optimizations"

@@ -7,10 +7,10 @@ from decimal import Decimal
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from baretrader.audit import log_action as audit_log
-from baretrader.errors import NotFoundError, ValidationError
-from baretrader.schemas.backtests import BacktestRequest, BacktestResponse, BacktestSummary
-from baretrader.utils.config import Config
+from trader.audit import log_action as audit_log
+from trader.errors import NotFoundError, ValidationError
+from trader.schemas.backtests import BacktestRequest, BacktestResponse, BacktestSummary
+from trader.utils.config import Config
 
 
 def run_backtest(config: Config, request: BacktestRequest) -> BacktestResponse:
@@ -27,7 +27,7 @@ def run_backtest(config: Config, request: BacktestRequest) -> BacktestResponse:
         ValidationError: If parameters are invalid.
         NotFoundError: If data files not found.
     """
-    from baretrader.backtest import (
+    from trader.backtest import (
         BacktestEngine,
         HistoricalBroker,
         load_data_for_backtest,
@@ -150,7 +150,7 @@ def list_backtests_app(data_dir: str | None = None) -> list[BacktestSummary]:
     Returns:
         List of backtest summary schemas.
     """
-    from baretrader.backtest import list_backtests
+    from trader.backtest import list_backtests
 
     data_dir_path = Path(data_dir) if data_dir else None
     backtests = list_backtests(data_dir=data_dir_path)
@@ -171,7 +171,7 @@ def show_backtest(backtest_id: str, data_dir: str | None = None) -> BacktestResp
     Raises:
         NotFoundError: If backtest not found.
     """
-    from baretrader.backtest import load_backtest
+    from trader.backtest import load_backtest
 
     data_dir_path = Path(data_dir) if data_dir else None
 
@@ -199,7 +199,7 @@ def compare_backtests(
     Returns:
         List of backtest response schemas (skips not-found).
     """
-    from baretrader.backtest import load_backtest
+    from trader.backtest import load_backtest
 
     data_dir_path = Path(data_dir) if data_dir else None
     results = []
@@ -227,7 +227,7 @@ def delete_backtest_app(backtest_id: str, data_dir: str | None = None) -> dict[s
     Raises:
         NotFoundError: If backtest not found.
     """
-    from baretrader.backtest import delete_backtest
+    from trader.backtest import delete_backtest
 
     data_dir_path = Path(data_dir) if data_dir else None
 

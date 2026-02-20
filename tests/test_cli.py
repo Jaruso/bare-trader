@@ -2,7 +2,7 @@
 
 from click.testing import CliRunner
 
-from baretrader.cli.main import cli
+from trader.cli.main import cli
 
 
 def test_cli_help() -> None:

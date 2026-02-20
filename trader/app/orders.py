@@ -4,18 +4,18 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from baretrader.api.broker import OrderSide, OrderStatus, OrderType
-from baretrader.app import get_broker
-from baretrader.audit import log_action as audit_log
-from baretrader.core.safety import SafetyCheck
-from baretrader.data.ledger import TradeLedger
-from baretrader.errors import BrokerError, SafetyError
-from baretrader.oms.store import save_order
-from baretrader.schemas.orders import OrderRequest, OrderResponse
-from baretrader.utils.config import Config
-from baretrader.utils.logging import get_logger
+from trader.api.broker import OrderSide, OrderStatus, OrderType
+from trader.app import get_broker
+from trader.audit import log_action as audit_log
+from trader.core.safety import SafetyCheck
+from trader.data.ledger import TradeLedger
+from trader.errors import BrokerError, SafetyError
+from trader.oms.store import save_order
+from trader.schemas.orders import OrderRequest, OrderResponse
+from trader.utils.config import Config
+from trader.utils.logging import get_logger
 
-logger = get_logger("baretrader.app.orders")
+logger = get_logger("trader.app.orders")
 
 
 def place_order(config: Config, request: OrderRequest) -> OrderResponse:
@@ -32,7 +32,7 @@ def place_order(config: Config, request: OrderRequest) -> OrderResponse:
         SafetyError: If order blocked by safety checks.
         BrokerError: If broker call fails.
     """
-    logger = get_logger("baretrader.trades")
+    logger = get_logger("trader.trades")
     broker = get_broker(config)
     symbol = request.symbol.upper()
     is_buy = request.side.lower() == "buy"

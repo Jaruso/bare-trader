@@ -2,7 +2,7 @@
 
 from decimal import Decimal
 
-from baretrader.api.broker import (
+from trader.api.broker import (
     Account,
     Broker,
     Order,

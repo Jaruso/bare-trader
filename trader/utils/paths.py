@@ -45,15 +45,15 @@ def get_config_dir(custom_path: Path | None = None) -> Path:
         # XDG Base Directory spec
         xdg_config = os.getenv("XDG_CONFIG_HOME")
         if xdg_config:
-            config_dir = Path(xdg_config) / "baretrader"
+            config_dir = Path(xdg_config) / "trader"
         else:
-            config_dir = Path.home() / ".config" / "baretrader"
+            config_dir = Path.home() / ".config" / "trader"
     elif system == "Darwin":  # macOS
         config_dir = Path.home() / ".baretrader" / "config"
     else:  # Windows
         appdata = os.getenv("APPDATA")
         if appdata:
-            config_dir = Path(appdata) / "baretrader" / "config"
+            config_dir = Path(appdata) / "trader" / "config"
         else:
             config_dir = Path.home() / ".baretrader" / "config"
 
@@ -94,15 +94,15 @@ def get_data_dir(custom_path: Path | None = None) -> Path:
         # XDG Base Directory spec
         xdg_data = os.getenv("XDG_DATA_HOME")
         if xdg_data:
-            data_dir = Path(xdg_data) / "baretrader"
+            data_dir = Path(xdg_data) / "trader"
         else:
-            data_dir = Path.home() / ".local" / "share" / "baretrader"
+            data_dir = Path.home() / ".local" / "share" / "trader"
     elif system == "Darwin":  # macOS
         data_dir = Path.home() / ".baretrader" / "data"
     else:  # Windows
         appdata = os.getenv("APPDATA")
         if appdata:
-            data_dir = Path(appdata) / "baretrader" / "data"
+            data_dir = Path(appdata) / "trader" / "data"
         else:
             data_dir = Path.home() / ".baretrader" / "data"
 
@@ -143,15 +143,15 @@ def get_log_dir(custom_path: Path | None = None) -> Path:
         # XDG Base Directory spec
         xdg_state = os.getenv("XDG_STATE_HOME")
         if xdg_state:
-            log_dir = Path(xdg_state) / "baretrader"
+            log_dir = Path(xdg_state) / "trader"
         else:
-            log_dir = Path.home() / ".local" / "state" / "baretrader"
+            log_dir = Path.home() / ".local" / "state" / "trader"
     elif system == "Darwin":  # macOS
         log_dir = Path.home() / ".baretrader" / "logs"
     else:  # Windows
         appdata = os.getenv("APPDATA")
         if appdata:
-            log_dir = Path(appdata) / "baretrader" / "logs"
+            log_dir = Path(appdata) / "trader" / "logs"
         else:
             log_dir = Path.home() / ".baretrader" / "logs"
 

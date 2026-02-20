@@ -2,11 +2,11 @@
 from decimal import Decimal
 from pathlib import Path
 
-from baretrader.api.broker import Order as BrokerOrder
-from baretrader.api.broker import OrderSide, OrderType
-from baretrader.api.broker import OrderStatus as BrokerOrderStatus
-from baretrader.models.order import Order as LocalOrder
-from baretrader.oms.store import load_orders, save_orders
+from trader.api.broker import Order as BrokerOrder
+from trader.api.broker import OrderSide, OrderType
+from trader.api.broker import OrderStatus as BrokerOrderStatus
+from trader.models.order import Order as LocalOrder
+from trader.oms.store import load_orders, save_orders
 
 
 class MockBroker:
@@ -40,13 +40,13 @@ def test_reconcile_updates_persisted_order(tmp_path: Path):
     mock = MockBroker(orders_map={"o1": broker_order, "ext-1": broker_order})
 
     # Create engine configured to use tmp_path for orders
-    from baretrader.core.engine import TradingEngine as EngineClass
+    from trader.core.engine import TradingEngine as EngineClass
     engine = EngineClass(mock, orders_dir=tmp_path)
 
     # Reconcile using tmp_path as config dir by setting engine attribute orders_dir via monkeypatching load_orders
     # We'll temporarily monkeypatch trader.oms.store.load_orders and save_order to use tmp_path
     # direct import path
-    import baretrader.oms.store as store
+    import trader.oms.store as store
 
     # Backup
     orig_load = store.load_orders

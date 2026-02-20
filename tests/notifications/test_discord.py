@@ -6,8 +6,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
-from baretrader.notifications.channels.discord import DiscordChannel
-from baretrader.notifications.formatters import TradeNotification
+from trader.notifications.channels.discord import DiscordChannel
+from trader.notifications.formatters import TradeNotification
 
 
 def test_discord_channel_requires_url() -> None:

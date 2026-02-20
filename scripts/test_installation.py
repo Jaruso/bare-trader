@@ -27,7 +27,7 @@ def test_path_resolution():
     print("Testing Path Resolution")
     print("=" * 60)
 
-    from baretrader.utils.paths import get_config_dir, get_data_dir, get_log_dir
+    from trader.utils.paths import get_config_dir, get_data_dir, get_log_dir
 
     config_dir = get_config_dir()
     data_dir = get_data_dir()
@@ -68,7 +68,7 @@ def test_config_loading():
     print("=" * 60)
 
     try:
-        from baretrader.utils.config import load_config
+        from trader.utils.config import load_config
         config = load_config()
         print("✓ Config loaded successfully")
         print(f"  Environment: {config.env.value}")
@@ -90,7 +90,7 @@ def test_strategy_loader():
     print("=" * 60)
 
     try:
-        from baretrader.strategies.loader import get_strategies_file, load_strategies
+        from trader.strategies.loader import get_strategies_file, load_strategies
         strategies_file = get_strategies_file()
         print(f"✓ Strategies file: {strategies_file}")
 
@@ -111,7 +111,7 @@ def test_mcp_server_import():
     print("=" * 60)
 
     try:
-        from baretrader.mcp.server import build_server
+        from trader.mcp.server import build_server
         print("✓ MCP server imports successful")
 
         # Try building server (don't actually run it)

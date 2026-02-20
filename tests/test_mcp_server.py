@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 
-from baretrader.mcp.server import (
+from trader.mcp.server import (
     _ALL_TOOLS,
     analyze_performance,
     describe_indicator,
@@ -257,7 +257,7 @@ class TestMCPCLICommand:
     def test_mcp_group_exists(self) -> None:
         from click.testing import CliRunner
 
-        from baretrader.cli.main import cli
+        from trader.cli.main import cli
 
         runner = CliRunner()
         result = runner.invoke(cli, ["mcp", "--help"])
@@ -267,7 +267,7 @@ class TestMCPCLICommand:
     def test_serve_command_help(self) -> None:
         from click.testing import CliRunner
 
-        from baretrader.cli.main import cli
+        from trader.cli.main import cli
 
         runner = CliRunner()
         result = runner.invoke(cli, ["mcp", "serve", "--help"])

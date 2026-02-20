@@ -85,7 +85,7 @@ Add BareTrader to your Claude Desktop or Cursor MCP configuration:
 - **"trader" command not found**: Use the full path to `trader` (run `which trader` and use that path in `command`)
 - **MCP server error**: Check API keys and JSON syntax (no trailing commas)
 - **Test installation**: Run `python3 scripts/test_installation.py` to verify setup
-- **Tool not visible in MCP client**: All 32+ tools are registered in the server. If a tool doesn't appear in your MCP client (e.g., Cursor), it may be filtered by the client. For testing, you can import tools directly: `from baretrader.mcp.server import <tool_name>`. To list all registered tools, run: `python3 -c "from baretrader.mcp.server import mcp; [print(f'{t.name}: {t.description[:60]}...') for t in mcp.list_tools()]"`
+- **Tool not visible in MCP client**: All 32+ tools are registered in the server. If a tool doesn't appear in your MCP client (e.g., Cursor), it may be filtered by the client. For testing, you can import tools directly: `from trader.mcp.server import <tool_name>`. To list all registered tools, run: `python3 -c "from trader.mcp.server import mcp; [print(f'{t.name}: {t.description[:60]}...') for t in mcp.list_tools()]"`
 
 See the Configure MCP Server and Troubleshooting sections above for setup details.
 
@@ -322,7 +322,7 @@ Test your trading strategies against historical data before risking real capital
 
 ### Prepare Historical Data
 
-For CSV-based backtesting, create CSV files with OHLCV data. The default directory is `data/historical/` (relative to project root) or `~/.baretrader/data/historical/` (when installed via pipx). You can override this with the `HISTORICAL_DATA_DIR` environment variable or the `--data-dir` flag.
+For CSV-based backtesting, create CSV files with OHLCV data. The default directory is `data/historical/` (relative to project root) or `~/.trader/data/historical/` (when installed via pipx). You can override this with the `HISTORICAL_DATA_DIR` environment variable or the `--data-dir` flag.
 
 **CSV File Format**:
 - File naming: `{SYMBOL}.csv` (e.g., `AAPL.csv`, `MSFT.csv`)

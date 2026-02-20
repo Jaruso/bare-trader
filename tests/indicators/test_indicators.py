@@ -4,7 +4,7 @@ from datetime import datetime
 
 import pandas as pd
 
-from baretrader.indicators import get_indicator, list_indicators
+from trader.indicators import get_indicator, list_indicators
 
 
 def _sample_data() -> pd.DataFrame:

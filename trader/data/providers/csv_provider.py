@@ -6,8 +6,8 @@ from pathlib import Path
 import pandas as pd
 import pytz
 
-from baretrader.data.providers.base import DataProvider, TimeFrame
-from baretrader.utils.logging import get_logger
+from trader.data.providers.base import DataProvider, TimeFrame
+from trader.utils.logging import get_logger
 
 _EASTERN_TZ = pytz.timezone("US/Eastern")
 
@@ -33,7 +33,7 @@ class CSVDataProvider(DataProvider):
             data_dir: Directory containing CSV files (e.g., "data/historical").
         """
         self.data_dir = Path(data_dir)
-        self.logger = get_logger("baretrader.data.csv")
+        self.logger = get_logger("trader.data.csv")
 
     def get_bars(
         self,

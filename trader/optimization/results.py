@@ -10,7 +10,7 @@ from typing import Any
 
 import pandas as pd
 
-from baretrader.backtest.results import BacktestResult
+from trader.backtest.results import BacktestResult
 
 
 @dataclass

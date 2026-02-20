@@ -5,7 +5,7 @@ from decimal import Decimal
 import pytest
 
 from tests.mocks import MockBroker
-from baretrader.api.broker import OrderSide, OrderStatus, OrderType, Position
+from trader.api.broker import OrderSide, OrderStatus, OrderType, Position
 
 
 @pytest.fixture

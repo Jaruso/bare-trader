@@ -5,8 +5,8 @@ from typing import Any
 
 import requests
 
-from baretrader.notifications.channels.base import NotificationChannel
-from baretrader.notifications.formatters import TradeNotification, format_trade_plain
+from trader.notifications.channels.base import NotificationChannel
+from trader.notifications.formatters import TradeNotification, format_trade_plain
 
 logger = logging.getLogger(__name__)
 

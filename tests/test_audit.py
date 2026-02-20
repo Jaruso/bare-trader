@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from baretrader.audit import get_audit_source, log_action, set_audit_source
+from trader.audit import get_audit_source, log_action, set_audit_source
 
 
 def test_set_and_get_audit_source() -> None:

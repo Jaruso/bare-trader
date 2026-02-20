@@ -4,14 +4,14 @@ from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
 
-from baretrader.api.broker import Broker
-from baretrader.api.broker import OrderSide as BrokerOrderSide
-from baretrader.api.broker import OrderStatus as BrokerOrderStatus
-from baretrader.data.ledger import TradeLedger
-from baretrader.models.order import OrderSide as LocalOrderSide
-from baretrader.models.order import OrderStatus as LocalOrderStatus
-from baretrader.oms.store import load_orders, save_order
-from baretrader.utils.logging import get_logger
+from trader.api.broker import Broker
+from trader.api.broker import OrderSide as BrokerOrderSide
+from trader.api.broker import OrderStatus as BrokerOrderStatus
+from trader.data.ledger import TradeLedger
+from trader.models.order import OrderSide as LocalOrderSide
+from trader.models.order import OrderStatus as LocalOrderStatus
+from trader.oms.store import load_orders, save_order
+from trader.utils.logging import get_logger
 
 
 @dataclass
@@ -46,7 +46,7 @@ class SafetyCheck:
         self.ledger = ledger
         self.limits = limits or SafetyLimits()
         self.orders_dir = orders_dir
-        self.logger = get_logger("baretrader.safety")
+        self.logger = get_logger("trader.safety")
         self._killed = False
 
     def kill(self) -> None:

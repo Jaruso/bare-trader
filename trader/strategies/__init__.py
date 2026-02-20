@@ -1,6 +1,6 @@
 """Trading strategies module."""
 
-from baretrader.strategies.models import (
+from trader.strategies.models import (
     Strategy,
     StrategyPhase,
     StrategyType,
