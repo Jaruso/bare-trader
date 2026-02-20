@@ -24,10 +24,10 @@ dependencies = [
 ]
 
 [project.scripts]
-baretrader = "baretrader.cli.main:cli"
+trader = "baretrader.cli.main:cli"
 
 [tool.poetry]
-packages = [{include = "trader"}]
+packages = [{include = "baretrader"}]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
