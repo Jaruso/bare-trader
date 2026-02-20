@@ -20,9 +20,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [1.0.0] - 2026-02-13
 
 ### Added
-- **Schedule (cron) commands** — `baretrader schedule enable` installs a user crontab job that runs `baretrader run-once` on a schedule (default every 5 minutes; `--every N` for 1–60 minutes). `baretrader schedule disable` removes the job; `baretrader schedule status` shows whether it is enabled and the cron line. Supported on macOS and Linux. No environment variable; the schedule is enabled or disabled by adding/removing the cron job.
-- **Pullback-trailing strategy** — New strategy type `pullback-trailing`: wait for price to pull back X% from the observed high, then buy at market; after entry, exit is managed with a trailing stop. Holistic "buy the dip + trail gains" strategy. CLI: `baretrader strategy add pullback-trailing SYMBOL --qty N --pullback-pct 5 --trailing-pct 5`. MCP: `create_strategy(strategy_type="pullback-trailing", symbol=..., qty=..., pullback_pct=5, trailing_pct=5)`. Engine sets reference price on first run and raises it when price makes new highs; when price drops pullback_pct from reference, places market buy, then runs trailing stop.
-- **Config CLI (CLI-only)** — `baretrader config list`, `baretrader config get KEY`, `baretrader config set KEY VALUE`, `baretrader config keys`. Environment-based config is the default (env vars and `.env`); values can be viewed and set via CLI. Secrets (API keys, webhook URLs) are redacted when listing or getting unless `--show-secrets` / `--show-secret` is used. Optional base URL overrides: `ALPACA_PAPER_BASE_URL`, `ALPACA_PROD_BASE_URL`. No MCP tools for config (by design, to avoid exposing secrets to agents).
+- **Schedule (cron) commands** — `trader schedule enable` installs a user crontab job that runs `trader run-once` on a schedule (default every 5 minutes; `--every N` for 1–60 minutes). `trader schedule disable` removes the job; `trader schedule status` shows whether it is enabled and the cron line. Supported on macOS and Linux. No environment variable; the schedule is enabled or disabled by adding/removing the cron job.
+- **Pullback-trailing strategy** — New strategy type `pullback-trailing`: wait for price to pull back X% from the observed high, then buy at market; after entry, exit is managed with a trailing stop. Holistic "buy the dip + trail gains" strategy. CLI: `trader strategy add pullback-trailing SYMBOL --qty N --pullback-pct 5 --trailing-pct 5`. MCP: `create_strategy(strategy_type="pullback-trailing", symbol=..., qty=..., pullback_pct=5, trailing_pct=5)`. Engine sets reference price on first run and raises it when price makes new highs; when price drops pullback_pct from reference, places market buy, then runs trailing stop.
+- **Config CLI (CLI-only)** — `trader config list`, `trader config get KEY`, `trader config set KEY VALUE`, `trader config keys`. Environment-based config is the default (env vars and `.env`); values can be viewed and set via CLI. Secrets (API keys, webhook URLs) are redacted when listing or getting unless `--show-secrets` / `--show-secret` is used. Optional base URL overrides: `ALPACA_PAPER_BASE_URL`, `ALPACA_PROD_BASE_URL`. No MCP tools for config (by design, to avoid exposing secrets to agents).
 - **Top market movers** — New `get_top_movers()` MCP tool and app function to fetch today's top gainers and losers from Alpaca's screener API. Supports both stocks and crypto markets with configurable limit. Added to `AlpacaBroker` class, exposed via `trader/app/portfolio.py`, and registered as MCP tool. Useful for strategy discovery workflow to identify active trading opportunities.
 - **Autonomous research prompts** — Three new research workflows for systematic market exploration:
   - `research-large-caps.md` — Autonomous research of major large-cap stocks (AAPL, GOOGL, MSFT, NVDA, TSLA, etc.) with systematic strategy testing and documentation
@@ -37,20 +37,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 - **Documentation** — PLAN.md now uses `trader/backtest/` (not `backtesting/`) and actual file names (broker.py, store.py). Removed references to missing `docs/` files (cli-mcp-usage, QUICK_START, INSTALLATION_PATHS, agent-guide); README/CONTRIBUTING/CLAUDE/PLAN updated. MCP tool count corrected from 28 to 32 in README, PLAN, CLAUDE, CHANGELOG.
 - **Lint** — Ruff: ignore E501 (line length); fixed unused vars/imports and undefined `logger` in `trader/app/orders.py`.
-- **Agent guidance (MCP first, CLI for testing)** — Documented in PLAN, CLAUDE.md, CONTRIBUTING, README, and .cursor rules/commands: agents use MCP tools for all operations; run CLI only when testing human-facing output (e.g. `baretrader status` or `baretrader --json <cmd>`). CLI stays human-first with opt-in `--json`.
+- **Agent guidance (MCP first, CLI for testing)** — Documented in PLAN, CLAUDE.md, CONTRIBUTING, README, and .cursor rules/commands: agents use MCP tools for all operations; run CLI only when testing human-facing output (e.g. `trader status` or `trader --json <cmd>`). CLI stays human-first with opt-in `--json`.
 
 ### Fixed
 - **Safety checks** — Pending orders in `orders_dir` (e.g. orders.yaml) are now considered when the broker returns no pending orders (e.g. mock or API failure), so buying power and position-size limits correctly reserve for local pending orders. Fixes `test_pending_buys_reduce_buying_power` and `test_pending_buys_count_toward_position_size`.
 
 ### Added (MCP Phase 4)
 - **MCP contract tests** (`tests/test_mcp_contract.py`) — Validate each MCP tool response: success payloads match expected schema (EngineStatus, IndicatorInfo, etc.) or required keys; error payloads match ErrorResponse shape.
-- **CLI–MCP parity tests** (`tests/test_cli_mcp_parity.py`) — Compare `baretrader <cmd> --json` output with MCP tool JSON for status, indicator list/describe, strategy list, and backtest list; assert same top-level keys and matching values where applicable.
+- **CLI–MCP parity tests** (`tests/test_cli_mcp_parity.py`) — Compare `trader <cmd> --json` output with MCP tool JSON for status, indicator list/describe, strategy list, and backtest list; assert same top-level keys and matching values where applicable.
 
 ## [0.6.0] - 2026-02-11
 
 ### Added
-- **CLI + MCP usage (MCP Phase 4)** — Per-feature mapping of CLI commands to MCP tools (engine, portfolio, orders, strategies, backtest, analysis, indicators, optimization, safety, notifications) via `baretrader --help` and MCP tool list. Documents MCP-only and CLI-only actions.
-- **Notification system (Phase 3 Automation)** — Discord and generic webhook channels for alerts. New module `trader/notifications/` (NotificationManager, DiscordChannel, WebhookChannel, formatters). CLI: `baretrader notify test` and `baretrader notify send "message"`. Config via env (`DISCORD_WEBHOOK_URL`, `CUSTOM_WEBHOOK_URL`, `NOTIFICATIONS_ENABLED`) and optional `config/notifications.yaml` (see `config/notifications.yaml.example`). App layer: `trader/app/notifications.py` for use by engine or MCP later.
+- **CLI + MCP usage (MCP Phase 4)** — Per-feature mapping of CLI commands to MCP tools (engine, portfolio, orders, strategies, backtest, analysis, indicators, optimization, safety, notifications) via `trader --help` and MCP tool list. Documents MCP-only and CLI-only actions.
+- **Notification system (Phase 3 Automation)** — Discord and generic webhook channels for alerts. New module `trader/notifications/` (NotificationManager, DiscordChannel, WebhookChannel, formatters). CLI: `trader notify test` and `trader notify send "message"`. Config via env (`DISCORD_WEBHOOK_URL`, `CUSTOM_WEBHOOK_URL`, `NOTIFICATIONS_ENABLED`) and optional `config/notifications.yaml` (see `config/notifications.yaml.example`). App layer: `trader/app/notifications.py` for use by engine or MCP later.
 - **Central audit log (MCP Phase 3)** — `trader/audit.py` appends structured JSONL to `logs/audit.log` for sensitive actions from both CLI and MCP. Logged actions: `place_order`, `place_order_blocked`, `cancel_order`, `create_strategy`, `remove_strategy`, `run_backtest`, `stop_engine`. Each record includes timestamp (UTC), source (`cli` or `mcp`), action, details, and optional error. Audit source is set via context (CLI sets at startup; MCP sets per tool call).
 - **MCP rate limits and timeouts (Phase 3)** — Long-running MCP tools (`run_backtest`, `run_optimization`) are now subject to configurable rate limits and per-call timeouts. New module `trader/mcp/limits.py`; env vars: `MCP_BACKTEST_TIMEOUT_SECONDS` (default 300), `MCP_OPTIMIZATION_TIMEOUT_SECONDS` (default 600), `MCP_RATE_LIMIT_LONG_RUNNING_PER_MINUTE` (default 10). New error types: `RateLimitError`, `TaskTimeoutError` in `trader/errors.py`. See README Configuration for details.
 
@@ -80,7 +80,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - Indicators: `list_indicators`, `describe_indicator`
   - Optimization: `run_optimization`
   - Safety: `get_safety_status`
-  - `baretrader mcp serve` CLI command to launch the server
+  - `trader mcp serve` CLI command to launch the server
   - 27 tests for server setup, tool registration, tool responses, and CLI integration
 - **Shared error hierarchy** (`trader/errors.py`): `AppError` base with typed subclasses (`ValidationError`, `NotFoundError`, `ConfigurationError`, `BrokerError`, `SafetyError`, `EngineError`) used by both CLI and MCP server
 - **Pydantic v2 schema layer** (`trader/schemas/`): 11 modules defining typed contracts for all API inputs/outputs — portfolio, orders, strategies, backtests, analysis, optimization, indicators, engine status, common types, and error responses
@@ -108,19 +108,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 
 - **Indicators library**: Built-in SMA, EMA, RSI, MACD, ATR, Bollinger Bands, OBV, and VWAP
-  - `baretrader indicator list` and `baretrader indicator describe` CLI commands
+  - `trader indicator list` and `trader indicator describe` CLI commands
   - Optional `pandas-ta` integration with pandas fallback calculations
 - **Trade analysis module**: CLI and analytics for realized trade performance
-  - `baretrader analyze` command with per-symbol stats and open-lot report
+  - `trader analyze` command with per-symbol stats and open-lot report
   - FIFO matching to compute win rate, profit factor, avg win/loss, and hold time
 - **Strategy optimization**: Grid/random parameter search using backtests
-  - `baretrader optimize` command with objectives and sampling
+  - `trader optimize` command with objectives and sampling
   - Optimization result persistence under `data/optimizations/`
   - Objective scoring for return, win rate, profit factor, and drawdown
 - **Backtest visualization**: Interactive Bokeh charts for price/equity curves and trades
-  - `baretrader backtest run --chart/--show` to render charts immediately
-  - `baretrader backtest show --chart/--show` to chart existing results
-  - `baretrader visualize` command for backtest IDs or JSON files
+  - `trader backtest run --chart/--show` to render charts immediately
+  - `trader backtest show --chart/--show` to chart existing results
+  - `trader visualize` command for backtest IDs or JSON files
   - New `trader/visualization/` module with `ChartBuilder`
 - **Data provider abstraction**: Pluggable historical data sources with optional Parquet caching
   - `AlpacaDataProvider` for Alpaca API historical data
@@ -128,10 +128,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - `CachedDataProvider` for Parquet-backed caching with TTL
   - Provider factory (`get_data_provider`) and new data config env vars
 - **Backtesting system**: Complete backtesting framework for testing strategies on historical data
-  - `baretrader backtest run` - Run backtests with CSV historical data
-  - `baretrader backtest list` - List all saved backtest results
-  - `baretrader backtest show` - Display detailed backtest metrics and trade history
-  - `baretrader backtest compare` - Compare multiple backtests side-by-side
+  - `trader backtest run` - Run backtests with CSV historical data
+  - `trader backtest list` - List all saved backtest results
+  - `trader backtest show` - Display detailed backtest metrics and trade history
+  - `trader backtest compare` - Compare multiple backtests side-by-side
 - `trader/backtest/` module with core backtesting infrastructure:
   - `HistoricalBroker` - Simulates order fills based on OHLCV bar data
   - `BacktestEngine` - Sequential bar-by-bar strategy evaluation
@@ -167,8 +167,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- `baretrader portfolio` command: Full portfolio overview showing account summary, positions, and open orders
-- `baretrader orders` command: View open orders with `--all` flag for complete history
+- `trader portfolio` command: Full portfolio overview showing account summary, positions, and open orders
+- `trader orders` command: View open orders with `--all` flag for complete history
 - Enhanced account data: portfolio value, day's P/L, day trade count, PDT status
 - Service-based configuration with hardcoded URLs per broker (Alpaca paper/prod)
 
@@ -177,15 +177,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Simplified configuration: Separate env vars for paper (`ALPACA_API_KEY`) and prod (`ALPACA_PROD_API_KEY`)
 - Replaced `--env paper/prod` with simpler `--prod` flag
 - Production now uses interactive (Y/n) confirmation instead of `--confirm` flag
-- `baretrader balance` now shows full account summary with day's change and unrealized P/L
-- `baretrader status` now displays service name (alpaca)
+- `trader balance` now shows full account summary with day's change and unrealized P/L
+- `trader status` now displays service name (alpaca)
 - Strategy default quantity changed to 1 (was config-based)
 - Strategy entry options simplified: `--limit`/`-L` replaces `--entry-type` and `--entry-price`
 
 ### Removed
 
-- Legacy rules system (`baretrader rules` commands, `trader/rules/` module)
-- `baretrader backtest` command (will be reimplemented for strategies)
+- Legacy rules system (`trader rules` commands, `trader/rules/` module)
+- `trader backtest` command (will be reimplemented for strategies)
 - `--confirm` flag (replaced with interactive confirmation)
 - `TRADER_ENV`, `BROKER`, `BASE_URL`, `ENABLE_PROD` environment variables
 - Separate `.env.paper` and `.env.prod` files (now just `.env`)
