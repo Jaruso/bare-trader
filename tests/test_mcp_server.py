@@ -34,8 +34,8 @@ class TestMCPServerSetup:
     """Test MCP server instantiation and configuration."""
 
     def test_server_name(self) -> None:
-        """Server should be named 'autotrader'."""
-        assert mcp.name == "autotrader"
+        """Server should be named 'trader'."""
+        assert mcp.name == "trader"
 
     def test_all_tools_registered(self) -> None:
         """Every tool in _ALL_TOOLS should be registered."""
@@ -47,7 +47,7 @@ class TestMCPServerSetup:
     def test_tool_count(self) -> None:
         """Should have expected number of MCP tools registered."""
         tools = asyncio.run(mcp.list_tools())
-        assert len(tools) == 32
+        assert len(tools) == 33
 
     def test_all_tools_have_descriptions(self) -> None:
         """Every registered tool should have a non-empty description."""

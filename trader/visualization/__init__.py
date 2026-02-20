@@ -1,4 +1,4 @@
-"""Visualization helpers for AutoTrader."""
+"""Visualization helpers for BareTrader."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from trader.data import TimeFrame
 from trader.utils.logging import get_logger
 from trader.visualization.chart import ChartBuilder
 
-logger = get_logger("autotrader.visualization")
+logger = get_logger("trader.visualization")
 
 
 def default_historical_data_dir() -> Path:

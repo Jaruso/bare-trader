@@ -71,7 +71,7 @@ def send_test_notification(
     manager = get_notification_manager(config_dir=config_dir)
     if not manager.enabled:
         return False
-    msg = "AutoTrader test notification — notifications are working."
+    msg = "BareTrader test notification — notifications are working."
     if channel and channel != "all":
         ch = manager.get_channel(channel)
         channels = [ch] if ch else []

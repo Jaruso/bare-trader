@@ -1,4 +1,4 @@
-"""Shared error types for AutoTrader.
+"""Shared error types for BareTrader.
 
 All application-level errors inherit from AppError. Each error carries:
 - message: Human-readable description

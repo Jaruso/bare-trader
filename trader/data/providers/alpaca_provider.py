@@ -26,7 +26,7 @@ class AlpacaDataProvider(DataProvider):
             raise ValueError("Alpaca API credentials are required for data provider")
         self.client = StockHistoricalDataClient(api_key, secret_key)
         self.feed = feed
-        self.logger = get_logger("autotrader.data.alpaca")
+        self.logger = get_logger("trader.data.alpaca")
 
     def get_bars(
         self,

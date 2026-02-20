@@ -1,4 +1,4 @@
-"""MCP server for AutoTrader.
+"""MCP server for BareTrader.
 
 Uses the official MCP Python SDK (FastMCP) with stdio or HTTP transports.
 Tools delegate to the trader.app service layer and return JSON responses.
@@ -44,7 +44,7 @@ def _err(e: AppError) -> str:
 
 
 def get_status() -> str:
-    """Get current AutoTrader engine status.
+    """Get current BareTrader engine status.
 
     Returns engine running state, environment (paper/prod),
     broker service, API key configuration, active strategy count,
@@ -800,7 +800,7 @@ def build_server(
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO",
 ) -> FastMCP:
     """Create a FastMCP server with configured host/port."""
-    server = FastMCP("autotrader", host=host, port=port, log_level=log_level)
+    server = FastMCP("trader", host=host, port=port, log_level=log_level)
     register_tools(server)
     return server
 

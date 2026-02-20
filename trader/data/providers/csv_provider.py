@@ -33,7 +33,7 @@ class CSVDataProvider(DataProvider):
             data_dir: Directory containing CSV files (e.g., "data/historical").
         """
         self.data_dir = Path(data_dir)
-        self.logger = get_logger("autotrader.data.csv")
+        self.logger = get_logger("trader.data.csv")
 
     def get_bars(
         self,
@@ -66,7 +66,7 @@ class CSVDataProvider(DataProvider):
 
         # Validate directory
         if not self.data_dir.exists():
-            default_dir = Path.home() / ".autotrader" / "data" / "historical"
+            default_dir = Path.home() / ".baretrader" / "data" / "historical"
             suggestion = (
                 f"Set HISTORICAL_DATA_DIR environment variable or create {self.data_dir}. "
                 f"Default location: {default_dir}. "
@@ -112,7 +112,7 @@ class CSVDataProvider(DataProvider):
             ValueError: If CSV format is invalid.
         """
         if not file_path.exists():
-            default_dir = Path.home() / ".autotrader" / "data" / "historical"
+            default_dir = Path.home() / ".baretrader" / "data" / "historical"
             suggestion = (
                 f"Expected format: {self.data_dir}/{{SYMBOL}}.csv. "
                 f"Set HISTORICAL_DATA_DIR environment variable or create CSV files. "

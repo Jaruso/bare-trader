@@ -15,7 +15,7 @@ from trader.schemas.orders import OrderRequest, OrderResponse
 from trader.utils.config import Config
 from trader.utils.logging import get_logger
 
-logger = get_logger("autotrader.app.orders")
+logger = get_logger("trader.app.orders")
 
 
 def place_order(config: Config, request: OrderRequest) -> OrderResponse:
@@ -32,7 +32,7 @@ def place_order(config: Config, request: OrderRequest) -> OrderResponse:
         SafetyError: If order blocked by safety checks.
         BrokerError: If broker call fails.
     """
-    logger = get_logger("autotrader.trades")
+    logger = get_logger("trader.trades")
     broker = get_broker(config)
     symbol = request.symbol.upper()
     is_buy = request.side.lower() == "buy"

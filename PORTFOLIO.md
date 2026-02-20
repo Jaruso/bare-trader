@@ -1,4 +1,4 @@
-# AutoTrader Curated Strategy Portfolio
+# BareTrader Curated Strategy Portfolio
 
 This file contains strategies that have been extensively tested and validated. Only add strategies after thorough backtesting and review.
 

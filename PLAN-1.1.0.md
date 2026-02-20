@@ -196,14 +196,14 @@ def test_optimization_normalizes_param_keys():
 ```markdown
 ## Backtesting with CSV Data
 
-Set `HISTORICAL_DATA_DIR` environment variable or use default `~/.autotrader/data/historical/`.
+Set `HISTORICAL_DATA_DIR` environment variable or use default `~/.baretrader/data/historical/`.
 
 CSV format: `{SYMBOL}.csv` with columns: `date, open, high, low, close, volume`
 Example: `AAPL.csv`, `MSFT.csv`
 
 For testing, create minimal CSV:
 ```bash
-mkdir -p ~/.autotrader/data/historical
+mkdir -p ~/.baretrader/data/historical
 # Add sample CSV files
 ```
 ```
@@ -266,7 +266,7 @@ def test_csv_error_message_helpful():
 
 #### Verification Steps
 1. Check `trader/mcp/server.py` exports all tools in FastMCP `mcp.tool()` calls
-2. Document in README: "For testing, if tool not in client, use `from trader.mcp.server import <tool>`"
+2. Document in README: "For testing, if tool not in client, use `from baretrader.mcp.server import <tool>`"
 3. Add helper script: `scripts/list_mcp_tools.py` to print all registered tools
 
 ### Acceptance Criteria
@@ -278,7 +278,7 @@ def test_csv_error_message_helpful():
 ```python
 # scripts/list_mcp_tools.py
 """List all MCP tools registered in server."""
-from trader.mcp.server import mcp
+from baretrader.mcp.server import mcp
 for tool in mcp.list_tools():
     print(f"{tool.name}: {tool.description[:60]}...")
 ```

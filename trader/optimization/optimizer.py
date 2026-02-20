@@ -40,7 +40,7 @@ class Optimizer:
         self.data_dir = data_dir
         self.initial_capital = Decimal(str(initial_capital))
         self.historical_data = historical_data
-        self.logger = get_logger("autotrader.optimization")
+        self.logger = get_logger("trader.optimization")
 
     def optimize(
         self,

@@ -47,7 +47,7 @@ class HistoricalBroker(Broker):
             initial_cash: Starting capital.
         """
         self.data = historical_data
-        self.logger = get_logger("autotrader.backtest.broker")
+        self.logger = get_logger("trader.backtest.broker")
         self.initial_cash = initial_cash  # Store for metrics calculation
 
         # Current state

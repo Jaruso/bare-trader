@@ -37,7 +37,7 @@ class CachedDataProvider(DataProvider):
         self.provider = provider
         self.cache_dir = Path(cache_dir)
         self.ttl_minutes = ttl_minutes
-        self.logger = get_logger("autotrader.data.cache")
+        self.logger = get_logger("trader.data.cache")
 
     def get_bars(
         self,

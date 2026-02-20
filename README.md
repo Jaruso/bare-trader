@@ -1,6 +1,6 @@
-# 📈 AutoTrader — CLI-Based Automated Trading System
+# 📈 BareTrader — CLI-Based Automated Trading System
 
-AutoTrader is a command-line trading platform for **automated stock trading**. It supports paper trading and live trading modes via Alpaca, with predefined trading strategies that handle complete trade lifecycles from entry to exit. From 1.0.0 the CLI and MCP tool set are treated as stable; breaking changes will be rare and noted in [CHANGELOG](CHANGELOG.md).
+BareTrader is a command-line trading platform for **automated stock trading**. It supports paper trading and live trading modes via Alpaca, with predefined trading strategies that handle complete trade lifecycles from entry to exit. From 1.0.0 the CLI and MCP tool set are treated as stable; breaking changes will be rare and noted in [CHANGELOG](CHANGELOG.md).
 
 ---
 
@@ -17,16 +17,16 @@ AutoTrader is a command-line trading platform for **automated stock trading**. I
 
 ## 🤖 MCP Server Usage
 
-AutoTrader supports both CLI users and AI agents via an MCP-compliant server. **For AI agents**: Use the MCP server for all operations (status, strategies, backtests, etc.); the CLI is for human use. Run CLI only when testing or verifying human-facing output (e.g. `trader status` or `trader --json <cmd>`).
+BareTrader supports both CLI users and AI agents via an MCP-compliant server. **For AI agents**: Use the MCP server for all operations (status, strategies, backtests, etc.); the CLI is for human use. Run CLI only when testing or verifying human-facing output (e.g. `trader status` or `trader --json <cmd>`).
 
 **Quick Start**: Install → Configure → Use. See the Installation and Configure MCP Server sections below.
 
 ### Two-Step Setup
 
-1. **Install**: `brew install autotrader` (or `pipx install -e .`)
+1. **Install**: `brew install baretrader` (or `pipx install -e .`)
 2. **Configure**: Add to Claude Desktop/Cursor MCP config (see below)
 
-That's it! AutoTrader is ready to use with Claude Desktop or Cursor.
+That's it! BareTrader is ready to use with Claude Desktop or Cursor.
 
 ## 📦 Installation
 
@@ -37,7 +37,7 @@ To run from the CLI using an official version you can install with the `brew` pa
 
 Mac:
 ```bash
-brew install autotrader
+brew install baretrader
 ```
 Public installation not currently available with Windows.
 
@@ -54,17 +54,17 @@ And verify:
 trader status
 ```
 
-**Note**: When installed via **pipx** or Homebrew, AutoTrader uses the same behavior: config, data, and logs go to `~/.autotrader/` (macOS) or `~/.config/autotrader/` (Linux). `trader config set` and all path resolution work identically with pipx. See the Installation section for path behavior.
+**Note**: When installed via **pipx** or Homebrew, BareTrader uses the same behavior: config, data, and logs go to `~/.baretrader/` (macOS) or `~/.config/baretrader/` (Linux). `trader config set` and all path resolution work identically with pipx. See the Installation section for path behavior.
 
 ### Configure MCP Server
 
-Add AutoTrader to your Claude Desktop or Cursor MCP configuration:
+Add BareTrader to your Claude Desktop or Cursor MCP configuration:
 
 **Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
 ```json
 {
   "mcpServers": {
-    "AutoTrader": {
+    "BareTrader": {
       "command": "trader",
       "args": ["mcp", "serve"],
       "env": {
@@ -121,7 +121,7 @@ Remote URL-based MCP (`--transport streamable-http` with optional HTTPS) is impl
 
 ## ⚙️ Configuration
 
-Configuration is **environment-based**: the app reads from environment variables and, when present, from a `.env` file (project root, CWD, or `~/.autotrader/.env` when installed). You can view and set values via the CLI; secrets are never shown in full when listing.
+Configuration is **environment-based**: the app reads from environment variables and, when present, from a `.env` file (project root, CWD, or `~/.baretrader/.env` when installed). You can view and set values via the CLI; secrets are never shown in full when listing.
 
 **Set API keys (persisted to `.env`):**
 ```bash
@@ -322,7 +322,7 @@ Test your trading strategies against historical data before risking real capital
 
 ### Prepare Historical Data
 
-For CSV-based backtesting, create CSV files with OHLCV data. The default directory is `data/historical/` (relative to project root) or `~/.autotrader/data/historical/` (when installed via pipx). You can override this with the `HISTORICAL_DATA_DIR` environment variable or the `--data-dir` flag.
+For CSV-based backtesting, create CSV files with OHLCV data. The default directory is `data/historical/` (relative to project root) or `~/.trader/data/historical/` (when installed via pipx). You can override this with the `HISTORICAL_DATA_DIR` environment variable or the `--data-dir` flag.
 
 **CSV File Format**:
 - File naming: `{SYMBOL}.csv` (e.g., `AAPL.csv`, `MSFT.csv`)
@@ -443,7 +443,7 @@ trader visualize data/backtests/abc123.json --show --historical-dir data/histori
 ### Example Output
 
 ```bash
-$ trader backtest show abc123
+$ baretrader backtest show abc123
 
          Backtest Results - abc123
 ┌─────────────────┬────────────────────────┐
@@ -525,7 +525,7 @@ Saved optimization results are stored under `data/optimizations/` by default.
 
 ## 📈 Indicators Library
 
-AutoTrader ships with a lightweight indicators library. If `pandas-ta` is
+BareTrader ships with a lightweight indicators library. If `pandas-ta` is
 installed it will be used; otherwise, built-in pandas-based calculations are used.
 
 ```bash
@@ -564,7 +564,7 @@ trader start
 
 ## 🔒 Safety & Risk Controls
 
-AutoTrader enforces multiple layers of protection:
+BareTrader enforces multiple layers of protection:
 
 * Paper trading by default
 * Production requires `--prod` flag with interactive confirmation

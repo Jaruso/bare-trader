@@ -1,4 +1,4 @@
-"""Configuration management for AutoTrader."""
+"""Configuration management for BareTrader."""
 
 import os
 from dataclasses import dataclass, field
@@ -146,7 +146,7 @@ def load_config(
         project_root / ".env",
         Path.cwd() / ".env",
         config_parent / ".env",
-        Path.home() / ".autotrader" / ".env",
+        Path.home() / ".baretrader" / ".env",
     ]:
         if candidate.is_file():
             load_dotenv(candidate)

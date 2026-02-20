@@ -59,7 +59,7 @@ class StrategyEvaluator:
         """
         self.broker = broker
         self.defaults = defaults
-        self.logger = get_logger("autotrader.strategies")
+        self.logger = get_logger("trader.strategies")
 
     def evaluate(self, strategies: list[Strategy]) -> list[StrategyAction]:
         """Evaluate all strategies and return required actions.

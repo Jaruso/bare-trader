@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Test script to verify AutoTrader installation and path resolution.
+"""Test script to verify BareTrader installation and path resolution.
 
-This script simulates what happens when AutoTrader is installed via Homebrew/pipx
+This script simulates what happens when BareTrader is installed via Homebrew/pipx
 and verifies that:
 1. Path resolution works correctly (uses user directories, not package dirs)
 2. Config/data/log directories are created and writable
@@ -56,7 +56,7 @@ def test_path_resolution():
         print(f"  Project root: {project_root}")
     else:
         print("\n✓ Running in INSTALLED mode")
-        print("  Config: ~/.autotrader/config/ (macOS) or ~/.config/autotrader/ (Linux)")
+        print("  Config: ~/.baretrader/config/ (macOS) or ~/.config/baretrader/ (Linux)")
 
     return True
 
@@ -159,9 +159,9 @@ def test_cli_command():
 def main():
     """Run all tests."""
     print("\n" + "=" * 60)
-    print("AutoTrader Installation Test")
+    print("BareTrader Installation Test")
     print("=" * 60)
-    print("\nThis script verifies that AutoTrader is properly installed")
+    print("\nThis script verifies that BareTrader is properly installed")
     print("and ready to use with Claude Desktop or Cursor.\n")
 
     tests = [
@@ -196,14 +196,14 @@ def main():
 
     print("\n" + "=" * 60)
     if all_passed:
-        print("✓ All tests passed! AutoTrader is ready to use.")
+        print("✓ All tests passed! BareTrader is ready to use.")
         print("\nNext steps:")
-        print("1. Install via: brew install autotrader (or pipx install -e .)")
+        print("1. Install via: brew install baretrader (or pipx install -e .)")
         print("2. Configure Claude Desktop:")
         print('   Add to ~/Library/Application Support/Claude/claude_desktop_config.json:')
         print('   {')
         print('     "mcpServers": {')
-        print('       "AutoTrader": {')
+        print('       "BareTrader": {')
         print('         "command": "trader",')
         print('         "args": ["mcp", "serve"],')
         print('         "env": {')

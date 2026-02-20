@@ -58,7 +58,7 @@ class TradingEngine:
         defaults = strategy_defaults or StrategyDefaults()
         self.strategy_evaluator = StrategyEvaluator(broker, defaults)
 
-        self.logger = get_logger("autotrader.engine")
+        self.logger = get_logger("trader.engine")
         self._running = False
         self._stop_requested = False
         self.orders_dir = orders_dir

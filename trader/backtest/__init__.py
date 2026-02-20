@@ -1,4 +1,4 @@
-"""Backtesting module for AutoTrader.
+"""Backtesting module for BareTrader.
 
 This module provides backtesting capabilities to test trading strategies
 against historical data before risking real capital.

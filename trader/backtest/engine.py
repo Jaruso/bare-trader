@@ -41,7 +41,7 @@ class BacktestEngine:
         self.broker = broker
         self.start_date = start_date
         self.end_date = end_date
-        self.logger = get_logger("autotrader.backtest")
+        self.logger = get_logger("trader.backtest")
 
         # Create strategy from config
         self.strategy = Strategy.from_dict(strategy_config)

@@ -46,7 +46,7 @@ class SafetyCheck:
         self.ledger = ledger
         self.limits = limits or SafetyLimits()
         self.orders_dir = orders_dir
-        self.logger = get_logger("autotrader.safety")
+        self.logger = get_logger("trader.safety")
         self._killed = False
 
     def kill(self) -> None:

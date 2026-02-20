@@ -1,4 +1,4 @@
-"""CLI entry point for AutoTrader.
+"""CLI entry point for BareTrader.
 
 All business logic is delegated to the trader.app service layer.
 This module handles:
@@ -65,13 +65,13 @@ def _get_json_flag(ctx: click.Context) -> bool:
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
 @click.pass_context
 def cli(ctx: click.Context, prod: bool, as_json: bool) -> None:
-    """AutoTrader - CLI-based automated trading system."""
+    """BareTrader - CLI-based automated trading system."""
     import sys
     import traceback
     from datetime import datetime
     from pathlib import Path
 
-    log_file = Path.home() / "autotrader_mcp_debug.log"
+    log_file = Path.home() / "trader_mcp_debug.log"
 
     try:
         with open(log_file, "a") as f:
@@ -117,7 +117,7 @@ def status(ctx: click.Context) -> None:
         if as_json:
             _json_output(result)
         else:
-            table = Table(title="AutoTrader Status")
+            table = Table(title="BareTrader Status")
             table.add_column("Setting", style="cyan")
             table.add_column("Value", style="green")
 
@@ -813,11 +813,11 @@ def schedule_enable(every: int) -> None:
 
 @schedule_group.command("disable")
 def schedule_disable() -> None:
-    """Remove the AutoTrader cron job from your crontab."""
+    """Remove the BareTrader cron job from your crontab."""
     from trader.utils.schedule_cron import disable_schedule, is_schedule_enabled
 
     if not is_schedule_enabled():
-        console.print("[yellow]Schedule was not enabled (no AutoTrader cron job found).[/yellow]")
+        console.print("[yellow]Schedule was not enabled (no BareTrader cron job found).[/yellow]")
         return
     try:
         disable_schedule()
@@ -2893,7 +2893,7 @@ def serve(
     """Start the MCP server (stdio or streamable HTTP).
 
     Launches an MCP-compliant server, allowing AI agents (e.g. Claude Desktop)
-    to interact with AutoTrader via the MCP protocol.
+    to interact with BareTrader via the MCP protocol.
     """
     import asyncio
     import sys
@@ -2902,7 +2902,7 @@ def serve(
     from pathlib import Path
 
     # Write to log file for debugging
-    log_file = Path.home() / "autotrader_mcp_debug.log"
+    log_file = Path.home() / "trader_mcp_debug.log"
 
     def log(msg: str) -> None:
         with open(log_file, "a") as f:

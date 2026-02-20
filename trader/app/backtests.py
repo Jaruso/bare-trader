@@ -94,7 +94,7 @@ def run_backtest(config: Config, request: BacktestRequest) -> BacktestResponse:
             data_dir=data_dir_path,
         )
     except FileNotFoundError as e:
-        default_dir = Path.home() / ".autotrader" / "data" / "historical"
+        default_dir = Path.home() / ".baretrader" / "data" / "historical"
         suggestion = (
             f"CSV file not found: {data_dir_path}/{request.symbol}.csv. "
             f"Set HISTORICAL_DATA_DIR environment variable or create CSV files. "
