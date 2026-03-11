@@ -1,27 +1,75 @@
-# 📈 Kodiak — Automated Trading System (CLI + Server)
+<div align="center">
+
+# Kodiak
+
+### Automated trading platform for human + AI collaboration
+
+Trade lifecycle automation with a human-first CLI and agent-first MCP interface.
+
+![python](https://img.shields.io/badge/python-3.11%2B-blue)
+![license](https://img.shields.io/badge/license-Apache%202.0-green)
+![protocol](https://img.shields.io/badge/protocol-MCP-purple)
+![interfaces](https://img.shields.io/badge/interfaces-CLI%20%2B%20Server-0ea5e9)
+
+</div>
 
 Kodiak is a **Python monorepo** with two products:
-- **Kodiak CLI** (`kodiak`) — Ad-hoc calculations, predefined workloads, and manual trading. Click CLI for humans, stdio MCP for agents.
-- **Kodiak Server** (`kodiak-server`) — Persistent server with REST API, streamable HTTP MCP, web UI, and scheduling. Integrates with Panda (iOS) and Bear Claw (AI agent) for semi-automated financial decision-making.
+- **Kodiak CLI** (`kodiak`) — Ad-hoc calculations, predefined workloads, manual trading, and stdio MCP for local agents.
+- **Kodiak Server** (`kodiak-server`) — Persistent service with REST API, streamable HTTP MCP, web UI, and scheduling for remote integrations.
 
-Both share a common core library (`kodiak-core`). The system supports paper and live trading modes via Alpaca, with predefined trading strategies that handle complete trade lifecycles from entry to exit. From 2.0.0 the architecture is stable; breaking changes will be rare and noted in [CHANGELOG](CHANGELOG.md).
+Both share a common core library (`kodiak-core`). The system supports paper and live trading via Alpaca, with strategy automation that manages the full trade lifecycle from entry to exit. From 2.0.0 onward, architecture and interfaces are stable; breaking changes are rare and clearly noted in [CHANGELOG](CHANGELOG.md).
+
+---
+
+## Table of Contents
+
+- [🚀 Features](#-features)
+- [🤖 Using Kodiak](#-using-kodiak)
+- [📦 Installation](#-installation)
+- [⚙️ Configuration](#️-configuration)
+- [▶️ Usage (CLI)](#️-usage-cli)
+- [📊 Trading Strategies](#-trading-strategies)
+- [🧪 Backtesting](#-backtesting)
+- [🧪 Strategy Optimization](#-strategy-optimization)
+- [📈 Indicators Library](#-indicators-library)
+- [💡 Quick Start](#-quick-start)
+- [🔒 Safety & Risk Controls](#-safety--risk-controls)
+- [🤝 Contributing](#-contributing)
+- [⚠️ Disclaimer](#️-disclaimer)
 
 ---
 
 ## 🚀 Features
 
-* ✅ **Dual interfaces**: CLI for humans, MCP (stdio + HTTP) for agents
-* ✅ **Paper & production environments** with safety controls
-* ✅ **Trading strategies** (trailing stop, bracket, scale-out, grid, pullback-trailing)
-* ✅ **Portfolio tracking & trade ledger**
-* ✅ **Backtesting** with historical data (CSV or Alpaca API)
-* ✅ **Strategy optimization** (grid/random search)
-* ✅ **Technical indicators** (SMA, EMA, RSI, MACD, ATR, Bollinger Bands, etc.)
-* ✅ **Notifications** (Discord webhook, generic webhook)
-* ✅ **REST API** (server only) for integrations
-* ✅ **Scheduling** (cron for CLI, async scheduler for server)
+Kodiak is built around a simple promise: **one trading core, two great interfaces**.
 
-**MCP Tools**: 32 tools across engine, portfolio, orders, strategies, backtests, analysis, indicators, optimization, safety, and scheduling. Available via CLI `kodiak mcp` (stdio) or server HTTP endpoint.
+* ✅ **Human-first CLI + agent-first MCP**: run the same capabilities from terminal commands or MCP tools.
+* ✅ **Strategy lifecycle automation**: define entry + exit behavior once, then let Kodiak manage the full trade lifecycle.
+* ✅ **Research-to-execution workflow**: backtest, optimize, paper trade, then promote to production when validated.
+* ✅ **Operational safety by default**: paper mode default, production confirmation, limits, kill switch, and audit logging.
+* ✅ **Production-ready integration surface**: REST API + streamable HTTP MCP + stdio MCP for local and remote agents.
+
+**MCP coverage:** 32 tools across engine, portfolio, orders, strategies, backtests, analysis, indicators, optimization, safety, and scheduling.
+
+### Feature Deep Dive
+
+- **Dual interfaces, shared business logic**  
+  CLI and MCP call the same app layer and schemas, which keeps behavior consistent across humans and agents.
+
+- **Strategy engine (entry → management → exit)**  
+  Supports `trailing-stop`, `bracket`, `scale-out`, `grid`, and `pullback-trailing` strategies with stateful lifecycle phases.
+
+- **Backtesting + optimization**  
+  Validate strategy behavior on historical data (CSV/Alpaca), then run grid or random search to tune parameters.
+
+- **Portfolio intelligence**  
+  Track balances, positions, orders, and ledger history with both quick summaries and detailed inspection.
+
+- **Risk and control plane**  
+  Built-in safety controls include position and buying-power checks, daily loss protections, rate-limited long-running MCP calls, and audit trails.
+
+- **Notifications + automation**  
+  Send alerts to Discord/webhooks and run via cron (CLI) or async scheduler (server) for continuous operations.
 
 ## 🤖 Using Kodiak
 
@@ -182,7 +230,7 @@ Alerts can be sent to Discord or a custom webhook (e.g. for trade events or manu
 | `CUSTOM_WEBHOOK_URL` | Generic HTTP webhook URL (POST JSON with `message`). |
 | `NOTIFICATIONS_ENABLED` | Set to `false` or `0` to disable all notifications. |
 
-Optional YAML: copy `config/notifications.yaml.example` to `config/notifications.yaml` to configure events and channels. CLI: `trader notify test` (test delivery), `trader notify send "message"` (send manual message).
+Optional YAML: copy `config/notifications.yaml.example` to `config/notifications.yaml` to configure events and channels. CLI: `kodiak notify test` (test delivery), `kodiak notify send "message"` (send manual message).
 
 ---
 
@@ -328,7 +376,7 @@ kodiak strategy explain <type>    # Learn about a strategy type
 ### How Strategies Work
 
 1. **Add a strategy** → It starts in `PENDING` phase
-2. **Start the engine** → `trader start`
+2. **Start the engine** → `kodiak start`
 3. **Entry executes** → Strategy moves to `POSITION_OPEN`
 4. **Exit conditions monitored** → Based on strategy type
 5. **Exit executes** → Strategy moves to `COMPLETED`
@@ -343,7 +391,7 @@ Test your trading strategies against historical data before risking real capital
 
 ### Prepare Historical Data
 
-For CSV-based backtesting, create CSV files with OHLCV data. The default directory is `data/historical/` (relative to project root) or `~/.trader/data/historical/` (when installed via pipx). You can override this with the `HISTORICAL_DATA_DIR` environment variable or the `--data-dir` flag.
+For CSV-based backtesting, create CSV files with OHLCV data. The default directory is `data/historical/` (relative to project root) or `~/.kodiak/data/historical/` (when installed via pipx). You can override this with the `HISTORICAL_DATA_DIR` environment variable or the `--data-dir` flag.
 
 **CSV File Format**:
 - File naming: `{SYMBOL}.csv` (e.g., `AAPL.csv`, `MSFT.csv`)
@@ -464,7 +512,7 @@ kodiak visualize data/backtests/abc123.json --show --historical-dir data/histori
 ### Example Output
 
 ```bash
-$ barekodiak backtest show abc123
+$ kodiak backtest show abc123
 
          Backtest Results - abc123
 ┌─────────────────┬────────────────────────┐
@@ -568,17 +616,17 @@ and a rolling high/low band helper.
 # 1. Configure your Alpaca keys in .env
 
 # 2. Check connection
-trader status
-trader balance
+kodiak status
+kodiak balance
 
 # 3. Add a strategy
 kodiak strategy add trailing-stop AAPL --qty 5 --trailing-pct 5
 
 # 4. Dry run first
-trader start --dry-run --once
+kodiak start --dry-run --once
 
 # 5. When ready, run for real
-trader start
+kodiak start
 ```
 
 ---

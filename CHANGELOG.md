@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.0.1] - 2026-03-11
+
+### Changed
+
+- **README overhaul** — Finalized product-facing documentation refresh with a redesigned hero/header, cleaner platform narrative, and structured Table of Contents. Also corrected stale command/path examples to consistently use `kodiak` and `~/.kodiak`.
+
 ## [2.0.0] - 2026-03-06
 
 ### Added
