@@ -13,6 +13,9 @@ deploy/
 PLAN-TEST*.md
 PLAN*.md
 
+# Deployment symlink
+suite/
+
 # Python
 __pycache__/
 *.py[cod]
