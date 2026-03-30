@@ -161,6 +161,8 @@ Remote agents connect to `http://localhost:8000/mcp/` for MCP.
 
 CLI is also available: `poetry run kodiak status`.
 
+The included homelab Blink deployment publishes Kodiak on `http://192.168.86.53:18000` while keeping the app's internal server port at `8000`. Host port `8000` on that target is reserved for Portainer.
+
 ### Option 3: Development
 
 For contributing to Kodiak:
@@ -180,6 +182,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup.
 - **"kodiak" not found**: Ensure pipx bin is on PATH. Run `pipx ensurepath`.
 - **"command not found" in Claude Desktop**: Use the full path. Run `which kodiak` and use that path in the config.
 - **MCP server error**: Check Alpaca API keys and JSON syntax (no trailing commas).
+- **Homelab Blink deploy fails with "port is already allocated"**: The included Blink manifest publishes Kodiak on `192.168.86.53:18000`. If you still see a bind error, check for another service already using that host port.
 - **Tool not visible**: All 32 tools are registered. If a tool doesn’t appear in your client, it may be filtered. List all tools: `python3 -c "from kodiak.mcp.tools import build_server; [print(t.name) for t in build_server().list_tools()]"`
 
 ## ⚙️ Configuration

@@ -42,6 +42,7 @@ Then you can run `kodiak status` (or `poetry run kodiak status`) and use the sam
 **Server**:
 - With Poetry: `poetry run kodiak-server` (starts on `http://localhost:8000`)
 - Test: `curl http://localhost:8000/api/engine/status`
+- The included homelab Blink deployment publishes Kodiak on `http://192.168.86.53:18000`; the container still listens on `8000` internally because host port `8000` is reserved for Portainer there.
 
 ---
 

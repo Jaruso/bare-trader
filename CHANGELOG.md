@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Changed
+
+- **Homelab Blink publish port** — Split Kodiak's internal container port (`8000`) from its published homelab port (`18000`) in the included Blink manifest, avoiding the host-port collision with Portainer while keeping the server's internal runtime contract unchanged.
+
 ## [2.0.1] - 2026-03-11
 
 ### Changed

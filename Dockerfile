@@ -24,6 +24,6 @@ COPY --from=builder /usr/local/bin/kodiak-server /usr/local/bin/kodiak-server
 # Runtime directories for Kodiak data and config
 RUN mkdir -p /app/config /app/data /app/logs
 
-EXPOSE 8000
+EXPOSE 6704
 
-CMD ["kodiak-server", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["kodiak-server", "--host", "0.0.0.0", "--port", "6704"]
